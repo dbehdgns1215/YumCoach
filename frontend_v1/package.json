@@ -3,8 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "// dev": "vite 였는데 5173 포트가 막혀있어서 어쩔 수 없이 3000으로..",
   "scripts": {
-    "dev": "vite",
+    "dev": "npx vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -18,3 +19,4 @@
     "vite": "^7.2.2"
   }
 }
+
