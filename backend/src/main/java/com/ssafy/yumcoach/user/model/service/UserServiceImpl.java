@@ -1,8 +1,9 @@
-package com.ssafy.yumcoach.service;
+package com.ssafy.yumcoach.user.model.service;
 
-import com.ssafy.yumcoach.domain.User;
-import com.ssafy.yumcoach.domain.UserHealth;
-import com.ssafy.yumcoach.mapper.UserMapper;
+import com.ssafy.yumcoach.user.model.User;
+import com.ssafy.yumcoach.user.model.UserHealth;
+import com.ssafy.yumcoach.user.model.mapper.UserMapper;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

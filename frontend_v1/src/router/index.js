@@ -30,7 +30,28 @@ const router = createRouter({
 })
 
 // 네비게이션 가드
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
+  // 사용자 정보가 없으면 Cookie로 복구 시도
+  if (!authStore.user) {
+    try {
+      const { userApi } = await import('../services/api')
+      const user = await userApi.getMyInfo()
+      authStore.setUser(user)
+    } catch (error) {
+      // Access Token이 만료된 경우 Refresh Token으로 재발급 시도
+      try {
+        const { userApi } = await import('../services/api')
+        await userApi.refreshToken()
+        // 재발급 성공 후 다시 사용자 정보 조회
+        const user = await userApi.getMyInfo()
+        authStore.setUser(user)
+      } catch (refreshError) {
+        // Refresh Token도 만료됨 - 로그인 필요
+        console.log('토큰 갱신 실패:', refreshError.message)
+      }
+    }
+  }
+  
   const isAuthenticated = authStore.isAuthenticated()
   
   // 인증이 필요한 페이지

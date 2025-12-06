@@ -1,4 +1,4 @@
-package com.ssafy.yumcoach.util;
+package com.ssafy.yumcoach.auth.util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

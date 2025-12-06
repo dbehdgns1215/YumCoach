@@ -2,26 +2,28 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.ssafy.yumcoach.mapper.RefreshTokenMapper">
+<mapper namespace="com.ssafy.yumcoach.auth.model.mapper.RefreshTokenMapper">
 
     <!-- Refresh Token 저장 -->
-    <insert id="insertRefreshToken" parameterType="RefreshToken">
+    <insert id="insertRefreshToken" parameterType="RefreshTokenDto">
         INSERT INTO refresh_token (user_id, token, expires_at)
         VALUES (#{userId}, #{token}, #{expiresAt})
     </insert>
     
-    <!-- Token으로 조회 -->
-    <select id="findByToken" resultType="RefreshToken">
+    <!-- Token으로 조회 (만료되지 않은 토큰만) -->
+    <select id="findByToken" resultType="RefreshTokenDto">
         SELECT id, user_id, token, expires_at
         FROM refresh_token
         WHERE token = #{token}
+        AND expires_at > NOW()
     </select>
     
-    <!-- UserId로 조회 -->
-    <select id="findByUserId" resultType="RefreshToken">
+    <!-- UserId로 조회 (만료되지 않은 토큰만) -->
+    <select id="findByUserId" resultType="RefreshTokenDto">
         SELECT id, user_id, token, expires_at
         FROM refresh_token
         WHERE user_id = #{userId}
+        AND expires_at > NOW()
         ORDER BY expires_at DESC
         LIMIT 1
     </select>

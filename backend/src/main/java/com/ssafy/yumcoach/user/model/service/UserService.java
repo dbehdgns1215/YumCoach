@@ -1,7 +1,7 @@
-package com.ssafy.yumcoach.service;
+package com.ssafy.yumcoach.user.model.service;
 
-import com.ssafy.yumcoach.domain.User;
-import com.ssafy.yumcoach.domain.UserHealth;
+import com.ssafy.yumcoach.user.model.User;
+import com.ssafy.yumcoach.user.model.UserHealth;
 
 public interface UserService {
     

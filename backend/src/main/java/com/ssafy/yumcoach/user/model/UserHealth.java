@@ -1,15 +1,19 @@
-package com.ssafy.yumcoach.controller.dto;
+package com.ssafy.yumcoach.user.model;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UpdateHealthRequest {
-    private Integer height;
-    private Integer weight;
+public class UserHealth {
+    private Integer id;
+    private Integer userId;
+    private Integer height; // cm
+    private Integer weight; // kg
     private Boolean diabetes;
     private Boolean highBloodPressure;
     private Boolean hyperlipidemia;

@@ -1,23 +1,23 @@
-package com.ssafy.yumcoach.service;
+package com.ssafy.yumcoach.auth.model.service;
 
-import com.ssafy.yumcoach.domain.RefreshToken;
+import com.ssafy.yumcoach.auth.model.RefreshTokenDto;
 
 public interface RefreshTokenService {
     
     /**
      * Refresh Token 저장
      */
-    void saveRefreshToken(RefreshToken refreshToken);
+    void saveRefreshToken(RefreshTokenDto refreshToken);
     
     /**
      * Token으로 조회
      */
-    RefreshToken findByToken(String token);
+    RefreshTokenDto findByToken(String token);
     
     /**
      * UserId로 조회
      */
-    RefreshToken findByUserId(Integer userId);
+    RefreshTokenDto findByUserId(Integer userId);
     
     /**
      * Token 삭제

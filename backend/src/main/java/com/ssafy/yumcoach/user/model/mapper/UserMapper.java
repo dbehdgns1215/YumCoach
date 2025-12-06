@@ -1,9 +1,10 @@
-package com.ssafy.yumcoach.mapper;
+package com.ssafy.yumcoach.user.model.mapper;
 
-import com.ssafy.yumcoach.domain.User;
-import com.ssafy.yumcoach.domain.UserHealth;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+
+import com.ssafy.yumcoach.user.model.User;
+import com.ssafy.yumcoach.user.model.UserHealth;
 
 @Mapper
 public interface UserMapper {

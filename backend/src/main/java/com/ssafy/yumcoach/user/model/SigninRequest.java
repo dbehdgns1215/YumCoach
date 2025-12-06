@@ -1,4 +1,4 @@
-package com.ssafy.yumcoach.controller.dto;
+package com.ssafy.yumcoach.user.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,8 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SignupRequest {
+public class SigninRequest {
     private String email;
     private String password;
-    private String name;
 }

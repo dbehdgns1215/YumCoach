@@ -1,4 +1,4 @@
-package com.ssafy.yumcoach.controller.dto;
+package com.ssafy.yumcoach.user.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,10 +9,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TokenResponse {
-    private String accessToken;
-    private String refreshToken;
-    private Integer userId;
+public class User {
+    private Integer id;
     private String email;
+    private String password;
     private String name;
 }

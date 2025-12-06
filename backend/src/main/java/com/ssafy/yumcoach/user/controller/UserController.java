@@ -1,12 +1,14 @@
-package com.ssafy.yumcoach.controller;
+package com.ssafy.yumcoach.user.controller;
 
-import com.ssafy.yumcoach.controller.dto.*;
-import com.ssafy.yumcoach.domain.RefreshToken;
-import com.ssafy.yumcoach.domain.User;
-import com.ssafy.yumcoach.domain.UserHealth;
-import com.ssafy.yumcoach.service.RefreshTokenService;
-import com.ssafy.yumcoach.service.UserService;
-import com.ssafy.yumcoach.util.JwtUtil;
+import com.ssafy.yumcoach.user.model.SigninRequest;
+import com.ssafy.yumcoach.user.model.SignupRequest;
+import com.ssafy.yumcoach.user.model.UpdateHealthRequest;
+import com.ssafy.yumcoach.user.model.User;
+import com.ssafy.yumcoach.user.model.UserHealth;
+import com.ssafy.yumcoach.user.model.service.UserService;
+import com.ssafy.yumcoach.auth.model.RefreshTokenDto;
+import com.ssafy.yumcoach.auth.model.service.RefreshTokenService;
+import com.ssafy.yumcoach.auth.util.JwtUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -76,7 +78,7 @@ public class UserController {
             String refreshToken = jwtUtil.createRefreshToken(user.getId());
             
             // Refresh Token DB 저장
-            RefreshToken refreshTokenEntity = RefreshToken.builder()
+            RefreshTokenDto refreshTokenEntity = RefreshTokenDto.builder()
                     .userId(user.getId())
                     .token(refreshToken)
                     .expiresAt(LocalDateTime.now().plus(7, ChronoUnit.DAYS))
@@ -95,7 +97,7 @@ public class UserController {
             Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
             refreshTokenCookie.setHttpOnly(true);  // JavaScript 접근 차단
             refreshTokenCookie.setSecure(false);   // HTTPS only (개발: false, 운영: true)
-            refreshTokenCookie.setPath("/api/user/refresh"); // refresh API에서만 전송
+            refreshTokenCookie.setPath("/"); // 모든 경로에서 접근 가능 (로그아웃 시 삭제 위해)
             refreshTokenCookie.setMaxAge(7 * 24 * 60 * 60); // 7일
             response.addCookie(refreshTokenCookie);
             
@@ -145,7 +147,7 @@ public class UserController {
             // Refresh Token Cookie 삭제
             Cookie refreshTokenCookie = new Cookie("refreshToken", null);
             refreshTokenCookie.setHttpOnly(true);
-            refreshTokenCookie.setPath("/api/user/refresh");
+            refreshTokenCookie.setPath("/");
             refreshTokenCookie.setMaxAge(0);
             response.addCookie(refreshTokenCookie);
             
@@ -184,10 +186,19 @@ public class UserController {
             }
             
             // DB에서 토큰 확인
-            RefreshToken tokenEntity = refreshTokenService.findByToken(refreshToken);
+            RefreshTokenDto tokenEntity = refreshTokenService.findByToken(refreshToken);
             if (tokenEntity == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "유효하지 않은 토큰입니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
+            // 만료 시간 검증
+            if (tokenEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
+                // 만료된 토큰은 DB에서 삭제
+                refreshTokenService.deleteByToken(refreshToken);
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "만료된 토큰입니다. 다시 로그인해주세요.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
@@ -227,6 +238,13 @@ public class UserController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
+            // 토큰 검증 (만료된 경우 ExpiredJwtException 발생)
+            if (!jwtUtil.validateToken(token)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "유효하지 않은 토큰입니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
             int userId = jwtUtil.getUserId(token);
             
             User user = userService.findById(userId);
@@ -238,6 +256,12 @@ public class UserController {
             
             return ResponseEntity.ok(user);
             
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            // 토큰 만료 시 401 반환
+            log.warn("Access token expired");
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "토큰이 만료되었습니다.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         } catch (Exception e) {
             log.error("Get user info error", e);
             Map<String, String> error = new HashMap<>();
@@ -261,6 +285,13 @@ public class UserController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
+            // 토큰 검증
+            if (!jwtUtil.validateToken(token)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "유효하지 않은 토큰입니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
             int userId = jwtUtil.getUserId(token);
             
             UserHealth userHealth = userService.findUserHealthByUserId(userId);
@@ -272,6 +303,11 @@ public class UserController {
             
             return ResponseEntity.ok(userHealth);
             
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            log.warn("Access token expired");
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "토큰이 만료되었습니다.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         } catch (Exception e) {
             log.error("Get user health error", e);
             Map<String, String> error = new HashMap<>();
@@ -297,6 +333,13 @@ public class UserController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
+            // 토큰 검증
+            if (!jwtUtil.validateToken(token)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "유효하지 않은 토큰입니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
             int userId = jwtUtil.getUserId(token);
             
             UserHealth userHealth = UserHealth.builder()
@@ -315,6 +358,11 @@ public class UserController {
             response.put("message", "건강정보가 수정되었습니다.");
             return ResponseEntity.ok(response);
             
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            log.warn("Access token expired");
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "토큰이 만료되었습니다.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         } catch (Exception e) {
             log.error("Update user health error", e);
             Map<String, String> error = new HashMap<>();

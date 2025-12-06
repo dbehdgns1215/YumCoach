@@ -1,20 +1,21 @@
-package com.ssafy.yumcoach.mapper;
+package com.ssafy.yumcoach.auth.model.mapper;
 
-import com.ssafy.yumcoach.domain.RefreshToken;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+
+import com.ssafy.yumcoach.auth.model.RefreshTokenDto;
 
 @Mapper
 public interface RefreshTokenMapper {
     
     // Refresh Token 저장
-    void insertRefreshToken(RefreshToken refreshToken);
+    void insertRefreshToken(RefreshTokenDto refreshToken);
     
     // Token으로 조회
-    RefreshToken findByToken(@Param("token") String token);
+    RefreshTokenDto findByToken(@Param("token") String token);
     
     // UserId로 조회
-    RefreshToken findByUserId(@Param("userId") Integer userId);
+    RefreshTokenDto findByUserId(@Param("userId") Integer userId);
     
     // Token 삭제
     void deleteByToken(@Param("token") String token);

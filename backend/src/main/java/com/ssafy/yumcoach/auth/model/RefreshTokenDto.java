@@ -1,4 +1,4 @@
-package com.ssafy.yumcoach.domain;
+package com.ssafy.yumcoach.auth.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RefreshToken {
+public class RefreshTokenDto {
     private Integer id;
     private Integer userId;
     private String token;

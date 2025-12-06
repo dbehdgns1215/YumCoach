@@ -1,7 +1,8 @@
-package com.ssafy.yumcoach.service;
+package com.ssafy.yumcoach.auth.model.service;
 
-import com.ssafy.yumcoach.domain.RefreshToken;
-import com.ssafy.yumcoach.mapper.RefreshTokenMapper;
+import com.ssafy.yumcoach.auth.model.RefreshTokenDto;
+import com.ssafy.yumcoach.auth.model.mapper.RefreshTokenMapper;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     
     @Override
     @Transactional
-    public void saveRefreshToken(RefreshToken refreshToken) {
+    public void saveRefreshToken(RefreshTokenDto refreshToken) {
         // 기존 토큰 삭제
         deleteByUserId(refreshToken.getUserId());
         
@@ -26,12 +27,12 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     }
     
     @Override
-    public RefreshToken findByToken(String token) {
+    public RefreshTokenDto findByToken(String token) {
         return refreshTokenMapper.findByToken(token);
     }
     
     @Override
-    public RefreshToken findByUserId(Integer userId) {
+    public RefreshTokenDto findByUserId(Integer userId) {
         return refreshTokenMapper.findByUserId(userId);
     }
     

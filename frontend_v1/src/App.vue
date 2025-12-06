@@ -15,19 +15,6 @@ const navLinks = [
   { name: '커뮤니티', path: '/community' },
 ]
 
-// 페이지 로드 시 사용자 정보 복구 (Cookie가 있으면 자동 로그인)
-onMounted(async () => {
-  if (!authStore.user) {
-    try {
-      const user = await userApi.getMyInfo()
-      authStore.setUser(user)
-    } catch (error) {
-      // Cookie가 없거나 만료됨 - 로그인 필요
-      console.log('로그인이 필요합니다.')
-    }
-  }
-})
-
 const handleLogout = async () => {
   try {
     await userApi.signout()
@@ -73,7 +60,7 @@ const handleLogout = async () => {
 
 <style scoped>
 .user-name {
-  color: #2c3e50;
+  color: #ffffff !important;
   font-weight: 500;
   margin-right: 1rem;
 }

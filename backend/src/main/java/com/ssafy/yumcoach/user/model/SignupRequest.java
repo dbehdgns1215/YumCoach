@@ -1,16 +1,13 @@
-package com.ssafy.yumcoach.domain;
+package com.ssafy.yumcoach.user.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
-    private Integer id;
+public class SignupRequest {
     private String email;
     private String password;
     private String name;

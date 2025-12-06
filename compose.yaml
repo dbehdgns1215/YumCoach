@@ -67,23 +67,22 @@ services:
     ports:
       - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     depends_on:
-      backend:
-        condition: service_completed_successfully
+      - backend
     networks:
       - app-network
     environment:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL}
     volumes:
-      - node_modules:/app/node_modules
-
+      - ./frontend_v1:/app          # 전체 폴더 마운트
+      - /app/node_modules           # Anonymous Volume
+    command: npm run dev
 
 volumes:
   mysql-data:
     driver: local
   maven-cache:
     driver: local
-  node_modules:
-    driver: local
+
 networks:
   app-network:
     driver: bridge
