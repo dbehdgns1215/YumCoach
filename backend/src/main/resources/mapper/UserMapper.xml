@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yumcoach.mapper.UserMapper">
+
+    <!-- 회원가입 -->
+    <insert id="insertUser" parameterType="User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user (email, password, name)
+        VALUES (#{email}, #{password}, #{name})
+    </insert>
+    
+    <!-- 유저 건강정보 초기화 -->
+    <insert id="insertUserHealth" parameterType="int">
+        INSERT INTO user_health (user_id, height, weight, diabetes, high_blood_pressure, hyperlipidemia, kidney_disease)
+        VALUES (#{userId}, 0, 0, false, false, false, false)
+    </insert>
+    
+    <!-- 로그인용 - 이메일과 비밀번호로 유저 조회 -->
+    <select id="findByEmailAndPassword" resultType="User">
+        SELECT id, email, password, name
+        FROM user
+        WHERE email = #{email} AND password = #{password}
+    </select>
+    
+    <!-- 이메일로 유저 조회 -->
+    <select id="findByEmail" resultType="User">
+        SELECT id, email, password, name
+        FROM user
+        WHERE email = #{email}
+    </select>
+    
+    <!-- ID로 유저 조회 -->
+    <select id="findById" resultType="User">
+        SELECT id, email, password, name
+        FROM user
+        WHERE id = #{id}
+    </select>
+    
+    <!-- 유저 건강정보 조회 -->
+    <select id="findUserHealthByUserId" resultType="UserHealth">
+        SELECT id, user_id, height, weight, diabetes, high_blood_pressure, hyperlipidemia, kidney_disease
+        FROM user_health
+        WHERE user_id = #{userId}
+    </select>
+    
+    <!-- 유저 건강정보 수정 -->
+    <update id="updateUserHealth" parameterType="UserHealth">
+        UPDATE user_health
+        SET height = #{height},
+            weight = #{weight},
+            diabetes = #{diabetes},
+            high_blood_pressure = #{highBloodPressure},
+            hyperlipidemia = #{hyperlipidemia},
+            kidney_disease = #{kidneyDisease}
+        WHERE user_id = #{userId}
+    </update>
+
+</mapper>

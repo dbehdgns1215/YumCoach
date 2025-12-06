@@ -36,9 +36,15 @@ services:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=utf8mb4
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      BACKEND_PORT: ${BACKEND_PORT}
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
+      JWT_ACCESS_TOKEN_VALIDITY: ${JWT_ACCESS_TOKEN_VALIDITY}
+      JWT_REFRESH_TOKEN_VALIDITY: ${JWT_REFRESH_TOKEN_VALIDITY}
     volumes:
       - maven-cache:/maven-cache
       - /app/node_modules
