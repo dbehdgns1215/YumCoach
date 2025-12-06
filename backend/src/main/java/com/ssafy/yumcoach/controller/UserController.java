@@ -7,6 +7,9 @@ import com.ssafy.yumcoach.domain.UserHealth;
 import com.ssafy.yumcoach.service.RefreshTokenService;
 import com.ssafy.yumcoach.service.UserService;
 import com.ssafy.yumcoach.util.JwtUtil;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -60,9 +63,11 @@ public class UserController {
     
     /**
      * 로그인
+     * Access Token: HttpOnly Cookie (JavaScript 접근 불가 - XSS 방어)
+     * Refresh Token: HttpOnly Cookie (JavaScript 접근 불가 - XSS 방어)
      */
     @PostMapping("/signin")
-    public ResponseEntity<?> signin(@RequestBody SigninRequest request) {
+    public ResponseEntity<?> signin(@RequestBody SigninRequest request, HttpServletResponse response) {
         try {
             User user = userService.signin(request.getEmail(), request.getPassword());
             
@@ -78,16 +83,30 @@ public class UserController {
                     .build();
             refreshTokenService.saveRefreshToken(refreshTokenEntity);
             
-            // 응답
-            TokenResponse response = TokenResponse.builder()
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
-                    .userId(user.getId())
-                    .email(user.getEmail())
-                    .name(user.getName())
-                    .build();
+            // Access Token을 HttpOnly Cookie로 설정 (XSS 방어)
+            Cookie accessTokenCookie = new Cookie("accessToken", accessToken);
+            accessTokenCookie.setHttpOnly(true);  // JavaScript 접근 차단
+            accessTokenCookie.setSecure(false);   // HTTPS only (개발: false, 운영: true)
+            accessTokenCookie.setPath("/");
+            accessTokenCookie.setMaxAge(60 * 60); // 1시간
+            response.addCookie(accessTokenCookie);
             
-            return ResponseEntity.ok(response);
+            // Refresh Token을 HttpOnly Cookie로 설정 (XSS 방어)
+            Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
+            refreshTokenCookie.setHttpOnly(true);  // JavaScript 접근 차단
+            refreshTokenCookie.setSecure(false);   // HTTPS only (개발: false, 운영: true)
+            refreshTokenCookie.setPath("/api/user/refresh"); // refresh API에서만 전송
+            refreshTokenCookie.setMaxAge(7 * 24 * 60 * 60); // 7일
+            response.addCookie(refreshTokenCookie);
+            
+            // 응답 (사용자 정보만 반환, 토큰은 쿠키에)
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("userId", user.getId());
+            responseData.put("email", user.getEmail());
+            responseData.put("name", user.getName());
+            responseData.put("message", "로그인 성공");
+            
+            return ResponseEntity.ok(responseData);
             
         } catch (IllegalArgumentException e) {
             Map<String, String> error = new HashMap<>();
@@ -103,19 +122,36 @@ public class UserController {
     
     /**
      * 로그아웃
+     * Cookie 삭제 + DB에서 Refresh Token 삭제
      */
     @PostMapping("/signout")
-    public ResponseEntity<?> signout(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> signout(HttpServletRequest request, HttpServletResponse response) {
         try {
-            String token = authHeader.replace("Bearer ", "");
-            int userId = jwtUtil.getUserId(token);
+            // Cookie에서 Access Token 가져오기
+            String token = getTokenFromCookie(request, "accessToken");
+            if (token != null) {
+                int userId = jwtUtil.getUserId(token);
+                // DB에서 Refresh Token 삭제
+                refreshTokenService.deleteByUserId(userId);
+            }
             
-            // Refresh Token 삭제
-            refreshTokenService.deleteByUserId(userId);
+            // Access Token Cookie 삭제
+            Cookie accessTokenCookie = new Cookie("accessToken", null);
+            accessTokenCookie.setHttpOnly(true);
+            accessTokenCookie.setPath("/");
+            accessTokenCookie.setMaxAge(0);
+            response.addCookie(accessTokenCookie);
             
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "로그아웃 되었습니다.");
-            return ResponseEntity.ok(response);
+            // Refresh Token Cookie 삭제
+            Cookie refreshTokenCookie = new Cookie("refreshToken", null);
+            refreshTokenCookie.setHttpOnly(true);
+            refreshTokenCookie.setPath("/api/user/refresh");
+            refreshTokenCookie.setMaxAge(0);
+            response.addCookie(refreshTokenCookie);
+            
+            Map<String, String> responseData = new HashMap<>();
+            responseData.put("message", "로그아웃 되었습니다.");
+            return ResponseEntity.ok(responseData);
             
         } catch (Exception e) {
             log.error("Signout error", e);
@@ -127,11 +163,18 @@ public class UserController {
     
     /**
      * 토큰 갱신
+     * Cookie에서 Refresh Token을 읽어 새 Access Token 발급
      */
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response) {
         try {
-            String refreshToken = request.get("refreshToken");
+            // Cookie에서 Refresh Token 가져오기
+            String refreshToken = getTokenFromCookie(request, "refreshToken");
+            if (refreshToken == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Refresh Token이 없습니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
             
             // Refresh Token 검증
             if (!jwtUtil.validateToken(refreshToken)) {
@@ -148,12 +191,18 @@ public class UserController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
-            // 새 Access Token 발급
+            // 새 Access Token 발급 및 Cookie 설정
             String newAccessToken = jwtUtil.createAccessToken(tokenEntity.getUserId());
+            Cookie accessTokenCookie = new Cookie("accessToken", newAccessToken);
+            accessTokenCookie.setHttpOnly(true);
+            accessTokenCookie.setSecure(false);
+            accessTokenCookie.setPath("/");
+            accessTokenCookie.setMaxAge(60 * 60); // 1시간
+            response.addCookie(accessTokenCookie);
             
-            Map<String, String> response = new HashMap<>();
-            response.put("accessToken", newAccessToken);
-            return ResponseEntity.ok(response);
+            Map<String, String> responseData = new HashMap<>();
+            responseData.put("message", "토큰 갱신 성공");
+            return ResponseEntity.ok(responseData);
             
         } catch (Exception e) {
             log.error("Token refresh error", e);
@@ -165,11 +214,19 @@ public class UserController {
     
     /**
      * 내 정보 조회
+     * Cookie에서 Access Token을 읽어 사용자 인증
      */
     @GetMapping("/me")
-    public ResponseEntity<?> getMyInfo(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getMyInfo(HttpServletRequest request) {
         try {
-            String token = authHeader.replace("Bearer ", "");
+            // Cookie에서 Access Token 가져오기
+            String token = getTokenFromCookie(request, "accessToken");
+            if (token == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "인증이 필요합니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
             int userId = jwtUtil.getUserId(token);
             
             User user = userService.findById(userId);
@@ -191,11 +248,19 @@ public class UserController {
     
     /**
      * 건강정보 조회
+     * Cookie에서 Access Token을 읽어 사용자 인증
      */
     @GetMapping("/health")
-    public ResponseEntity<?> getUserHealth(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getUserHealth(HttpServletRequest request) {
         try {
-            String token = authHeader.replace("Bearer ", "");
+            // Cookie에서 Access Token 가져오기
+            String token = getTokenFromCookie(request, "accessToken");
+            if (token == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "인증이 필요합니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
             int userId = jwtUtil.getUserId(token);
             
             UserHealth userHealth = userService.findUserHealthByUserId(userId);
@@ -217,23 +282,31 @@ public class UserController {
     
     /**
      * 건강정보 수정
+     * Cookie에서 Access Token을 읽어 사용자 인증
      */
     @PutMapping("/health")
     public ResponseEntity<?> updateUserHealth(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody UpdateHealthRequest request) {
+            HttpServletRequest request,
+            @RequestBody UpdateHealthRequest healthRequest) {
         try {
-            String token = authHeader.replace("Bearer ", "");
+            // Cookie에서 Access Token 가져오기
+            String token = getTokenFromCookie(request, "accessToken");
+            if (token == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "인증이 필요합니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
             int userId = jwtUtil.getUserId(token);
             
             UserHealth userHealth = UserHealth.builder()
                     .userId(userId)
-                    .height(request.getHeight())
-                    .weight(request.getWeight())
-                    .diabetes(request.getDiabetes())
-                    .highBloodPressure(request.getHighBloodPressure())
-                    .hyperlipidemia(request.getHyperlipidemia())
-                    .kidneyDisease(request.getKidneyDisease())
+                    .height(healthRequest.getHeight())
+                    .weight(healthRequest.getWeight())
+                    .diabetes(healthRequest.getDiabetes())
+                    .highBloodPressure(healthRequest.getHighBloodPressure())
+                    .hyperlipidemia(healthRequest.getHyperlipidemia())
+                    .kidneyDisease(healthRequest.getKidneyDisease())
                     .build();
             
             userService.updateUserHealth(userHealth);
@@ -248,5 +321,19 @@ public class UserController {
             error.put("error", "건강정보 수정 중 오류가 발생했습니다.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
+    }
+    
+    /**
+     * Cookie에서 토큰 추출 헬퍼 메소드
+     */
+    private String getTokenFromCookie(HttpServletRequest request, String cookieName) {
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if (cookieName.equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
     }
 }

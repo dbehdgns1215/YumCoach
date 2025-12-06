@@ -48,10 +48,8 @@ const handleLogin = async () => {
   try {
     const response = await userApi.signin(formData.value);
     
-    // 토큰 저장
-    authStore.setTokens(response.accessToken, response.refreshToken);
-    
-    // 사용자 정보 저장
+    // Cookie로 토큰이 자동 저장되므로 setTokens() 호출 불필요
+    // 사용자 정보만 저장
     authStore.setUser({
       id: response.userId,
       email: response.email,

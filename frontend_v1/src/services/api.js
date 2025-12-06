@@ -9,19 +9,15 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    const token = localStorage.getItem('accessToken');
 
     const config = {
       ...options,
+      credentials: 'include', // Cookie 자동 전송 (중요!)
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
     };
-
-    if (token && !options.skipAuth) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
 
     try {
       const response = await fetch(url, config);
@@ -68,24 +64,24 @@ const api = new ApiService(API_BASE_URL);
 // User API
 export const userApi = {
   // 회원가입
-  signup: (data) => api.post('/user/signup', data, { skipAuth: true }),
+  signup: (data) => api.post('/user/signup', data),
   
-  // 로그인
-  signin: (data) => api.post('/user/signin', data, { skipAuth: true }),
+  // 로그인 (Cookie로 토큰 수신)
+  signin: (data) => api.post('/user/signin', data),
   
-  // 로그아웃
+  // 로그아웃 (Cookie 삭제)
   signout: () => api.post('/user/signout'),
   
-  // 토큰 갱신
-  refreshToken: (refreshToken) => api.post('/user/refresh', { refreshToken }, { skipAuth: true }),
+  // 토큰 갱신 (Cookie에서 자동으로 Refresh Token 전송)
+  refreshToken: () => api.post('/user/refresh'),
   
-  // 내 정보 조회
+  // 내 정보 조회 (Cookie에서 자동으로 Access Token 전송)
   getMyInfo: () => api.get('/user/me'),
   
-  // 건강정보 조회
+  // 건강정보 조회 (Cookie에서 자동으로 Access Token 전송)
   getUserHealth: () => api.get('/user/health'),
   
-  // 건강정보 수정
+  // 건강정보 수정 (Cookie에서 자동으로 Access Token 전송)
   updateUserHealth: (data) => api.put('/user/health', data),
 };
 

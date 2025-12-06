@@ -6,21 +6,21 @@
 
     <!-- Refresh Token 저장 -->
     <insert id="insertRefreshToken" parameterType="RefreshToken">
-        INSERT INTO jwt_refresh (user_id, token, expires_at)
+        INSERT INTO refresh_token (user_id, token, expires_at)
         VALUES (#{userId}, #{token}, #{expiresAt})
     </insert>
     
     <!-- Token으로 조회 -->
     <select id="findByToken" resultType="RefreshToken">
         SELECT id, user_id, token, expires_at
-        FROM jwt_refresh
+        FROM refresh_token
         WHERE token = #{token}
     </select>
     
     <!-- UserId로 조회 -->
     <select id="findByUserId" resultType="RefreshToken">
         SELECT id, user_id, token, expires_at
-        FROM jwt_refresh
+        FROM refresh_token
         WHERE user_id = #{userId}
         ORDER BY expires_at DESC
         LIMIT 1
@@ -28,13 +28,13 @@
     
     <!-- Token 삭제 -->
     <delete id="deleteByToken">
-        DELETE FROM jwt_refresh
+        DELETE FROM refresh_token
         WHERE token = #{token}
     </delete>
     
     <!-- UserId로 삭제 -->
     <delete id="deleteByUserId">
-        DELETE FROM jwt_refresh
+        DELETE FROM refresh_token
         WHERE user_id = #{userId}
     </delete>
 

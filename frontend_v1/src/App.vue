@@ -1,7 +1,12 @@
 <script setup>
-import { useRoute } from 'vue-router'
+import { onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { authStore } from './services/store'
+import { userApi } from './services/api'
 
 const route = useRoute()
+const router = useRouter()
+
 const navLinks = [
   { name: '홈', path: '/' },
   { name: '식단', path: '/diet-record' },
@@ -9,6 +14,30 @@ const navLinks = [
   { name: '건강 정보', path: '/health-info' },
   { name: '커뮤니티', path: '/community' },
 ]
+
+// 페이지 로드 시 사용자 정보 복구 (Cookie가 있으면 자동 로그인)
+onMounted(async () => {
+  if (!authStore.user) {
+    try {
+      const user = await userApi.getMyInfo()
+      authStore.setUser(user)
+    } catch (error) {
+      // Cookie가 없거나 만료됨 - 로그인 필요
+      console.log('로그인이 필요합니다.')
+    }
+  }
+})
+
+const handleLogout = async () => {
+  try {
+    await userApi.signout()
+  } catch (error) {
+    console.error('로그아웃 오류:', error)
+  } finally {
+    authStore.clearAuth()
+    router.push('/login')
+  }
+}
 </script>
 
 <template>
@@ -26,8 +55,14 @@ const navLinks = [
         </router-link>
       </nav>
       <div class="header-actions">
-        <router-link to="/login" class="ghost-button">로그인</router-link>
-        <button class="primary-button">로그아웃</button>
+        <template v-if="authStore.isAuthenticated()">
+          <span class="user-name">{{ authStore.user?.name || '사용자' }}님</span>
+          <button class="ghost-button" @click="handleLogout">로그아웃</button>
+        </template>
+        <template v-else>
+          <router-link to="/login" class="ghost-button">로그인</router-link>
+          <router-link to="/signup" class="primary-button">회원가입</router-link>
+        </template>
       </div>
     </header>
     <main>
@@ -35,3 +70,11 @@ const navLinks = [
     </main>
   </div>
 </template>
+
+<style scoped>
+.user-name {
+  color: #2c3e50;
+  font-weight: 500;
+  margin-right: 1rem;
+}
+</style>
