@@ -29,7 +29,7 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
 # 포트 노출
-EXPOSE 8080
+EXPOSE ${SERVER_PORT}
 
 # 헬스체크를 위한 curl 설치
 RUN apk add --no-cache curl

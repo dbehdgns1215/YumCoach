@@ -1,5 +1,5 @@
-// API Base URL
-const API_BASE_URL = 'http://localhost:8080/api';
+// API Base URL - 환경변수 사용
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8282/api';
 
 // axios 대신 fetch 사용
 class ApiService {

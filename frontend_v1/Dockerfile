@@ -12,9 +12,9 @@ RUN npm ci
 COPY . .
 
 ENV HOST=0.0.0.0
-ENV PORT=3000
+ENV PORT=${VITE_PORT}
 
-EXPOSE 3000
+EXPOSE ${VITE_PORT}
 
 # 개발 서버 실행 (hot-reload)
 CMD ["npm", "run", "dev"]
