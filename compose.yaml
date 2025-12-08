@@ -11,7 +11,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "${MYSQL_PORT_LOCAL}:3306"
+      - "${MYSQL_PORT_EC2}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./init-db:/docker-entrypoint-initdb.d
@@ -48,13 +48,13 @@ services:
       JWT_REFRESH_TOKEN_VALIDITY: ${JWT_REFRESH_TOKEN_VALIDITY}
     volumes:
       - maven-cache:/maven-cache
-    depends_on:
-      mysql:
-        condition: service_healthy
+    # depends_on:
+      # mysql:
+      #   condition: service_healthy
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "${API_BASE_URL_DOCKER}/actuator/health"]
+      test: ["CMD", "curl", "-f", "localhost:8282/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
