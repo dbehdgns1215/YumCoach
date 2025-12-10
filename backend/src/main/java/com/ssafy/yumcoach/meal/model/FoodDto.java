@@ -12,8 +12,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @RequiredArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
 public class FoodDto {
 	// SQL DB에서 받아오는 meal id별 정보 디테일
 	private @NonNull String foodCode;
