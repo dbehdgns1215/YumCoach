@@ -15,10 +15,10 @@ import lombok.NoArgsConstructor;
 public class MealItemDto implements Serializable {
 
     // meal.id (PK)
-    private Integer id;
+    private Long id;
 
     // meal.history_id (FK -> meal_history.id)
-    private Integer historyId;
+    private Long historyId;
 
     // meal.meal_code
     private String mealCode;
