@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { communityApi } from '../services/api'
+import { authStore } from '../services/store'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,6 +11,11 @@ const postId = Number(route.params.id)
 const post = ref(null)
 const loading = ref(false)
 const errorMessage = ref('')
+
+// 현재 로그인한 사용자가 작성자인지 확인
+const isAuthor = computed(() => {
+  return post.value && authStore.user && post.value.userId === authStore.user.id
+})
 
 const likeCount = ref(0)
 const commentDraft = ref('')
@@ -71,6 +77,26 @@ const deleteComment = async (commentId) => {
   }
 }
 
+
+// 게시글 삭제
+const deletePost = async () => {
+  if (!confirm('게시글을 삭제하시겠습니까?')) return
+  
+  try {
+    await communityApi.deletePost(postId)
+    alert('게시글이 삭제되었습니다.')
+    router.push({ name: 'Community' })
+  } catch (error) {
+    console.error('게시글 삭제 오류:', error)
+    alert('게시글 삭제 중 오류가 발생했습니다.')
+  }
+}
+
+// 게시글 수정 페이지로 이동
+const editPost = () => {
+  router.push({ name: 'CommunityEdit', params: { id: postId } })
+}
+
 const reportPost = () => {
   alert('신고 접수가 완료되었습니다. 운영자가 확인합니다.')
 }
@@ -101,6 +127,8 @@ onMounted(async () => {
             <p class="muted">{{ post.userName }} · {{ new Date(post.createdAt).toLocaleDateString() }}</p>
           </div>
           <div class="post-actions">
+            <button v-if="isAuthor" type="button" class="ghost-button" @click="editPost">수정</button>
+            <button v-if="isAuthor" type="button" class="ghost-button" @click="deletePost">삭제</button>
             <button type="button" class="ghost-button" @click="reportPost">신고</button>
           </div>
         </header>
@@ -116,6 +144,7 @@ onMounted(async () => {
                 <span class="muted"> · {{ new Date(comment.createdAt).toLocaleDateString() }}</span>
               </div>
               <button 
+                v-if="authStore.user && comment.userId === authStore.user.id"
                 type="button" 
                 class="ghost-button" 
                 style="padding: 4px 8px; font-size: 12px;"

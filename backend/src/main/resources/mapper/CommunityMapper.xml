@@ -81,6 +81,7 @@
         SET 
             title = #{title},
             content = #{content},
+            category = #{category},
             updated_at = NOW()
         WHERE id = #{id}
     </update>
