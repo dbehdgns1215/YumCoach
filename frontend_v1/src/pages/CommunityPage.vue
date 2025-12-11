@@ -73,7 +73,7 @@ onMounted(() => {
           <span><span class="category-badge">{{ post.category || '경험' }}</span></span>
           <span>{{ post.title }}</span>
           <span>{{ post.userName }}</span>
-          <span>{{ new Date(post.createdAt).toLocaleDateString() }}</span>
+          <span>{{ new Date(post.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\. (\d{2}:)/, ' $1') }}</span>
         </div>
       </div>
       <div v-if="totalPages > 1" class="community-board__pagination">

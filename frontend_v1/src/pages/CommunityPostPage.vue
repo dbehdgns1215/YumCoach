@@ -124,7 +124,7 @@ onMounted(async () => {
               <span class="category-badge">{{ post.category || '경험' }}</span>
               <h2 style="margin: 0;">{{ post.title }}</h2>
             </div>
-            <p class="muted">{{ post.userName }} · {{ new Date(post.createdAt).toLocaleDateString() }}</p>
+            <p class="muted">{{ post.userName }} · {{ new Date(post.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\. (\d{2}:)/, ' $1') }}</p>
           </div>
           <div class="post-actions">
             <button v-if="isAuthor" type="button" class="ghost-button" @click="editPost">수정</button>
@@ -141,7 +141,7 @@ onMounted(async () => {
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <strong>{{ comment.userName }}</strong>
-                <span class="muted"> · {{ new Date(comment.createdAt).toLocaleDateString() }}</span>
+                <span class="muted"> · {{ new Date(comment.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\. (\d{2}:)/, ' $1') }}</span>
               </div>
               <button 
                 v-if="authStore.user && comment.userId === authStore.user.id"
