@@ -1,65 +1,139 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { communityPosts } from '../data/communityPosts'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { communityApi } from '../services/api'
 
 const route = useRoute()
+const router = useRouter()
 const postId = Number(route.params.id)
-const post = communityPosts.find((item) => item.id === postId)
 
-const likeCount = ref(post ? post.likes : 0)
+const post = ref(null)
+const loading = ref(false)
+const errorMessage = ref('')
+
+const likeCount = ref(0)
 const commentDraft = ref('')
-const comments = ref(post ? [...post.comments] : [])
+const comments = ref([])
+const commentLoading = ref(false)
 
-const addComment = () => {
+// 게시글 상세 조회
+const loadPost = async () => {
+  loading.value = true
+  errorMessage.value = ''
+  try {
+    post.value = await communityApi.getPost(postId)
+  } catch (error) {
+    console.error('게시글 조회 오류:', error)
+    errorMessage.value = '게시글을 불러올 수 없습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 댓글 목록 조회
+const loadComments = async () => {
+  try {
+    comments.value = await communityApi.getComments(postId)
+  } catch (error) {
+    console.error('댓글 조회 오류:', error)
+  }
+}
+
+// 댓글 작성
+const addComment = async () => {
   if (!commentDraft.value.trim()) return
-  comments.value.push({
-    id: Date.now(),
-    author: '현재 사용자',
-    text: commentDraft.value.trim(),
-    date: new Date().toISOString().split('T')[0],
-  })
-  commentDraft.value = ''
+  
+  commentLoading.value = true
+  try {
+    await communityApi.createComment(postId, {
+      content: commentDraft.value.trim()
+    })
+    commentDraft.value = ''
+    await loadComments() // 댓글 목록 새로고침
+  } catch (error) {
+    console.error('댓글 작성 오류:', error)
+    alert('댓글 작성 중 오류가 발생했습니다.')
+  } finally {
+    commentLoading.value = false
+  }
+}
+
+// 댓글 삭제
+const deleteComment = async (commentId) => {
+  if (!confirm('댓글을 삭제하시겠습니까?')) return
+  
+  try {
+    await communityApi.deleteComment(commentId)
+    await loadComments() // 댓글 목록 새로고침
+  } catch (error) {
+    console.error('댓글 삭제 오류:', error)
+    alert('댓글 삭제 중 오류가 발생했습니다.')
+  }
 }
 
 const reportPost = () => {
   alert('신고 접수가 완료되었습니다. 운영자가 확인합니다.')
 }
+
+onMounted(async () => {
+  await loadPost()
+  await loadComments()
+})
 </script>
 
 <template>
-  <section v-if="post" class="page community-post">
-    <div class="section card">
-      <header class="post-header">
-        <div>
-          <h2>{{ post.title }}</h2>
-          <p class="muted">{{ post.author }} · {{ post.date }}</p>
-        </div>
-        <div class="post-actions">
-          <button type="button" class="ghost-button" @click="reportPost">신고</button>
-          <button type="button" class="primary-button" @click="likeCount++">좋아요 {{ likeCount }}</button>
-        </div>
-      </header>
-      <p class="post-body">{{ post.body }}</p>
+  <section class="page community-post">
+    <div v-if="loading" class="section card">
+      <p>로딩 중...</p>
     </div>
-    <div class="section card">
-      <h3>댓글</h3>
-      <ul class="comment-list">
-        <li v-for="comment in comments" :key="comment.id">
-          <strong>{{ comment.author }}</strong>
-          <span class="muted"> · {{ comment.date }}</span>
-          <p>{{ comment.text }}</p>
-        </li>
-      </ul>
-      <form class="comment-form" @submit.prevent="addComment">
-        <textarea v-model="commentDraft" rows="3" placeholder="댓글을 입력하세요"></textarea>
-        <button type="submit" class="primary-button">댓글 쓰기</button>
-      </form>
+    <div v-else-if="errorMessage" class="section card">
+      <p class="error-message">{{ errorMessage }}</p>
+      <button class="primary-button" @click="router.push({ name: 'Community' })">목록으로</button>
     </div>
-  </section>
-  <section v-else class="page">
-    <div class="section card">
-      <p>게시물을 찾을 수 없습니다.</p>
-    </div>
+    <template v-else-if="post">
+      <div class="section card">
+        <header class="post-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+              <span class="category-badge">{{ post.category || '경험' }}</span>
+              <h2 style="margin: 0;">{{ post.title }}</h2>
+            </div>
+            <p class="muted">{{ post.userName }} · {{ new Date(post.createdAt).toLocaleDateString() }}</p>
+          </div>
+          <div class="post-actions">
+            <button type="button" class="ghost-button" @click="reportPost">신고</button>
+          </div>
+        </header>
+        <p class="post-body">{{ post.content }}</p>
+      </div>
+      <div class="section card">
+        <h3>댓글 ({{ comments.length }})</h3>
+        <ul class="comment-list">
+          <li v-for="comment in comments" :key="comment.id">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>{{ comment.userName }}</strong>
+                <span class="muted"> · {{ new Date(comment.createdAt).toLocaleDateString() }}</span>
+              </div>
+              <button 
+                type="button" 
+                class="ghost-button" 
+                style="padding: 4px 8px; font-size: 12px;"
+                @click="deleteComment(comment.id)"
+              >
+                삭제
+              </button>
+            </div>
+            <p>{{ comment.content }}</p>
+          </li>
+        </ul>
+        <form class="comment-form" @submit.prevent="addComment">
+          <textarea v-model="commentDraft" rows="3" placeholder="댓글을 입력하세요" :disabled="commentLoading"></textarea>
+          <button type="submit" class="primary-button" :disabled="commentLoading">
+            {{ commentLoading ? '작성 중...' : '댓글 쓰기' }}
+          </button>
+        </form>
+      </div>
+    </template>
   </section>
 </template>

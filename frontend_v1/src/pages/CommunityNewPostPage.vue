@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { communityApi } from '../services/api'
 
 const router = useRouter()
 const form = ref({
@@ -9,9 +10,29 @@ const form = ref({
   body: '',
 })
 
-const submitPost = () => {
-  alert(`게시물 '${form.value.title}'이(가) 게시되었습니다.`)
-  router.push({ name: 'Community' })
+const loading = ref(false)
+const errorMessage = ref('')
+
+const submitPost = async () => {
+  errorMessage.value = ''
+  loading.value = true
+  
+  try {
+    await communityApi.createPost({
+      title: form.value.title,
+      content: form.value.body,
+      category: form.value.category,
+      isNotice: false
+    })
+    
+    alert(`게시물 '${form.value.title}'이(가) 게시되었습니다.`)
+    router.push({ name: 'Community' })
+  } catch (error) {
+    console.error('게시글 작성 오류:', error)
+    errorMessage.value = error.message || '게시글 작성 중 오류가 발생했습니다.'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -39,9 +60,12 @@ const submitPost = () => {
           <span>내용</span>
           <textarea v-model="form.body" rows="8" placeholder="내용을 입력하세요" required></textarea>
         </label>
+        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
         <div class="community-new__actions">
           <button type="button" class="ghost-button" @click="router.back()">취소</button>
-          <button type="submit" class="primary-button">등록</button>
+          <button type="submit" class="primary-button" :disabled="loading">
+            {{ loading ? '등록 중...' : '등록' }}
+          </button>
         </div>
       </form>
     </div>
