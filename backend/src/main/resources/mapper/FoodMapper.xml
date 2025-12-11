@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yumcoach.food.model.mapper.FoodMapper">
+
+    <!-- FoodItemDto 매핑 -->
+    <resultMap id="FoodItemResultMap" type="com.ssafy.yumcoach.food.model.FoodItemDto">
+        <id     property="foodId"                column="food_id"/>
+        <result property="foodName"              column="food_name"/>
+        <result property="representativeFoodName" column="representative_food_name"/>
+
+        <result property="servingSize"           column="serving_size"/>
+        <result property="weight"                column="weight"/>
+
+        <result property="dataCreated"           column="data_created"/>
+        <result property="dataReference"         column="data_reference"/>
+    </resultMap>
+
+    <!-- NutritionFactsPrimaryDto 매핑 -->
+    <resultMap id="NutritionFactsPrimaryResultMap" type="com.ssafy.yumcoach.food.model.NutritionFactsPrimaryDto">
+        <id     property="nutritionId"           column="nutrition_id"/>
+        <result property="foodId"                column="food_id"/>
+
+        <result property="energyKcal"           column="energy_kcal"/>
+        <result property="waterG"               column="water_g"/>
+        <result property="proteinG"             column="protein_g"/>
+        <result property="fatG"                 column="fat_g"/>
+        <result property="ashG"                 column="ash_g"/>
+        <result property="carbohydrateG"        column="carbohydrate_g"/>
+        <result property="sugarsG"              column="sugars_g"/>
+        <result property="dietaryFiberG"        column="dietary_fiber_g"/>
+
+        <result property="calciumMg"            column="calcium_mg"/>
+        <result property="ironMg"               column="iron_mg"/>
+        <result property="phosphorusMg"         column="phosphorus_mg"/>
+        <result property="potassiumMg"          column="potassium_mg"/>
+        <result property="sodiumMg"             column="sodium_mg"/>
+
+        <result property="vitaminARae"          column="vitamin_a_rae"/>
+        <result property="retinolUg"            column="retinol_ug"/>
+        <result property="betaCaroteneUg"       column="beta_carotene_ug"/>
+
+        <result property="thiaminMg"            column="thiamin_mg"/>
+        <result property="riboflavinMg"         column="riboflavin_mg"/>
+        <result property="niacinMg"             column="niacin_mg"/>
+        <result property="vitaminCMg"           column="vitamin_c_mg"/>
+        <result property="vitaminDUg"           column="vitamin_d_ug"/>
+
+        <result property="cholesterolMg"        column="cholesterol_mg"/>
+        <result property="saturatedFatG"        column="saturated_fat_g"/>
+        <result property="transFatG"            column="trans_fat_g"/>
+        <result property="unsaturatedFatG"      column="unsaturated_fat_g"/>
+
+        <result property="caffeineMg"           column="caffeine_mg"/>
+        <result property="vitaminEMg"           column="vitamin_e_mg"/>
+        <result property="vitaminETocotrienolMg" column="vitamin_e_tocotrienol_mg"/>
+    </resultMap>
+
+    <!-- FoodDetailDto 매핑: FoodItem + NutritionFactsPrimary -->
+    <resultMap id="FoodDetailResultMap" type="com.ssafy.yumcoach.food.model.FoodDetailDto">
+        <association property="food" javaType="com.ssafy.yumcoach.food.model.FoodItemDto"
+                     resultMap="FoodItemResultMap"/>
+        <association property="nutrition" javaType="com.ssafy.yumcoach.food.model.NutritionFactsPrimaryDto"
+                     resultMap="NutritionFactsPrimaryResultMap"/>
+    </resultMap>
+
+    <!-- 1) food_id 기준 상세 조회 (food_items + nutrition_facts_primary 조인) -->
+    <select id="selectFoodDetailById"
+            parameterType="string"
+            resultMap="FoodDetailResultMap">
+        SELECT
+            -- food_items
+            fi.food_id,
+            fi.food_name,
+            fi.representative_food_name,
+            fi.serving_size,
+            fi.weight,
+            fi.data_created,
+            fi.data_reference,
+
+            -- nutrition_facts_primary
+            nf.nutrition_id,
+            nf.food_id          AS nf_food_id,  -- 필요시 별칭, 하지만 column 이름은 food_id 그대로여도 상관 없음
+            nf.energy_kcal,
+            nf.water_g,
+            nf.protein_g,
+            nf.fat_g,
+            nf.ash_g,
+            nf.carbohydrate_g,
+            nf.sugars_g,
+            nf.dietary_fiber_g,
+            nf.calcium_mg,
+            nf.iron_mg,
+            nf.phosphorus_mg,
+            nf.potassium_mg,
+            nf.sodium_mg,
+            nf.vitamin_a_rae,
+            nf.retinol_ug,
+            nf.beta_carotene_ug,
+            nf.thiamin_mg,
+            nf.riboflavin_mg,
+            nf.niacin_mg,
+            nf.vitamin_c_mg,
+            nf.vitamin_d_ug,
+            nf.cholesterol_mg,
+            nf.saturated_fat_g,
+            nf.trans_fat_g,
+            nf.unsaturated_fat_g,
+            nf.caffeine_mg,
+            nf.vitamin_e_mg,
+            nf.vitamin_e_tocotrienol_mg
+        FROM food_items fi
+                 LEFT JOIN nutrition_facts_primary nf
+                           ON fi.food_id = nf.food_id
+        WHERE fi.food_id = #{foodId}
+            LIMIT 1
+    </select>
+
+    <!-- 2) 검색 (food_items만) -->
+    <select id="searchFoodItems"
+            parameterType="map"
+            resultMap="FoodItemResultMap">
+        SELECT
+            fi.food_id,
+            fi.food_name,
+            fi.representative_food_name,
+            fi.serving_size,
+            fi.weight,
+            fi.data_created,
+            fi.data_reference
+        FROM food_items fi
+        WHERE 1=1
+          AND (
+            fi.food_name LIKE CONCAT('%', #{keyword}, '%')
+                OR fi.representative_food_name LIKE CONCAT('%', #{keyword}, '%')
+            )
+        ORDER BY fi.food_name ASC
+            LIMIT #{limit}
+    </select>
+
+    <!-- 3) food_items 단건 조회 -->
+    <select id="selectFoodItemById"
+            parameterType="string"
+            resultMap="FoodItemResultMap">
+        SELECT
+            fi.food_id,
+            fi.food_name,
+            fi.representative_food_name,
+            fi.serving_size,
+            fi.weight,
+            fi.data_created,
+            fi.data_reference
+        FROM food_items fi
+        WHERE fi.food_id = #{foodId}
+            LIMIT 1
+    </select>
+
+</mapper>
