@@ -35,6 +35,9 @@ public class UserController {
     
     /**
      * 회원가입
+     * @param request 회원가입 요청 (email, password, name)
+     * @return 200 OK: 회원가입 성공, 400 Bad Request: 중복 이메일 등
+     * 주의: 비밀번호는 평문 저장 (TODO: 암호화 필요)
      */
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
@@ -65,8 +68,10 @@ public class UserController {
     
     /**
      * 로그인
-     * Access Token: HttpOnly Cookie (JavaScript 접근 불가 - XSS 방어)
-     * Refresh Token: HttpOnly Cookie (JavaScript 접근 불가 - XSS 방어)
+     * @param request 로그인 요청 (email, password)
+     * @param response HttpServletResponse (Cookie 설정용)
+     * @return 200 OK: 사용자 정보, 401 Unauthorized: 인증 실패
+     * 주의: Access Token(1시간), Refresh Token(7일)을 HttpOnly Cookie로 설정하여 XSS 공격 방지
      */
     @PostMapping("/signin")
     public ResponseEntity<?> signin(@RequestBody SigninRequest request, HttpServletResponse response) {
@@ -124,7 +129,10 @@ public class UserController {
     
     /**
      * 로그아웃
-     * Cookie 삭제 + DB에서 Refresh Token 삭제
+     * @param request HttpServletRequest (Cookie 조회용)
+     * @param response HttpServletResponse (Cookie 삭제용)
+     * @return 200 OK: 로그아웃 성공
+     * 주의: Cookie 삭제 + DB의 Refresh Token도 함께 삭제하여 완전한 로그아웃 보장
      */
     @PostMapping("/signout")
     public ResponseEntity<?> signout(HttpServletRequest request, HttpServletResponse response) {

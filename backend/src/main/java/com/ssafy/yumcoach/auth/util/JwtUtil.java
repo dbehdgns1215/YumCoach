@@ -30,6 +30,9 @@ public class JwtUtil {
 
     /**
      * Access Token 생성
+     * @param userId 사용자 ID
+     * @return JWT Access Token (유효기간: 1시간)
+     * 주의: HttpOnly Cookie로 저장하여 XSS 공격 방지
      */
     public String createAccessToken(int userId) {
         return createToken(userId, accessTokenValidity);
@@ -37,6 +40,9 @@ public class JwtUtil {
 
     /**
      * Refresh Token 생성
+     * @param userId 사용자 ID
+     * @return JWT Refresh Token (유효기간: 7일)
+     * 주의: DB에 저장 필수, Access Token 갱신용
      */
     public String createRefreshToken(int userId) {
         return createToken(userId, refreshTokenValidity);
@@ -58,6 +64,10 @@ public class JwtUtil {
 
     /**
      * 토큰 파싱 및 검증
+     * @param token JWT 토큰 문자열
+     * @return 파싱된 Claims (userId 등 포함)
+     * @throws ExpiredJwtException 토큰 만료 시
+     * 주의: 30초 시간 오차 허용 (서버 간 시간 차이 대응)
      */
     public Jws<Claims> parse(String token) {
         try {
@@ -77,6 +87,9 @@ public class JwtUtil {
 
     /**
      * 토큰에서 userId 추출
+     * @param token JWT 토큰 문자열
+     * @return 사용자 ID
+     * 주의: 토큰 검증 후 사용자 식별에 활용
      */
     public int getUserId(String token) {
         return parse(token).getBody().get("userId", Integer.class);
@@ -84,6 +97,9 @@ public class JwtUtil {
 
     /**
      * 토큰 유효성 검증
+     * @param token JWT 토큰 문자열
+     * @return true: 유효, false: 무효
+     * 주의: 만료, 서명 오류 등 모든 예외를 false로 반환
      */
     public boolean validateToken(String token) {
         try {
