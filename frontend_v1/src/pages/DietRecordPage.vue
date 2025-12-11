@@ -178,7 +178,7 @@ const weeklyStats = {
       <div class="entry-form">
         <label class="entry-field entry-field--date">
           <span>날짜</span>
-          <input type="date" />
+          <input type="date" :value="new Date().toISOString().split('T')[0]" />
         </label>
         <label class="entry-field entry-field--meal">
           <span>식사 유형</span>

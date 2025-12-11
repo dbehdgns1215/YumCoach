@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yumcoach.meal.mapper.MealMapper">
+
+    <!-- =========================
+         ResultMap 정의
+         ========================= -->
+
+    <!-- MealItemDto -->
+    <resultMap id="MealItemResultMap" type="com.ssafy.yumcoach.meal.model.MealItemDto">
+        <id     property="id"         column="meal_id" />
+        <result property="historyId"  column="history_id" />
+        <result property="mealCode"   column="meal_code" />
+        <result property="mealName"   column="meal_name" />
+        <result property="amount"     column="amount" />
+    </resultMap>
+
+    <!-- MealLogDto + items 컬렉션 -->
+    <resultMap id="MealLogResultMap" type="com.ssafy.yumcoach.meal.model.MealLogDto">
+        <id     property="id"        column="history_id" />
+        <result property="userId"    column="user_id" />
+        <result property="date"      column="date"      />
+        <!-- MealType enum : VARCHAR 컬럼과 매핑 -->
+        <result property="mealType"  column="type"
+                javaType="com.ssafy.yumcoach.meal.enums.MealType" />
+
+        <!-- items: meal 테이블 -->
+        <collection property="items"
+                    ofType="com.ssafy.yumcoach.meal.model.MealItemDto">
+            <id     property="id"         column="meal_id" />
+            <result property="historyId"  column="history_id" />
+            <result property="mealCode"   column="meal_code" />
+            <result property="mealName"   column="meal_name" />
+            <result property="amount"     column="amount" />
+        </collection>
+    </resultMap>
+
+    <!-- =========================
+         SELECT
+         ========================= -->
+
+    <!-- 특정 유저의 특정 날짜 식사 전체 조회 -->
+    <select id="selectMealLogsByUserAndDate"
+            parameterType="map"
+            resultMap="MealLogResultMap">
+
+        SELECT
+            h.id          AS history_id,
+            h.user_id,
+            h.date,
+            h.type,
+            m.id          AS meal_id,
+            m.history_id,
+            m.meal_code,
+            m.meal_name,
+            m.amount
+        FROM meal_history h
+                 LEFT JOIN meal m
+                           ON h.id = m.history_id
+        WHERE h.user_id = #{userId}
+          AND h.date    = #{date}
+        ORDER BY h.date, h.type, m.id
+    </select>
+
+    <!-- 기간 조회 (옵션) -->
+    <select id="selectMealLogsByUserAndDateRange"
+            parameterType="map"
+            resultMap="MealLogResultMap">
+
+        SELECT
+            h.id          AS history_id,
+            h.user_id,
+            h.date,
+            h.type,
+            m.id          AS meal_id,
+            m.history_id,
+            m.meal_code,
+            m.meal_name,
+            m.amount
+        FROM meal_history h
+                 LEFT JOIN meal m
+                           ON h.id = m.history_id
+        WHERE h.user_id = #{userId}
+          AND h.date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY h.date, h.type, m.id
+    </select>
+
+    <!-- =========================
+         INSERT (meal_history)
+         ========================= -->
+
+    <!-- 한 끼 insert -->
+    <insert id="insertMealLog"
+            parameterType="com.ssafy.yumcoach.meal.model.MealLogDto"
+            useGeneratedKeys="true"
+            keyProperty="id">
+
+        INSERT INTO meal_history
+            (user_id, date, type)
+        VALUES
+            (#{userId}, #{date}, #{mealType})
+    </insert>
+
+    <!-- =========================
+         UPDATE (meal_history)
+         ========================= -->
+
+    <update id="updateMealLog"
+            parameterType="com.ssafy.yumcoach.meal.model.MealLogDto">
+
+        UPDATE meal_history
+        SET
+            date = #{date},
+            type = #{mealType}
+        WHERE id = #{id}
+    </update>
+
+    <!-- =========================
+         meal 테이블 조작
+         ========================= -->
+
+    <!-- 특정 끼니의 기존 아이템 전부 삭제 -->
+    <delete id="deleteMealItemsByHistoryId" parameterType="int">
+        DELETE FROM meal
+        WHERE history_id = #{historyId}
+    </delete>
+
+    <!-- 여러 아이템 bulk insert -->
+    <insert id="insertMealItems" parameterType="map">
+        INSERT INTO meal
+        (history_id, meal_code, meal_name, amount)
+        VALUES
+        <foreach collection="items" item="item" separator=",">
+            (#{historyId},
+            #{item.mealCode},
+            #{item.mealName},
+            #{item.amount})
+        </foreach>
+    </insert>
+
+    <!-- 단일 아이템 update (필요시) -->
+    <update id="updateMealItem"
+            parameterType="com.ssafy.yumcoach.meal.model.MealItemDto">
+
+        UPDATE meal
+        SET
+            meal_code = #{mealCode},
+            meal_name = #{mealName},
+            amount    = #{amount}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

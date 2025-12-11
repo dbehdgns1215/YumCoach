@@ -1,20 +1,34 @@
 package com.ssafy.yumcoach.meal.model;
 
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
+import com.ssafy.yumcoach.meal.enums.MealType;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Getter
-@Setter
-public class MealLogDto {
-	private @NonNull Long id;
-	private @NonNull int userId;
-	private @NonNull String date;
-	private String meal; // 아침/점심/저녁/간식
-	private String foodCode;
-	private Integer gram;
-	private double kcal;
-	private double protein;
-	private double carb;
-	private double fat;
+import java.io.Serializable;
+import java.time.LocalDate;
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+// 한 끼 단위
+// meal_history 테이블
+public class MealLogDto implements Serializable {
+
+	private Long id; // dietLogId 느낌
+	private Long userId;
+	private LocalDate date; // meal_history.date
+	private MealType mealType; // 아침/점심/저녁/간식 (enum) meal_history.type
+
+	// 이 끼니에 포함된 음식 아이템들
+	private List<MealItemDto> items;
+
+	// 합계 정보, 프론트에서도 가능
+	// private double totalKcal;
+	// private double totalProtein;
+	// private double totalCarb;
+	// private double totalFat;
 }
