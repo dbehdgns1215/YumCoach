@@ -1,6 +1,6 @@
 package com.ssafy.yumcoach.meal.model.service;
 
-import com.ssafy.yumcoach.meal.mapper.MealMapper;
+import com.ssafy.yumcoach.meal.model.mapper.MealMapper;
 import com.ssafy.yumcoach.meal.model.MealLogDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

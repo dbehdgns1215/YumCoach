@@ -1,4 +1,4 @@
-package com.ssafy.yumcoach.meal.mapper;
+package com.ssafy.yumcoach.meal.model.mapper;
 
 import com.ssafy.yumcoach.meal.model.MealItemDto;
 import com.ssafy.yumcoach.meal.model.MealLogDto;
