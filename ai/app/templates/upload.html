@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YumCoach AI - 음식 이미지 분석</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .upload-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .file-input-label:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            color: #666;
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        .preview-container {
+            margin-top: 15px;
+            display: none;
+            text-align: center;
+        }
+
+        .preview-container.show {
+            display: block;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        button[type="submit"]:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button[type="submit"]:disabled {
+            background: linear-gradient(135deg, #ccc 0%, #999 100%);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading p {
+            color: #666;
+            font-size: 15px;
+        }
+
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+            border-left: 4px solid #c62828;
+            animation: slideIn 0.3s ease;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .error.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-left-color: #ffc107;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 22px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .result-item {
+            padding: 15px;
+            margin-bottom: 12px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .result-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-item.highlight {
+            border-left-color: #764ba2;
+            background: linear-gradient(90deg, #ffffff 0%, #f8f4ff 100%);
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .result-value {
+            font-weight: 500;
+            color: #333;
+            font-size: 15px;
+            text-align: right;
+        }
+
+        .result-value.food-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #764ba2;
+        }
+
+        .result-value.quantity {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .success-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #4caf50;
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .warning-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #ff9800;
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .result-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .result-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ YumCoach AI 음식 분석</h1>
+        
+        <form class="upload-form" id="uploadForm">
+            <div class="form-group">
+                <label for="user_seq">사용자 ID:</label>
+                <input type="text" id="user_seq" name="user_seq" required 
+                       placeholder="사용자 ID를 입력하세요" value="test_user_1">
+            </div>
+            
+            <div class="form-group">
+                <label for="user_img">음식 이미지 선택:</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="user_img" name="user_img" 
+                           accept=".jpg,.jpeg,.png" required>
+                    <label for="user_img" class="file-input-label">
+                        📁 이미지 파일 선택 (JPG, JPEG, PNG)
+                    </label>
+                </div>
+                <div class="file-name" id="fileName">선택된 파일 없음</div>
+                
+                <div class="preview-container" id="previewContainer">
+                    <img id="previewImage" class="preview-image" alt="미리보기">
+                </div>
+            </div>
+            
+            <button type="submit">🔍 분석 시작</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>AI가 음식을 분석하고 있습니다...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="result" id="result">
+            <h2>📊 분석 결과</h2>
+            
+            <div class="result-item highlight">
+                <span class="result-label">🍲 음식 이름</span>
+                <span class="result-value food-name" id="foodName">-</span>
+            </div>
+            
+            <div class="result-item">
+                <span class="result-label">📋 음식 코드</span>
+                <span class="result-value" id="foodCode">-</span>
+            </div>
+            
+            <div class="result-item">
+                <span class="result-label">🎯 인식 신뢰도</span>
+                <span class="result-value" id="foodConfidence">-</span>
+            </div>
+            
+            <div class="result-item highlight">
+                <span class="result-label">📏 음식 양</span>
+                <span class="result-value quantity" id="foodQuantity">-</span>
+            </div>
+            
+            <div class="result-item">
+                <span class="result-label">📊 양 추정 신뢰도</span>
+                <span class="result-value" id="quantityConfidence">-</span>
+            </div>
+            
+            <div class="result-item">
+                <span class="result-label">⚡ 처리 상태</span>
+                <span class="result-value" id="statusBadge">
+                    <span class="success-badge">분석 완료</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 파일 선택 시 미리보기 및 파일명 표시
+        const fileInput = document.getElementById('user_img');
+        const fileName = document.getElementById('fileName');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+
+        fileInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                // 파일명 표시
+                fileName.textContent = this.files[0].name;
+                fileName.style.color = '#667eea';
+                fileName.style.fontWeight = '600';
+                
+                // 이미지 미리보기
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewContainer.classList.add('show');
+                }
+                reader.readAsDataURL(this.files[0]);
+            } else {
+                fileName.textContent = '선택된 파일 없음';
+                fileName.style.color = '#666';
+                fileName.style.fontWeight = 'normal';
+                previewContainer.classList.remove('show');
+            }
+        });
+
+        // 폼 제출 처리
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            const userSeq = document.getElementById('user_seq').value;
+            const userImg = document.getElementById('user_img').files[0];
+            
+            if (!userImg) {
+                showError('이미지 파일을 선택해주세요.');
+                return;
+            }
+            
+            formData.append('user_seq', userSeq);
+            formData.append('user_img', userImg);
+            
+            // UI 상태 업데이트
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('result').classList.remove('show');
+            document.getElementById('error').classList.remove('show');
+            document.querySelector('button[type="submit"]').disabled = true;
+            
+            try {
+                const response = await fetch('/cf', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                console.log('서버 응답:', data);
+                
+                if (response.ok && (data.status === 'success' || data.status === 'partial_success')) {
+                    displayResults(data);
+                } else {
+                    throw new Error(data.message || data.detail || '분석 중 오류가 발생했습니다.');
+                }
+            } catch (error) {
+                console.error('에러 발생:', error);
+                showError(error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+                document.querySelector('button[type="submit"]').disabled = false;
+            }
+        });
+
+        function displayResults(data) {
+            // 음식 이름 (강조)
+            const foodNameElement = document.getElementById('foodName');
+            foodNameElement.textContent = data.food_name || '알 수 없음';
+            
+            // 음식 코드
+            document.getElementById('foodCode').textContent = data.code || '00000000';
+            
+            // 인식 신뢰도
+            document.getElementById('foodConfidence').textContent = data.food_confidence || 'N/A';
+            
+            // 음식 양 (코드 + 설명)
+            const quantityText = data.quantity_name 
+                ? `${data.quantity} (${data.quantity_name})`
+                : data.quantity || 'Q3';
+            document.getElementById('foodQuantity').textContent = quantityText;
+            
+            // 양 추정 신뢰도
+            document.getElementById('quantityConfidence').textContent = data.quantity_confidence || 'N/A';
+            
+            // 상태 배지
+            const statusBadge = document.getElementById('statusBadge');
+            if (data.status === 'success') {
+                statusBadge.innerHTML = '<span class="success-badge">✅ 분석 완료</span>';
+            } else if (data.status === 'partial_success') {
+                statusBadge.innerHTML = '<span class="warning-badge">⚠️ 부분 성공</span>';
+                
+                // 부분 성공 메시지 표시
+                if (data.message) {
+                    showWarning(data.message);
+                }
+            }
+            
+            // 결과 영역 표시
+            document.getElementById('result').classList.add('show');
+            
+            // 결과 영역으로 스크롤
+            setTimeout(() => {
+                document.getElementById('result').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest' 
+                });
+            }, 100);
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById('error');
+            errorElement.textContent = '❌ ' + message;
+            errorElement.className = 'error show'; // 기본 에러 스타일
+            
+            setTimeout(() => {
+                errorElement.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest' 
+                });
+            }, 100);
+        }
+
+        function showWarning(message) {
+            const errorElement = document.getElementById('error');
+            errorElement.textContent = '⚠️ ' + message;
+            errorElement.className = 'error warning show'; // 경고 스타일
+            
+            setTimeout(() => {
+                errorElement.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest' 
+                });
+            }, 100);
+        }
+
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', () => {
+            console.log('YumCoach AI 음식 분석 시스템 준비 완료');
+        });
+    </script>
+</body>
+</html>
