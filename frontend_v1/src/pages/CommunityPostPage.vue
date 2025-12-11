@@ -132,7 +132,7 @@ onMounted(async () => {
             <button type="button" class="ghost-button" @click="reportPost">신고</button>
           </div>
         </header>
-        <p class="post-body">{{ post.content }}</p>
+        <pre class="post-body">{{ post.content }}</pre>
       </div>
       <div class="section card">
         <h3>댓글 ({{ comments.length }})</h3>
