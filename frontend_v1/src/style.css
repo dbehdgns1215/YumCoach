@@ -564,6 +564,21 @@ td {
 .post-body {
   margin-top: 1rem;
   line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* 카테고리 배지 */
+.category-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background-color: #f0f0f0;
+  color: #333;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 .comment-list {
@@ -623,7 +638,7 @@ td {
 .community-table__head,
 .community-table__row {
   display: grid;
-  grid-template-columns: 80px 1fr 140px 160px;
+  grid-template-columns: 80px 100px 1fr 140px 160px;
   gap: 0.5rem;
   padding: 0.9rem 1rem;
   align-items: center;

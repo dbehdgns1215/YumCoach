@@ -85,4 +85,31 @@ export const userApi = {
   updateUserHealth: (data) => api.put('/user/health', data),
 };
 
+// Community API
+export const communityApi = {
+  // 게시글 목록 조회
+  getPosts: (page = 1, size = 10) => api.get(`/community?page=${page}&size=${size}`),
+  
+  // 게시글 상세 조회
+  getPost: (id) => api.get(`/community/${id}`),
+  
+  // 게시글 작성
+  createPost: (data) => api.post('/community', data),
+  
+  // 게시글 수정
+  updatePost: (id, data) => api.put(`/community/${id}`, data),
+  
+  // 게시글 삭제
+  deletePost: (id) => api.delete(`/community/${id}`),
+  
+  // 댓글 목록 조회
+  getComments: (postId) => api.get(`/community/${postId}/comments`),
+  
+  // 댓글 작성
+  createComment: (postId, data) => api.post(`/community/${postId}/comments`, data),
+  
+  // 댓글 삭제
+  deleteComment: (commentId) => api.delete(`/community/comments/${commentId}`),
+};
+
 export default api;

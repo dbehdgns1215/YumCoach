@@ -1,11 +1,35 @@
 <script setup>
-import { communityPosts } from '../data/communityPosts'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { communityApi } from '../services/api'
 
 const router = useRouter()
+const posts = ref([])
+const loading = ref(false)
+const currentPage = ref(1)
+const totalPages = ref(1)
+
+const loadPosts = async (page = 1) => {
+  loading.value = true
+  try {
+    const response = await communityApi.getPosts(page, 10)
+    posts.value = response.posts
+    currentPage.value = response.currentPage
+    totalPages.value = response.totalPages
+  } catch (error) {
+    console.error('게시글 목록 조회 오류:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
 const openPost = (id) => {
   router.push({ name: 'CommunityPost', params: { id } })
 }
+
+onMounted(() => {
+  loadPosts()
+})
 </script>
 
 <template>
@@ -31,27 +55,50 @@ const openPost = (id) => {
       <div class="community-board__table">
         <div class="community-table__head">
           <span>번호</span>
+          <span>카테고리</span>
           <span>제목</span>
           <span>작성자</span>
           <span>작성일</span>
         </div>
+        <p v-if="loading" style="text-align: center; padding: 20px; margin: 0;">로딩 중...</p>
+        <p v-else-if="posts.length === 0" style="text-align: center; padding: 20px; margin: 0;">게시글이 없습니다.</p>
         <div
-          v-for="post in communityPosts"
+          v-else
+          v-for="post in posts"
           :key="post.id"
           class="community-table__row"
           @click="openPost(post.id)"
         >
           <span>{{ post.id }}</span>
+          <span><span class="category-badge">{{ post.category || '경험' }}</span></span>
           <span>{{ post.title }}</span>
-          <span>{{ post.author }}</span>
-          <span>{{ post.date }}</span>
+          <span>{{ post.userName }}</span>
+          <span>{{ new Date(post.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\. (\d{2}:)/, ' $1') }}</span>
         </div>
       </div>
-      <div class="community-board__pagination">
-        <button class="ghost-button">이전</button>
-        <button class="primary-button is-active">1</button>
-        <button class="ghost-button">2</button>
-        <button class="ghost-button">다음</button>
+      <div v-if="totalPages > 1" class="community-board__pagination">
+        <button 
+          class="ghost-button" 
+          :disabled="currentPage === 1"
+          @click="loadPosts(currentPage - 1)"
+        >
+          이전
+        </button>
+        <button 
+          v-for="page in totalPages" 
+          :key="page"
+          :class="page === currentPage ? 'primary-button is-active' : 'ghost-button'"
+          @click="loadPosts(page)"
+        >
+          {{ page }}
+        </button>
+        <button 
+          class="ghost-button" 
+          :disabled="currentPage === totalPages"
+          @click="loadPosts(currentPage + 1)"
+        >
+          다음
+        </button>
       </div>
     </div>
   </section>

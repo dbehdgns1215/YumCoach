@@ -1,9 +1,12 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { communityApi } from '../services/api'
 
+const route = useRoute()
 const router = useRouter()
+const postId = Number(route.params.id)
+
 const form = ref({
   title: '',
   category: '경험',
@@ -13,36 +16,56 @@ const form = ref({
 const loading = ref(false)
 const errorMessage = ref('')
 
+// 기존 게시글 불러오기
+const loadPost = async () => {
+  loading.value = true
+  try {
+    const post = await communityApi.getPost(postId)
+    form.value.title = post.title
+    form.value.category = post.category || '경험'
+    form.value.body = post.content
+  } catch (error) {
+    console.error('게시글 조회 오류:', error)
+    errorMessage.value = '게시글을 불러올 수 없습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 게시글 수정
 const submitPost = async () => {
   errorMessage.value = ''
   loading.value = true
   
   try {
-    await communityApi.createPost({
+    await communityApi.updatePost(postId, {
       title: form.value.title,
       content: form.value.body,
-      category: form.value.category,
-      isNotice: false
+      category: form.value.category
     })
     
-    alert(`게시물 '${form.value.title}'이(가) 게시되었습니다.`)
-    router.push({ name: 'Community' })
+    alert(`게시물이 수정되었습니다.`)
+    router.push({ name: 'CommunityPost', params: { id: postId } })
   } catch (error) {
-    console.error('게시글 작성 오류:', error)
-    errorMessage.value = error.message || '게시글 작성 중 오류가 발생했습니다.'
+    console.error('게시글 수정 오류:', error)
+    errorMessage.value = error.message || '게시글 수정 중 오류가 발생했습니다.'
   } finally {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  loadPost()
+})
 </script>
 
 <template>
   <section class="page community-new">
     <div class="section card community-new__panel">
       <div class="community-new__header">
-        <h2>글쓰기</h2>
+        <h2>게시글 수정</h2>
       </div>
-      <p class="muted">챌린지 경험, 식단, 팁을 자유롭게 공유하세요.</p>
+      <p class="muted">게시글을 수정하세요.</p>
       <form class="community-new__form" @submit.prevent="submitPost">
         <label>
           <span>제목</span>
@@ -51,9 +74,9 @@ const submitPost = async () => {
         <label>
           <span>카테고리</span>
           <select v-model="form.category">
-            <option>경험</option>
-            <option>식단</option>
-            <option>팁</option>
+            <option value="경험">경험</option>
+            <option value="식단">식단</option>
+            <option value="팁">팁</option>
           </select>
         </label>
         <label>
@@ -64,7 +87,7 @@ const submitPost = async () => {
         <div class="community-new__actions">
           <button type="button" class="ghost-button" @click="router.back()">취소</button>
           <button type="submit" class="primary-button" :disabled="loading">
-            {{ loading ? '등록 중...' : '등록' }}
+            {{ loading ? '수정 중...' : '수정' }}
           </button>
         </div>
       </form>

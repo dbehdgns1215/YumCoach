@@ -8,6 +8,7 @@ import ChallengePage from '../pages/ChallengePage.vue'
 import HealthInfoPage from '../pages/HealthInfoPage.vue'
 import CommunityPage from '../pages/CommunityPage.vue'
 import CommunityNewPostPage from '../pages/CommunityNewPostPage.vue'
+import CommunityEditPage from '../pages/CommunityEditPage.vue'
 import CommunityPostPage from '../pages/CommunityPostPage.vue'
 import GuestHome from '../pages/GuestHome.vue'
 
@@ -21,6 +22,7 @@ const routes = [
   { path: '/health-info', name: 'HealthInfo', component: HealthInfoPage, meta: { requiresAuth: true } },
   { path: '/community', name: 'Community', component: CommunityPage, meta: { requiresAuth: true } },
   { path: '/community/new', name: 'CommunityNew', component: CommunityNewPostPage, meta: { requiresAuth: true } },
+  { path: '/community/:id/edit', name: 'CommunityEdit', component: CommunityEditPage, props: true, meta: { requiresAuth: true } },
   { path: '/community/:id', name: 'CommunityPost', component: CommunityPostPage, props: true, meta: { requiresAuth: true } },
 ]
 

@@ -1,30 +1,29 @@
 version: '3.9'
 services:
   # MySQL 데이터베이스
-  mysql:
-    image: mysql:8.0
-    container_name: mysql-db
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    ports:
-      - "${MYSQL_PORT_EC2}:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-      - ./init-db:/docker-entrypoint-initdb.d
-    networks:
-      - app-network
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 60s
-      timeout: 20s
-      retries: 3
+  # mysql:
+  #   image: mysql:8.0
+  #   container_name: mysql-db
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE}
+  #     MYSQL_USER: ${MYSQL_USER}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  #   ports:
+  #     - "${MYSQL_PORT_LOCAL}:3306"
+#     volumes:
+#       - mysql-data:/var/lib/mysql
+#       - ./init-db:/docker-entrypoint-initdb.d
+#     networks:
+#       - app-network
+#     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+#     healthcheck:
+#       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+#       timeout: 20s
+ #      retries: 10
 
-  # Spring Boot 백엔드
+ #  # Spring Boot 백엔드
   backend:
     build:
       context: ./backend
@@ -55,7 +54,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "localhost:8282/actuator/health"]
+      test: ["CMD", "curl", "-f", "${API_BASE_URL_DOCKER}/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
