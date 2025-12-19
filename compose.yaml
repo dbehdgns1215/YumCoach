@@ -1,63 +1,69 @@
 version: '3.9'
 services:
   # MySQL 데이터베이스
-  # mysql:
-  #   image: mysql:8.0
-  #   container_name: mysql-db
-  #   restart: unless-stopped
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-  #     MYSQL_DATABASE: ${MYSQL_DATABASE}
-  #     MYSQL_USER: ${MYSQL_USER}
-  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-  #   ports:
-  #     - "${MYSQL_PORT_LOCAL}:3306"
-#     volumes:
-#       - mysql-data:/var/lib/mysql
-#       - ./init-db:/docker-entrypoint-initdb.d
-#     networks:
-#       - app-network
-#     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-#     healthcheck:
-#       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-#       timeout: 20s
- #      retries: 10
-
- #  # Spring Boot 백엔드
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        - MAVEN_CACHE_DIR=/maven-cache
-    container_name: spring-backend
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-db
     restart: unless-stopped
-    ports:
-      - "${BACKEND_PORT}:${BACKEND_PORT}"
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      MYSQL_HOST: ${MYSQL_HOST}
-      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      BACKEND_PORT: ${BACKEND_PORT}
-      FRONTEND_PORT: ${FRONTEND_PORT}
-      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
-      JWT_ACCESS_TOKEN_VALIDITY: ${JWT_ACCESS_TOKEN_VALIDITY}
-      JWT_REFRESH_TOKEN_VALIDITY: ${JWT_REFRESH_TOKEN_VALIDITY}
+    ports:
+      - "${MYSQL_PORT_LOCAL}:3306"
     volumes:
-      - maven-cache:/maven-cache
+      - mysql-data:/var/lib/mysql
+      - ./init-db:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+        reservations:
+          memory: 200M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+ #  # Spring Boot 백엔드
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #     args:
+  #       - MAVEN_CACHE_DIR=/maven-cache
+  #   container_name: spring-backend
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${BACKEND_PORT}:${BACKEND_PORT}"
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+  #     MYSQL_HOST: ${MYSQL_HOST}
+  #     MYSQL_PORT: ${MYSQL_PORT}
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE}
+  #     MYSQL_USER: ${MYSQL_USER}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  #     BACKEND_PORT: ${BACKEND_PORT}
+  #     FRONTEND_PORT: ${FRONTEND_PORT}
+  #     JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
+  #     JWT_ACCESS_TOKEN_VALIDITY: ${JWT_ACCESS_TOKEN_VALIDITY}
+  #     JWT_REFRESH_TOKEN_VALIDITY: ${JWT_REFRESH_TOKEN_VALIDITY}
+  #   volumes:
+  #     - maven-cache:/maven-cache
     # depends_on:
       # mysql:
       #   condition: service_healthy
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "${API_BASE_URL_DOCKER}/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+    # networks:
+    #   - app-network
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "${API_BASE_URL_DOCKER}/actuator/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 5
 
   # Vue.js 프론트엔드
   frontend:
@@ -67,8 +73,8 @@ services:
     container_name: vue-frontend
     ports:
       - "${FRONTEND_PORT}:${FRONTEND_PORT}"
-    depends_on:
-      - backend
+    # depends_on:
+    #   - backend
     networks:
       - app-network
     environment:

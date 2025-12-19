@@ -34,3 +34,4 @@ build/
 
 # 환경변수
 !.env.example
+application.properties
