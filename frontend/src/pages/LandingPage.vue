@@ -18,6 +18,19 @@
                 </Transition>
             </section>
 
+            <section class="featureWrap">
+                <LandingFeatureCard badge="맞춤형 식단 코치" title="당신만을 위한 식단으로 일상을 건강하게" linkText="로그인 후 시작해 보세요 →"
+                    linkHref="#" description="식단 걱정 마세요, 저희 얌코치가 도와드릴게요!" card-title="어제 이렇게 드셨네요!"
+                    card-sub="다음 식단은 이거 어때요?" iconSrc="../src/assets/도시락.png" iconAlt="체크 아이콘" align="left" />
+            </section>
+
+            <section class="featureWrap">
+                <LandingFeatureCard badge="커뮤니티" title="각자의 이야기들을 공유해요"
+                    description="힘든 식단, 혼자가 아니에요! 함께 이야기 나누다 보면 조금 더 쉬워질 거예요." linkText="커뮤니티 살펴보기→" linkHref="#"
+                    card-title="당신의 이야기도 공유해 보세요." card-sub="오늘 새로운 레시피를 발견했네요!" iconSrc="../src/assets/말풍선.png"
+                    iconAlt="체크 아이콘" iconBgColor="#ffe6f0" align="right" />
+            </section>
+
         </main>
 
         <AppFooter theme="brand" />
@@ -29,6 +42,7 @@ import { useRouter } from 'vue-router'
 import { ref, onMounted, onUnmounted } from 'vue'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 import AppFooter from '@/layout/AppFooter.vue'
+import LandingFeatureCard from '@/components/landing/LandingFeatureCard.vue'
 
 const router = useRouter()
 import mascotGif from '@/assets/landing.gif'
@@ -46,7 +60,6 @@ let intervalId = null
 
 onMounted(() =>
 {
-    // 3.6초마다 다음 텍스트로 전환
     intervalId = setInterval(() =>
     {
         currentIndex.value = (currentIndex.value + 1) % lines.length
@@ -144,6 +157,13 @@ function goSignup() { router.push('/log') }
     width: min(720px, 90vw);
     height: auto;
     border-radius: 16px;
+}
+
+.featureWrap {
+    width: 100%;
+    max-width: 1100px;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 @media (min-width: 768px) {
