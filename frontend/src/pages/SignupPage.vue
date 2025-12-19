@@ -31,7 +31,10 @@
                         <label for="name" class="label">이름</label>
                         <input id="name" v-model="name" type="text" class="input" />
                     </div>
-
+                    <div class="form-group">
+                        <label for="phone" class="label">전화번호</label>
+                        <input id="phone" v-model="phone" type="tel" class="input" placeholder="010-1234-5678" />
+                    </div>
                     <div class="form-group">
                         <label for="referralCode" class="label">추천인 코드(선택)</label>
                         <input id="referralCode" v-model="referralCode" type="text" class="input" />
@@ -76,7 +79,7 @@ const emailError = ref('')
 const passwordError = ref('')
 const passwordConfirmError = ref('')
 
-function handleSignup()
+async function handleSignup()
 {
     // 유효성 검사 초기화
     emailError.value = ''
@@ -112,16 +115,27 @@ function handleSignup()
         return
     }
 
-    // 회원가입 로직 구현
-    console.log('회원가입:', {
-        email: email.value,
-        password: password.value,
-        name: name.value,
-        phone: phone.value,
-        referralCode: referralCode.value,
-        agreeMarketing: agreeMarketing.value
+    const payload = {
+    email: email.value,
+    password: password.value,
+    name: name.value,
+    phone: phone.value,
+    referralCode: referralCode.value
+    }
+
+    try {
+    const res = await fetch('/api/user/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
     })
-    // TODO: API 호출 후 성공시 페이지 이동
+    if (!res.ok) throw new Error('가입 실패')
+
+    // 성공 시 이동
+    router.push('/login')
+    } catch (err) {
+    alert(err.message || '가입 중 오류')
+    }
 }
 </script>
 
