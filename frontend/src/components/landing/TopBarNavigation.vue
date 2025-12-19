@@ -6,8 +6,8 @@
             </router-link>
         </div>
         <div class="right" v-if="!hideActions">
-            <button class="btn ghost" @click="$emit('signin')">로그인</button>
-            <button class="btn primary" @click="$emit('signup')">회원가입</button>
+            <router-link to="/login" class="btn ghost">로그인</router-link>
+            <router-link to="/signup" class="btn primary">회원가입</router-link>
         </div>
     </header>
 </template>
@@ -18,8 +18,6 @@ import logoSrc from '@/assets/logo.png'
 defineProps({
     hideActions: { type: Boolean, default: false }
 })
-
-defineEmits(['signin', 'signup'])
 </script>
 
 <style scoped>
@@ -59,6 +57,10 @@ defineEmits(['signin', 'signup'])
     cursor: pointer;
     font-size: 14px;
     border: 1px solid #c7c7c7;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    transition: all 0.2s;
 }
 
 .primary {

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- body -->
+  <circle cx="12" cy="13" r="7" fill="#F5F7FA"></circle>
+
+  <!-- eyes -->
+  <circle cx="9.5" cy="13" r="1.3" fill="#1E2D4B"></circle>
+  <circle cx="14.5" cy="13" r="1.3" fill="#1E2D4B"></circle>
+
+  <!-- mouth -->
+  <path d="M10.2 15.2c1 .9 2.6.9 3.6 0" stroke="#0064FF" stroke-width="1.4" stroke-linecap="round" fill="none"></path>
+
+  <!-- sprout left -->
+  <path d="M12 3.5c-2-.8-3.8-.2-4.8 1.1 1.4 1.6 3.2 2.2 5 1.8.3-.9.3-1.9-.2-2.9z" fill="#50C878"></path>
+
+  <!-- sprout right -->
+  <path d="M12 3.5c2-.8 3.8-.2 4.8 1.1-1.4 1.6-3.2 2.2-5 1.8-.3-.9-.3-1.9.2-2.9z" fill="#50C878"></path>
+</svg>
