@@ -6,6 +6,7 @@
                 <h1 class="title">회원가입</h1>
 
                 <form @submit.prevent="handleSignup" class="signup-form">
+                    <div v-if="serverError" class="error-message" style="text-align:center">{{ serverError }}</div>
                     <div class="form-group">
                         <label for="email" class="label">이메일 주소</label>
                         <input id="email" v-model="email" type="email" class="input" :class="{ error: emailError }"
@@ -34,6 +35,7 @@
                     <div class="form-group">
                         <label for="phone" class="label">전화번호</label>
                         <input id="phone" v-model="phone" type="tel" class="input" placeholder="010-1234-5678" />
+                        <span v-if="phoneError" class="error-message">{{ phoneError }}</span>
                     </div>
                     <div class="form-group">
                         <label for="referralCode" class="label">추천인 코드(선택)</label>
@@ -52,7 +54,7 @@
                         <router-link to="/login" class="link">로그인</router-link>
                     </div>
 
-                    <button type="submit" class="signup-button">계정 만들기</button>
+                    <button type="submit" class="signup-button" :disabled="isSubmitting">{{ isSubmitting ? '가입 중...' : '계정 만들기' }}</button>
                 </form>
             </div>
         </div>
@@ -78,6 +80,9 @@ const agreeMarketing = ref(false)
 const emailError = ref('')
 const passwordError = ref('')
 const passwordConfirmError = ref('')
+const phoneError = ref('')
+const serverError = ref('')
+const isSubmitting = ref(false)
 
 async function handleSignup()
 {
@@ -85,6 +90,8 @@ async function handleSignup()
     emailError.value = ''
     passwordError.value = ''
     passwordConfirmError.value = ''
+    phoneError.value = ''
+    serverError.value = ''
 
     let hasError = false
 
@@ -111,6 +118,12 @@ async function handleSignup()
         hasError = true
     }
 
+    // 선택 항목인 전화번호 형식 검사 (입력된 경우에만)
+    if (phone.value && !/^01[0-9]-\d{3,4}-\d{4}$/.test(phone.value)) {
+        phoneError.value = '전화번호 형식은 010-1234-5678 형식이어야 합니다.'
+        hasError = true
+    }
+
     if (hasError) {
         return
     }
@@ -123,18 +136,26 @@ async function handleSignup()
     referralCode: referralCode.value
     }
 
+    isSubmitting.value = true
     try {
-    const res = await fetch('/api/user/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    })
-    if (!res.ok) throw new Error('가입 실패')
+        const res = await fetch('/api/user/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
 
-    // 성공 시 이동
-    router.push('/login')
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+            serverError.value = data.message || '가입 실패'
+            return
+        }
+
+        // 성공 시 이동
+        router.push('/login')
     } catch (err) {
-    alert(err.message || '가입 중 오류')
+        serverError.value = err.message || '가입 중 오류'
+    } finally {
+        isSubmitting.value = false
     }
 }
 </script>
