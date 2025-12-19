@@ -11,19 +11,16 @@
             <section class="taglines">
                 <Transition mode="out-in" name="rollUp">
                     <div :key="currentIndex" class="line-wrapper">
-                        <h2 v-if="currentIndex < 3" class="line">
+                        <h2 class="line">
                             {{ lines[currentIndex] }}
                         </h2>
-                        <h3 v-else class="line question">
-                            {{ lines[currentIndex] }}
-                        </h3>
                     </div>
                 </Transition>
             </section>
 
         </main>
 
-        <footer class="footer" />
+        <AppFooter theme="brand" />
     </div>
 </template>
 
@@ -31,6 +28,7 @@
 import { useRouter } from 'vue-router'
 import { ref, onMounted, onUnmounted } from 'vue'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
+import AppFooter from '@/layout/AppFooter.vue'
 
 const router = useRouter()
 import mascotGif from '@/assets/landing.gif'
@@ -91,6 +89,7 @@ function goSignup() { router.push('/log') }
     text-align: center;
     color: #4880EE;
     margin: 16px 0 24px;
+    padding: 0 0 20px;
     min-height: 60px;
     display: flex;
     align-items: center;
@@ -115,7 +114,7 @@ function goSignup() { router.push('/log') }
 /* Transition animation */
 .rollUp-enter-active,
 .rollUp-leave-active {
-    transition: all 0.3s ease-in-out;
+    transition: all 0.2s ease-in-out;
 }
 
 .rollUp-enter-from {
@@ -137,7 +136,7 @@ function goSignup() { router.push('/log') }
 .gifSection {
     display: flex;
     justify-content: center;
-    padding: 40px 0 80px;
+    padding: 40px 0 10px;
     width: 100%;
 }
 
@@ -147,18 +146,9 @@ function goSignup() { router.push('/log') }
     border-radius: 16px;
 }
 
-.footer {
-    height: 200px;
-    background: #4880EE;
-}
-
 @media (min-width: 768px) {
     .line {
         font-size: 28px;
-    }
-
-    .question {
-        font-size: 26px;
     }
 }
 </style>

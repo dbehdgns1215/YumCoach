@@ -1,7 +1,7 @@
 <template>
   <div class="shell">
     <aside class="sidebar" v-if="isDesktop">
-      <div class="brand">🍽️ YumCoach</div>
+      <div class="brand">YumCoach</div>
       <nav class="nav">
         <RouterLink v-for="item in items" :key="item.key" class="item" :class="{ active: activeKey === item.key }"
           :to="item.path">
@@ -23,6 +23,7 @@
 
       <div class="content">
         <slot />
+        <AppFooter />
       </div>
 
       <nav class="tabs" v-if="!isDesktop">
@@ -39,6 +40,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useResponsive } from '@/composables/useResponsive'
+import AppFooter from '@/layout/AppFooter.vue'
 
 defineProps({
   title: { type: String, required: true },
