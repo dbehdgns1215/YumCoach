@@ -7,6 +7,9 @@ import CoachPage from "@/pages/CoachPage.vue";
 import LandingPage from "@/pages/LandingPage.vue";
 import LoginPage from "@/pages/LoginPage.vue";
 import SignupPage from "@/pages/SignupPage.vue";
+import MyPage from "@/pages/MyPage.vue";
+import CommunityPage from "@/pages/CommunityPage.vue";
+import ChallengePage from "@/pages/ChallengePage.vue";
 
 const navItems = [
   { key: "home", path: "/home", label: "오늘" },
@@ -40,6 +43,18 @@ const routes = [
     path: "/coach",
     component: CoachPage,
     meta: { navKey: "coach", navLabel: "코치", navItems },
+  },
+  {
+    path: "/mypage",
+    component: MyPage,
+  },
+  {
+    path: "/community",
+    component: CommunityPage,
+  },
+  {
+    path: "/challenge",
+    component: ChallengePage,
   },
 ];
 

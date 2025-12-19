@@ -5,18 +5,70 @@
                 <img class="logo" :src="logoSrc" alt="YumCoach" />
             </router-link>
         </div>
-        <div class="right" v-if="!hideActions">
+
+        <!-- Before Login -->
+        <div class="right" v-if="!isLoggedIn && !hideActions">
             <router-link to="/login" class="btn ghost">로그인</router-link>
             <router-link to="/signup" class="btn primary">회원가입</router-link>
         </div>
+
+        <!-- After Login - Desktop -->
+        <nav class="nav-menu" v-if="isLoggedIn && isDesktop">
+            <router-link to="/home" class="nav-item">홈</router-link>
+            <router-link to="/log" class="nav-item">식단 등록</router-link>
+            <router-link to="/report" class="nav-item">리포트</router-link>
+            <router-link to="/community" class="nav-item">커뮤니티</router-link>
+            <router-link to="/challenge" class="nav-item">챌린지</router-link>
+            <router-link to="/coach" class="nav-item">챗봇</router-link>
+            <router-link to="/mypage" class="nav-item">마이페이지</router-link>
+        </nav>
+
+        <!-- After Login - Mobile Hamburger -->
+        <button v-if="isLoggedIn && !isDesktop" class="hamburger" @click="menuOpen = !menuOpen">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <!-- Mobile Menu Drawer -->
+        <nav v-if="isLoggedIn && !isDesktop && menuOpen" class="mobile-menu">
+            <router-link to="/home" class="mobile-nav-item" @click="menuOpen = false">홈</router-link>
+            <router-link to="/log" class="mobile-nav-item" @click="menuOpen = false">식단 등록</router-link>
+            <router-link to="/report" class="mobile-nav-item" @click="menuOpen = false">리포트</router-link>
+            <router-link to="/community" class="mobile-nav-item" @click="menuOpen = false">커뮤니티</router-link>
+            <router-link to="/challenge" class="mobile-nav-item" @click="menuOpen = false">챌린지</router-link>
+            <router-link to="/coach" class="mobile-nav-item" @click="menuOpen = false">챗봇</router-link>
+            <router-link to="/mypage" class="mobile-nav-item" @click="menuOpen = false">마이페이지</router-link>
+        </nav>
     </header>
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
 import logoSrc from '@/assets/logo.png'
 
 defineProps({
-    hideActions: { type: Boolean, default: false }
+    hideActions: { type: Boolean, default: false },
+    isLoggedIn: { type: Boolean, default: false }
+})
+
+const menuOpen = ref(false)
+const isDesktop = ref(true)
+
+const checkIsDesktop = () =>
+{
+    isDesktop.value = window.innerWidth >= 960
+}
+
+onMounted(() =>
+{
+    checkIsDesktop()
+    window.addEventListener('resize', checkIsDesktop)
+})
+
+onUnmounted(() =>
+{
+    window.removeEventListener('resize', checkIsDesktop)
 })
 </script>
 
@@ -26,9 +78,9 @@ defineProps({
     top: 0;
     z-index: 10;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 20px;
     background: #fff;
     border-bottom: 1px solid var(--border);
 }
@@ -43,11 +95,14 @@ defineProps({
     display: flex;
     align-items: center;
     text-decoration: none;
+    padding: 12px 20px;
 }
 
 .right {
     display: flex;
     gap: 12px;
+    padding: 12px 20px;
+    align-self: flex-end;
 }
 
 .btn {
@@ -65,12 +120,89 @@ defineProps({
 
 .primary {
     background: #4880EE;
-    /* YumBlue from design */
     color: #fff;
 }
 
 .ghost {
     background: #fff;
     color: #7b7b7b;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 24px;
+    flex: 1;
+    justify-content: center;
+}
+
+.nav-item {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    text-decoration: none;
+    transition: color 0.2s;
+    padding: 8px 0;
+    border-bottom: 2px solid transparent;
+}
+
+.nav-item:hover {
+    color: #4880ee;
+}
+
+.nav-item.router-link-active {
+    color: #4880ee;
+    border-bottom-color: #4880ee;
+}
+
+/* Hamburger Button */
+.hamburger {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 12px 20px;
+    align-self: flex-end;
+}
+
+.hamburger span {
+    width: 24px;
+    height: 3px;
+    background: #374151;
+    border-radius: 2px;
+    transition: all 0.3s;
+}
+
+/* Mobile Menu */
+.mobile-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 12px 20px;
+    gap: 12px;
+    z-index: 9;
+}
+
+.mobile-nav-item {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    text-decoration: none;
+    padding: 8px 0;
+    transition: color 0.2s;
+}
+
+.mobile-nav-item:hover {
+    color: #4880ee;
+}
+
+.mobile-nav-item.router-link-active {
+    color: #4880ee;
 }
 </style>

@@ -1,5 +1,6 @@
 <template>
-    <AppShell title="기록" :subtitle="subtitle" @primary="openAddQuick">
+    <TopBarNavigation :isLoggedIn="true" />
+    <AppShell title="기록" :subtitle="subtitle" footerTheme="brand" @primary="openAddQuick">
         <WeekStrip :week-start="weekStart" :selected-date="selectedDate" @select="selectedDate = $event"
             @prev="shiftWeek(-7)" @next="shiftWeek(7)" />
 
@@ -31,6 +32,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import AppShell from '@/layout/AppShell.vue'
+import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 import BaseCard from '@/components/base/BaseCard.vue'
 
 import WeekStrip from '@/components/log/WeekStrip.vue'
