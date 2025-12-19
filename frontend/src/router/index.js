@@ -5,6 +5,7 @@ import LogPage from "@/pages/LogPage.vue";
 import ReportPage from "@/pages/ReportPage.vue";
 import CoachPage from "@/pages/CoachPage.vue";
 import LandingPage from "@/pages/LandingPage.vue";
+import LoginPage from "@/pages/LoginPage.vue";
 
 const navItems = [
   { key: "home", path: "/home", label: "오늘" },
@@ -17,6 +18,7 @@ const routes = [
   // Landing is standalone (no AppShell nav)
   { path: "/landing", component: LandingPage },
   { path: "/", redirect: "/landing" },
+  { path: "/login", component: LoginPage },
   {
     path: "/home",
     component: HomePage,

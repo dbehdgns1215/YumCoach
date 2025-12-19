@@ -1,9 +1,11 @@
 <template>
     <header class="topbar" data-name="Header">
         <div class="left">
-            <img class="logo" :src="logoSrc" alt="YumCoach" />
+            <router-link to="/landing">
+                <img class="logo" :src="logoSrc" alt="YumCoach" />
+            </router-link>
         </div>
-        <div class="right">
+        <div class="right" v-if="!hideActions">
             <button class="btn ghost" @click="$emit('signin')">로그인</button>
             <button class="btn primary" @click="$emit('signup')">회원가입</button>
         </div>
@@ -12,6 +14,10 @@
 
 <script setup>
 import logoSrc from '@/assets/logo.png'
+
+defineProps({
+    hideActions: { type: Boolean, default: false }
+})
 
 defineEmits(['signin', 'signup'])
 </script>
@@ -30,8 +36,15 @@ defineEmits(['signin', 'signup'])
 }
 
 .logo {
-    height: 70px;
+    height: 50px;
     width: auto;
+    cursor: pointer;
+}
+
+.left a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
 }
 
 .right {
