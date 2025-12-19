@@ -1,4 +1,5 @@
 <template>
+  <TopBarNavigation :isLoggedIn="true" />
   <AppShell title="이번 주 식단 리포트" :subtitle="periodLabel" @primary="onAddMeal">
     <div class="grid">
       <div class="colMain">
@@ -29,6 +30,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import AppShell from '@/layout/AppShell.vue'
+import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 import ReportHero from '@/components/report/ReportHero.vue'
 import InsightCard from '@/components/report/InsightCard.vue'
 import NextActionCard from '@/components/report/NextActionCard.vue'
