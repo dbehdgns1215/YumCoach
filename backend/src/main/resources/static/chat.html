@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>YumCoach Chatbot</title>
+  <style>
+    body{font-family: Arial, sans-serif; padding:20px}
+    #chat{max-width:720px;margin:auto}
+    .msg{padding:8px;border-radius:6px;margin:6px 0}
+    .user{background:#e1f5fe;text-align:right}
+    .bot{background:#f1f8e9;text-align:left}
+  </style>
+</head>
+<body>
+  <div id="chat">
+    <h2>YumCoach Chatbot (테스트)</h2>
+    <div id="log"></div>
+    <form id="frm">
+      <input id="input" style="width:80%" placeholder="메시지를 입력하세요" />
+      <button type="submit">보내기</button>
+    </form>
+  </div>
+
+  <script>
+    const log = document.getElementById('log');
+    const frm = document.getElementById('frm');
+    const input = document.getElementById('input');
+
+    function append(text, cls){
+      const el = document.createElement('div'); 
+      el.className = 'msg '+cls; 
+      el.textContent = text; 
+      log.appendChild(el); 
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    frm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const msg = input.value.trim(); 
+      if(!msg) return;
+      
+      append(msg,'user'); 
+      input.value='';
+      append('응답 대기 중...','bot');
+      
+      try{
+        const res = await fetch('/api/chat', {
+          method:'POST', 
+          headers:{'Content-Type':'application/json'}, 
+          body:JSON.stringify({message:msg})
+        });
+        
+        const data = await res.json();
+
+        const last = log.lastChild; 
+        if(last && last.textContent==='응답 대기 중...') last.remove();
+        
+        if(res.ok){ 
+          const reply = data.reply || '응답 없음';
+          append(reply, 'bot'); 
+        } else { 
+          append('오류: ' + (data.reply || JSON.stringify(data)), 'bot'); 
+        }
+      }catch(err){
+        const last = log.lastChild; 
+        if(last && last.textContent==='응답 대기 중...') last.remove();
+        append('통신 오류: '+ err.message,'bot');
+      }
+    });
+  </script>
+</body>
+</html>
