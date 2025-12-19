@@ -1,6 +1,6 @@
 <template>
   <TopBarNavigation :isLoggedIn="true" />
-  <AppShell title="이번 주 식단 리포트" :subtitle="periodLabel" @primary="onAddMeal">
+  <AppShell title="이번 주 식단 리포트" :subtitle="periodLabel" footerTheme="brand" @primary="onAddMeal">
     <div class="grid">
       <div class="colMain">
         <ReportHero :score="score" :period-label="periodLabel" :summary-title="heroTitle" :summary-line="heroLine" />

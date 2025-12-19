@@ -1,6 +1,6 @@
 <template>
     <TopBarNavigation :isLoggedIn="true" />
-    <AppShell title="기록" :subtitle="subtitle" @primary="openAddQuick">
+    <AppShell title="기록" :subtitle="subtitle" footerTheme="brand" @primary="openAddQuick">
         <WeekStrip :week-start="weekStart" :selected-date="selectedDate" @select="selectedDate = $event"
             @prev="shiftWeek(-7)" @next="shiftWeek(7)" />
 

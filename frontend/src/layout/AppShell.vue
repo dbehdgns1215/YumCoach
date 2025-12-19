@@ -1,15 +1,5 @@
 <template>
   <div class="shell">
-    <aside class="sidebar" v-if="isDesktop">
-      <div class="brand">YumCoach</div>
-      <nav class="nav">
-        <RouterLink v-for="item in items" :key="item.key" class="item" :class="{ active: activeKey === item.key }"
-          :to="item.path">
-          {{ item.label }}
-        </RouterLink>
-      </nav>
-    </aside>
-
     <div class="main">
       <header class="topbar">
         <div class="left">
@@ -23,9 +13,9 @@
 
       <div class="content">
         <slot />
-        <AppFooter />
-      </div>
 
+      </div>
+      <AppFooter :theme="footerTheme" />
       <nav class="tabs" v-if="!isDesktop">
         <RouterLink v-for="item in items" :key="item.key" class="tab" :class="{ active: activeKey === item.key }"
           :to="item.path">
@@ -45,6 +35,7 @@ import AppFooter from '@/layout/AppFooter.vue'
 defineProps({
   title: { type: String, required: true },
   subtitle: { type: String, default: '' },
+  footerTheme: { type: String, default: 'light' },
 })
 defineEmits(['primary'])
 
@@ -59,16 +50,6 @@ const activeKey = computed(() => route.meta?.navKey || '')
 .shell {
   min-height: 100vh;
   display: flex;
-}
-
-.sidebar {
-  width: 260px;
-  padding: var(--space-5);
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  height: 100vh;
 }
 
 .brand {

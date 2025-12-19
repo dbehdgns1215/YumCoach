@@ -1,6 +1,6 @@
 <template>
     <TopBarNavigation :isLoggedIn="true" />
-    <AppShell title="오늘" subtitle="오늘은 가볍게 체크해요" @primary="goLog">
+    <AppShell title="오늘" subtitle="오늘은 가볍게 체크해요" footerTheme="brand" @primary="goLog">
         <StubPlaceholder text="Home (stub)" />
     </AppShell>
 </template>

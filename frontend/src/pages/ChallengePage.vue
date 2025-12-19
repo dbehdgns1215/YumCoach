@@ -1,6 +1,6 @@
 <template>
     <TopBarNavigation :isLoggedIn="true" />
-    <AppShell title="챌린지" subtitle="도전해요!" @primary="noop">
+    <AppShell title="챌린지" subtitle="도전해요!" footerTheme="brand" @primary="noop">
         <StubPlaceholder text="Challenge (stub)" />
     </AppShell>
 </template>

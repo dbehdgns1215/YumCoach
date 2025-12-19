@@ -1,6 +1,6 @@
 <template>
     <TopBarNavigation :isLoggedIn="true" />
-    <AppShell title="코치" subtitle="질문하면 바로 요약해줘요" @primary="noop">
+    <AppShell title="코치" subtitle="질문하면 바로 요약해줘요" footerTheme="brand" @primary="noop">
         <StubPlaceholder text="Coach (stub)" />
     </AppShell>
 </template>
