@@ -127,13 +127,14 @@ const activeKey = computed(() => route.meta?.navKey || '')
   border-top: 1px solid var(--border);
   display: flex;
   justify-content: space-around;
-  padding: 10px 0;
+  padding: 12px 0;
 }
 
 .tab {
   color: var(--muted);
   font-weight: 900;
-  font-size: 12px;
+  font-size: 13px;
+  padding: 8px 0;
 }
 
 .tab.active {
