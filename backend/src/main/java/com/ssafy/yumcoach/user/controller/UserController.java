@@ -41,11 +41,13 @@ public class UserController {
      */
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
+        System.out.println("Signup request: " + request);
         try {
             User user = User.builder()
                     .email(request.getEmail())
                     .password(request.getPassword())
                     .name(request.getName())
+                    .phone(request.getPhone())
                     .build();
             
             userService.signup(user);

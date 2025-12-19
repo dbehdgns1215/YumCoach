@@ -71,8 +71,8 @@ onUnmounted(() =>
     if (intervalId) clearInterval(intervalId)
 })
 
-function goSignin() { router.push('/report') }
-function goSignup() { router.push('/log') }
+function goSignin() { router.push('/login') }
+function goSignup() { router.push('/signup') }
 </script>
 
 <style scoped>
