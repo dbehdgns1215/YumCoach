@@ -9,12 +9,17 @@
             </section>
 
             <section class="taglines">
-                <h2>식사는 잘 챙기셨나요?</h2>
-                <h2>어떻게 먹냐에 따라 컨디션이 달라져요!</h2>
-                <h2>저희가 도와드릴게요!</h2>
-                <h3 class="question">오늘 컨디션은 어떠세요?</h3>
+                <Transition mode="out-in" name="rollUp">
+                    <div :key="currentIndex" class="line-wrapper">
+                        <h2 v-if="currentIndex < 3" class="line">
+                            {{ lines[currentIndex] }}
+                        </h2>
+                        <h3 v-else class="line question">
+                            {{ lines[currentIndex] }}
+                        </h3>
+                    </div>
+                </Transition>
             </section>
-
 
         </main>
 
@@ -24,11 +29,36 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted } from 'vue'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 
 const router = useRouter()
 import mascotGif from '@/assets/landing.gif'
 const gifSrc = mascotGif
+
+const lines = [
+    '식사는 잘 챙기셨나요?',
+    '어떻게 먹냐에 따라 컨디션이 달라져요!',
+    '저희가 도와드릴게요!',
+    '오늘 컨디션은 어떠세요?'
+]
+
+const currentIndex = ref(0)
+let intervalId = null
+
+onMounted(() =>
+{
+    // 3.6초마다 다음 텍스트로 전환
+    intervalId = setInterval(() =>
+    {
+        currentIndex.value = (currentIndex.value + 1) % lines.length
+    }, 3600)
+})
+
+onUnmounted(() =>
+{
+    if (intervalId) clearInterval(intervalId)
+})
 
 function goSignin() { router.push('/report') }
 function goSignup() { router.push('/log') }
@@ -61,9 +91,17 @@ function goSignup() { router.push('/log') }
     text-align: center;
     color: #4880EE;
     margin: 16px 0 24px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.taglines h2 {
+.line-wrapper {
+    width: 100%;
+}
+
+.line {
     font-weight: 900;
     font-size: 24px;
     margin: 10px 0;
@@ -72,6 +110,28 @@ function goSignup() { router.push('/log') }
 .question {
     margin-top: 24px;
     font-size: 22px;
+}
+
+/* Transition animation */
+.rollUp-enter-active,
+.rollUp-leave-active {
+    transition: all 0.3s ease-in-out;
+}
+
+.rollUp-enter-from {
+    opacity: 0;
+    transform: translateY(100%);
+}
+
+.rollUp-leave-to {
+    opacity: 0;
+    transform: translateY(-100%);
+}
+
+.rollUp-enter-to,
+.rollUp-leave-from {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .gifSection {
@@ -93,7 +153,7 @@ function goSignup() { router.push('/log') }
 }
 
 @media (min-width: 768px) {
-    .taglines h2 {
+    .line {
         font-size: 28px;
     }
 
