@@ -8,6 +8,9 @@
                 <a href="#" @click.prevent>대전 6반</a>
                 <span class="dot">•</span>
                 <a href="#" @click.prevent>김아린 유동훈</a>
+                <a href="https://github.com/dbehdgns1215/YumCoach" target="_blank" rel="noopener noreferrer">
+                    <img :src="gitIcon" alt="GitHub" class="github-icon" />
+                </a>
             </div>
             <div class="copy">© {{ new Date().getFullYear() }} YumCoach. All rights reserved.</div>
         </div>
@@ -15,6 +18,8 @@
 </template>
 
 <script setup>
+import gitIcon from '@/assets/git.png'
+
 const props = defineProps({
     theme: { type: String, default: 'light' }, // light | brand
 })
@@ -68,5 +73,14 @@ const props = defineProps({
 
 .app-footer.brand .copy {
     color: rgba(255, 255, 255, .85);
+}
+
+.github-link {
+    margin-top: 4px;
+}
+
+.github-icon {
+    width: 24px;
+    height: 24px;
 }
 </style>
