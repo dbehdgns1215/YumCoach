@@ -26,7 +26,7 @@
                         <a href="/reset-password" class="link">비밀번호 찾기</a>
                     </div>
 
-                    <button type="submit" class="login-button">로그인</button>
+                    <button type="submit" class="login-button" :disabled="isSubmitting">{{ isSubmitting ? '로그인 중...' : '로그인' }}</button>
                 </form>
 
                 <div class="divider-line">
@@ -53,9 +53,14 @@ const email = ref('')
 const password = ref('')
 const emailError = ref('')
 const passwordError = ref('')
+const isSubmitting = ref(false)
 
-function handleLogin()
+async function handleLogin()
 {
+    // reset errors
+    emailError.value = ''
+    passwordError.value = ''
+
     if (!email.value) {
         emailError.value = '이메일을 입력해주세요.'
         return
@@ -66,9 +71,29 @@ function handleLogin()
         return
     }
 
-    // 로그인 로직 구현
-    console.log('로그인:', email.value, password.value)
-    // TODO: API 호출 후 성공시 페이지 이동
+    try {
+        isSubmitting.value = true
+        const res = await fetch('/api/user/signin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.value, password: password.value })
+        })
+
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+            const msg = data.message || '로그인 실패'
+            if (data.field === 'email') emailError.value = msg
+            else if (data.field === 'password') passwordError.value = msg
+            else alert(msg)
+            return
+        }
+
+        router.push('/home')
+    } catch (err) {
+        alert(err.message || '로그인 중 오류')
+    } finally {
+        isSubmitting.value = false
+    }
 }
 
 function handleKakaoLogin()
