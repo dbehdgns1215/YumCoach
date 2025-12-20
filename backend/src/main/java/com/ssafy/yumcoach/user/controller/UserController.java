@@ -89,18 +89,10 @@ public class UserController {
             RefreshTokenDto refreshTokenEntity = RefreshTokenDto.builder()
                     .userId(user.getId())
                     .token(refreshToken)
-                    .expiresAt(LocalDateTime.now().plus(7, ChronoUnit.DAYS))
+                    .expiresAt(LocalDateTime.now().plusDays(1))
                     .build();
             refreshTokenService.saveRefreshToken(refreshTokenEntity);
-            
-            // Access Token을 HttpOnly Cookie로 설정 (XSS 방어)
-            Cookie accessTokenCookie = new Cookie("accessToken", accessToken);
-            accessTokenCookie.setHttpOnly(true);  // JavaScript 접근 차단
-            accessTokenCookie.setSecure(false);   // HTTPS only (개발: false, 운영: true)
-            accessTokenCookie.setPath("/");
-            accessTokenCookie.setMaxAge(60 * 15); // 15분
-            response.addCookie(accessTokenCookie);
-            
+
             // Refresh Token을 HttpOnly Cookie로 설정 (XSS 방어)
             Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
             refreshTokenCookie.setHttpOnly(true);  // JavaScript 접근 차단
@@ -108,17 +100,15 @@ public class UserController {
             refreshTokenCookie.setPath("/"); // 모든 경로에서 접근 가능 (로그아웃 시 삭제 위해)
             refreshTokenCookie.setMaxAge(60 * 60 * 24); // 1일
             response.addCookie(refreshTokenCookie);
-            
-            // 응답 (사용자 정보만 반환, 토큰은 쿠키에)
+
+            // Access Token은 응답 Body에 포함
             Map<String, Object> responseData = new HashMap<>();
+            responseData.put("accessToken", accessToken);
             responseData.put("userId", user.getId());
             responseData.put("email", user.getEmail());
             responseData.put("name", user.getName());
-            responseData.put(accessTokenCookie.getName(), accessToken);
-            responseData.put("message", "로그인 성공");
-            
+
             return ResponseEntity.ok(responseData);
-            
         } catch (IllegalArgumentException e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
