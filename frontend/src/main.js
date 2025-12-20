@@ -5,11 +5,24 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from "./App.vue";
 import router from "./router";
 import "./styles/tokens.css";
+import { useAuthStore } from './stores/auth'
 
 const app = createApp(App);
 const pinia = createPinia();
 // 세션 스토리지에 상태를 저장하도록 플러그인 등록
 pinia.use(piniaPluginPersistedstate)
 app.use(pinia);
-app.use(router);
-app.mount("#app");
+
+// 앱 마운트 전에 인증 상태를 초기화합니다 (차단 방식)
+(async () => {
+	try {
+		const auth = useAuthStore()
+		await auth.checkAuth()
+	} catch (e) {
+		// 초기 인증 검사 실패 시에도 앱은 계속 마운트합니다
+		console.warn('auth.checkAuth() failed:', e)
+	}
+
+	app.use(router);
+	app.mount("#app");
+})()
