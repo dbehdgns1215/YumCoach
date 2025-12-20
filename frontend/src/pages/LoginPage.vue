@@ -26,7 +26,7 @@
                         <a href="/reset-password" class="link">비밀번호 찾기</a>
                     </div>
 
-                    <button type="submit" class="login-button">로그인</button>
+                    <button type="submit" class="login-button" :disabled="isSubmitting">{{ isSubmitting ? '로그인 중...' : '로그인' }}</button>
                 </form>
 
                 <div class="divider-line">
@@ -43,9 +43,13 @@
 </template>
 
 <script setup>
+// 로그인 페이지: 인증은 Pinia `auth` 스토어에 위임합니다.
+// - 로그인 요청은 `auth.login()`을 호출하고, 성공 시 리다이렉트합니다.
+// - 서버 에러 메시지(field/message)는 응답을 검사하여 폼 에러로 매핑합니다.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 
@@ -53,9 +57,13 @@ const email = ref('')
 const password = ref('')
 const emailError = ref('')
 const passwordError = ref('')
+const isSubmitting = ref(false)
 
-function handleLogin()
-{
+async function handleLogin() {
+    // 폼 에러 초기화
+    emailError.value = ''
+    passwordError.value = ''
+
     if (!email.value) {
         emailError.value = '이메일을 입력해주세요.'
         return
@@ -66,9 +74,28 @@ function handleLogin()
         return
     }
 
-    // 로그인 로직 구현
-    console.log('로그인:', email.value, password.value)
-    // TODO: API 호출 후 성공시 페이지 이동
+    const auth = useAuthStore()
+    try {
+        isSubmitting.value = true
+        // Pinia auth.login() 호출 (스토어에서 axios로 signin, withCredentials: true)
+        const data = await auth.login({ email: email.value, password: password.value })
+        // 로그인 성공 시 홈으로 이동
+        router.push('/home')
+    } catch (err) {
+        // axios 오류 응답에서 field/message 추출하여 폼 에러로 매핑
+        const resp = err?.response
+        const data = resp?.data
+        if (data) {
+            const msg = data.message || '로그인 실패'
+            if (data.field === 'email') emailError.value = msg
+            else if (data.field === 'password') passwordError.value = msg
+            else alert(msg)
+        } else {
+            alert(err.message || '로그인 중 오류')
+        }
+    } finally {
+        isSubmitting.value = false
+    }
 }
 
 function handleKakaoLogin()

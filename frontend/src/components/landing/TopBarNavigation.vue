@@ -7,13 +7,13 @@
         </div>
 
         <!-- Before Login -->
-        <div class="right" v-if="!isLoggedIn && !hideActions">
+        <div class="right" v-if="!loggedIn && !hideActions">
             <router-link to="/login" class="btn ghost">로그인</router-link>
             <router-link to="/signup" class="btn primary">회원가입</router-link>
         </div>
 
         <!-- After Login - Desktop -->
-        <nav class="nav-menu" v-if="isLoggedIn && isDesktop">
+        <nav class="nav-menu" v-if="loggedIn && isDesktop">
             <router-link to="/home" class="nav-item">홈</router-link>
             <router-link to="/log" class="nav-item">식단 등록</router-link>
             <router-link to="/report" class="nav-item">리포트</router-link>
@@ -24,14 +24,19 @@
         </nav>
 
         <!-- After Login - Mobile Hamburger -->
-        <button v-if="isLoggedIn && !isDesktop" class="hamburger" @click="menuOpen = !menuOpen">
+        <button v-if="loggedIn && !isDesktop" class="hamburger" @click="menuOpen = !menuOpen">
             <span></span>
             <span></span>
             <span></span>
         </button>
 
+        <!-- Logout 버튼 (데스크탑 오른쪽) -->
+        <div class="right" v-if="loggedIn && !hideActions && isDesktop">
+            <button class="btn ghost" @click="handleLogout">로그아웃</button>
+        </div>
+
         <!-- Mobile Menu Drawer -->
-        <nav v-if="isLoggedIn && !isDesktop && menuOpen" class="mobile-menu">
+        <nav v-if="loggedIn && !isDesktop && menuOpen" class="mobile-menu">
             <router-link to="/home" class="mobile-nav-item" @click="menuOpen = false">홈</router-link>
             <router-link to="/log" class="mobile-nav-item" @click="menuOpen = false">식단 등록</router-link>
             <router-link to="/report" class="mobile-nav-item" @click="menuOpen = false">리포트</router-link>
@@ -39,37 +44,59 @@
             <router-link to="/challenge" class="mobile-nav-item" @click="menuOpen = false">챌린지</router-link>
             <router-link to="/coach" class="mobile-nav-item" @click="menuOpen = false">챗봇</router-link>
             <router-link to="/mypage" class="mobile-nav-item" @click="menuOpen = false">마이페이지</router-link>
+            <button class="mobile-nav-item" @click="(menuOpen=false, handleLogout())">로그아웃</button>
         </nav>
     </header>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+// 헤더 리팩토링: 인증 상태는 Pinia `auth` 스토어에서 읽습니다.
+// - 이 컴포넌트는 네트워크 호출을 직접 하지 않습니다.
+// - 보여줄 로그인 상태는 부모에서 명시적으로 전달된 `isLoggedIn` 프롭이 있으면 그 값을 우선 사용하고,
+//   없으면 스토어의 `isAuthenticated`를 사용합니다.
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import logoSrc from '@/assets/logo.png'
 
-defineProps({
+const props = defineProps({
     hideActions: { type: Boolean, default: false },
-    isLoggedIn: { type: Boolean, default: false }
+    isLoggedIn: { type: Boolean, default: undefined }
 })
+
+const auth = useAuthStore()
+const router = useRouter()
 
 const menuOpen = ref(false)
 const isDesktop = ref(true)
 
-const checkIsDesktop = () =>
-{
+const checkIsDesktop = () => {
     isDesktop.value = window.innerWidth >= 960
 }
 
-onMounted(() =>
-{
+onMounted(() => {
     checkIsDesktop()
     window.addEventListener('resize', checkIsDesktop)
 })
 
-onUnmounted(() =>
-{
+onUnmounted(() => {
     window.removeEventListener('resize', checkIsDesktop)
 })
+
+// 표시할 로그인 여부: 부모 프로퍼티가 명시적이면 우선 사용, 아니면 Pinia 스토어 사용
+const loggedIn = computed(() => {
+    if (typeof props.isLoggedIn === 'boolean') return props.isLoggedIn
+    return auth.isAuthenticated
+})
+
+async function handleLogout() {
+    try {
+        await auth.logout()
+    } finally {
+        // 로그아웃 후 랜딩 페이지로 이동
+        router.push('/landing').catch(() => {})
+    }
+}
 </script>
 
 <style scoped>
