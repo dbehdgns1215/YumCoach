@@ -131,8 +131,8 @@ public class UserController {
     @PostMapping("/signout")
     public ResponseEntity<?> signout(HttpServletRequest request, HttpServletResponse response) {
         try {
-            // Cookie에서 Access Token 가져오기
-            String token = getTokenFromCookie(request, "accessToken");
+            // 요청에서 Access Token 가져오기 (Authorization 헤더 우선, 없으면 쿠키)
+            String token = extractToken(request);
             if (token != null) {
                 int userId = jwtUtil.getUserId(token);
                 // DB에서 Refresh Token 삭제
@@ -204,18 +204,36 @@ public class UserController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
-            // 새 Access Token 발급 및 Cookie 설정
-            String newAccessToken = jwtUtil.createAccessToken(tokenEntity.getUserId());
-            Cookie accessTokenCookie = new Cookie("accessToken", newAccessToken);
-            accessTokenCookie.setHttpOnly(true);
-            accessTokenCookie.setSecure(false);
-            accessTokenCookie.setPath("/");
-            accessTokenCookie.setMaxAge(60 * 60); // 1시간
-            response.addCookie(accessTokenCookie);
-            
-            Map<String, String> responseData = new HashMap<>();
-            responseData.put("message", "토큰 갱신 성공");
-            return ResponseEntity.ok(responseData);
+                // Refresh Token rotation: 기존 RT 삭제, 새 RT 발급 및 DB 저장
+                log.info("[auth] refresh: rotating RT for userId={}", tokenEntity.getUserId());
+                log.debug("[auth] refresh: old RT=[{}]", refreshToken);
+                refreshTokenService.deleteByToken(refreshToken);
+                log.info("[auth] refresh: deleted old RT");
+
+                String newRefreshToken = jwtUtil.createRefreshToken(tokenEntity.getUserId());
+                RefreshTokenDto newTokenEntity = RefreshTokenDto.builder()
+                    .userId(tokenEntity.getUserId())
+                    .token(newRefreshToken)
+                    .expiresAt(LocalDateTime.now().plusDays(1))
+                    .build();
+                refreshTokenService.saveRefreshToken(newTokenEntity);
+                log.info("[auth] refresh: saved new RT for userId={}", tokenEntity.getUserId());
+
+                // 새 Refresh Token을 HttpOnly Cookie로 설정
+                Cookie refreshTokenCookie = new Cookie("refreshToken", newRefreshToken);
+                refreshTokenCookie.setHttpOnly(true);
+                refreshTokenCookie.setSecure(false);
+                refreshTokenCookie.setPath("/");
+                refreshTokenCookie.setMaxAge(60 * 60 * 24); // 1일
+                response.addCookie(refreshTokenCookie);
+
+                // 새 Access Token 발급 및 응답 바디로 반환
+                String newAccessToken = jwtUtil.createAccessToken(tokenEntity.getUserId());
+                log.info("[auth] refresh: issued new accessToken for userId={}", tokenEntity.getUserId());
+                Map<String, String> responseData = new HashMap<>();
+                responseData.put("accessToken", newAccessToken);
+                responseData.put("message", "토큰 갱신 성공");
+                return ResponseEntity.ok(responseData);
             
         } catch (Exception e) {
             log.error("Token refresh error", e);
@@ -232,8 +250,8 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<?> getMyInfo(HttpServletRequest request) {
         try {
-            // Cookie에서 Access Token 가져오기
-            String token = getTokenFromCookie(request, "accessToken");
+            // 요청에서 Access Token 추출 (Authorization 헤더 우선, 없으면 쿠키)
+            String token = extractToken(request);
             if (token == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "인증이 필요합니다.");
@@ -279,8 +297,8 @@ public class UserController {
     @GetMapping("/health")
     public ResponseEntity<?> getUserHealth(HttpServletRequest request) {
         try {
-            // Cookie에서 Access Token 가져오기
-            String token = getTokenFromCookie(request, "accessToken");
+            // 요청에서 Access Token 추출 (Authorization 헤더 우선, 없으면 쿠키)
+            String token = extractToken(request);
             if (token == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "인증이 필요합니다.");
@@ -327,8 +345,8 @@ public class UserController {
             HttpServletRequest request,
             @RequestBody UpdateHealthRequest healthRequest) {
         try {
-            // Cookie에서 Access Token 가져오기
-            String token = getTokenFromCookie(request, "accessToken");
+            // 요청에서 Access Token 추출 (Authorization 헤더 우선, 없으면 쿠키)
+            String token = extractToken(request);
             if (token == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "인증이 필요합니다.");
@@ -385,5 +403,16 @@ public class UserController {
             }
         }
         return null;
+    }
+
+    /**
+     * 요청에서 토큰 추출: Authorization 헤더(Bearer) 우선, 없으면 accessToken 쿠키 사용
+     */
+    private String extractToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return getTokenFromCookie(request, "accessToken");
     }
 }
