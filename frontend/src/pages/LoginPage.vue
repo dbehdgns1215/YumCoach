@@ -43,9 +43,13 @@
 </template>
 
 <script setup>
+// 로그인 페이지: 인증은 Pinia `auth` 스토어에 위임합니다.
+// - 로그인 요청은 `auth.login()`을 호출하고, 성공 시 리다이렉트합니다.
+// - 서버 에러 메시지(field/message)는 응답을 검사하여 폼 에러로 매핑합니다.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 
@@ -55,9 +59,8 @@ const emailError = ref('')
 const passwordError = ref('')
 const isSubmitting = ref(false)
 
-async function handleLogin()
-{
-    // reset errors
+async function handleLogin() {
+    // 폼 에러 초기화
     emailError.value = ''
     passwordError.value = ''
 
@@ -71,26 +74,25 @@ async function handleLogin()
         return
     }
 
+    const auth = useAuthStore()
     try {
         isSubmitting.value = true
-        const res = await fetch('/api/user/signin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email.value, password: password.value })
-        })
-
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) {
+        // Pinia auth.login() 호출 (스토어에서 axios로 signin, withCredentials: true)
+        const data = await auth.login({ email: email.value, password: password.value })
+        // 로그인 성공 시 홈으로 이동
+        router.push('/home')
+    } catch (err) {
+        // axios 오류 응답에서 field/message 추출하여 폼 에러로 매핑
+        const resp = err?.response
+        const data = resp?.data
+        if (data) {
             const msg = data.message || '로그인 실패'
             if (data.field === 'email') emailError.value = msg
             else if (data.field === 'password') passwordError.value = msg
             else alert(msg)
-            return
+        } else {
+            alert(err.message || '로그인 중 오류')
         }
-
-        router.push('/home')
-    } catch (err) {
-        alert(err.message || '로그인 중 오류')
     } finally {
         isSubmitting.value = false
     }

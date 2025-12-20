@@ -19,6 +19,8 @@ export const useAuthStore = defineStore('auth', {
       // accessToken을 스토어에 설정합니다. PersistedState Plugin이 세션스토리지에 동기화합니다.
       this.accessToken = token
       this.isAuthenticated = !!token
+      // 디버그: 토큰 설정 시 로그 출력
+      try { console.debug('[auth] setAccessToken', { token, isAuthenticated: this.isAuthenticated }) } catch(e) {}
     },
 
     async login(credentials) {
@@ -26,9 +28,30 @@ export const useAuthStore = defineStore('auth', {
       try {
         const res = await axios.post('/api/user/signin', credentials, { withCredentials: true })
         const data = res.data || {}
-        if (data.accessToken) this.setAccessToken(data.accessToken)
+        // 디버그: 로그인 응답 확인
+        try { console.debug('[auth] login response', data) } catch(e) {}
+        // 가능한 여러 필드명을 허용하여 accessToken을 추출
+        const token = data.accessToken || data.token || data.jwt || null
+        if (token) {
+          this.setAccessToken(token)
+        }
+
         if (data.user) {
           this.user = data.user
+        }
+
+        // 만약 토큰이 없고 user 정보도 없다면, 서버가 쿠키 기반 세션을 사용하고 있을 수 있으므로
+        // /me 엔드포인트로 사용자 정보를 가져와 상태를 채워봅니다.
+        if (!token && !this.user) {
+          try {
+            const me = await axios.get('/api/user/me', { withCredentials: true })
+            this.user = me.data
+            this.isAuthenticated = true
+            try { console.debug('[auth] login: populated user via /me after signin') } catch(e) {}
+          } catch (e) {
+            // /me 실패하면 로그인은 성공적이지만 토큰/유저 정보는 없음
+            try { console.debug('[auth] login: /me after signin failed') } catch(e) {}
+          }
         }
         return data
       } finally {
@@ -55,11 +78,24 @@ export const useAuthStore = defineStore('auth', {
         try {
           const res = await axios.post('/api/user/refresh', null, { withCredentials: true })
           const data = res.data || {}
-          if (data.accessToken) {
-            this.setAccessToken(data.accessToken)
-            return data.accessToken
+          // 우선 accessToken을 기대하지만, 없는 경우도 처리
+          const token = data.accessToken || data.token || data.jwt || null
+          if (token) {
+            this.setAccessToken(token)
+            return token
           }
-          throw new Error('refresh에서 accessToken을 반환하지 않음')
+
+          // 토큰이 없더라도 서버가 쿠키 기반으로 세션을 유지해줄 수 있음.
+          // 이 경우 /me를 호출해 사용자 정보를 받아오면 인증 상태로 간주합니다.
+          try {
+            const me = await axios.get('/api/user/me', { withCredentials: true })
+            this.user = me.data
+            this.isAuthenticated = true
+            try { console.debug('[auth] refresh: populated user via /me') } catch(e) {}
+            return null
+          } catch (e) {
+            throw new Error('refresh did not return accessToken and /me failed')
+          }
         } catch (err) {
           this.accessToken = null
           this.user = null
@@ -75,6 +111,7 @@ export const useAuthStore = defineStore('auth', {
 
     async checkAuth() {
       this.loading = true
+      try { try { console.debug('[auth] checkAuth start, accessToken:', this.accessToken) } catch(e) {} } catch(e) {}
       try {
         // 이미 accessToken이 있으면 /me 호출로 유효성 검증
         if (this.accessToken) {
@@ -82,6 +119,7 @@ export const useAuthStore = defineStore('auth', {
             const res = await axios.get('/api/user/me', { headers: { Authorization: `Bearer ${this.accessToken}` } })
             this.user = res.data
             this.isAuthenticated = true
+            try { console.debug('[auth] checkAuth success (with existing token)', this.user) } catch(e) {}
             return true
           } catch (err) {
             const status = err?.response?.status
@@ -91,23 +129,28 @@ export const useAuthStore = defineStore('auth', {
               const res2 = await axios.get('/api/user/me', { headers: { Authorization: `Bearer ${this.accessToken}` } })
               this.user = res2.data
               this.isAuthenticated = true
+              try { console.debug('[auth] checkAuth success (after refresh)', this.user) } catch(e) {}
               return true
             }
             this.accessToken = null
             this.isAuthenticated = false
+            try { console.debug('[auth] checkAuth failed, invalid token') } catch(e) {}
             return false
           }
         }
 
         // accessToken이 없으면 refresh로 토큰 받기 시도 (RT 쿠키 자동 전송)
         try {
+          try { console.debug('[auth] no accessToken, attempting refresh') } catch(e) {}
           await this.refresh()
           const res = await axios.get('/api/user/me', { headers: { Authorization: `Bearer ${this.accessToken}` } })
           this.user = res.data
           this.isAuthenticated = true // 헤더에 자동으로 RT 쿠키가 포함되어 전송됨
+          try { console.debug('[auth] refresh succeeded, user:', this.user) } catch(e) {}
           return true
         } catch (err) {
           this.isAuthenticated = false // 헤더에 RT 쿠키 포함하지 않음 (기본값)
+          try { console.debug('[auth] refresh failed') } catch(e) {}
           return false
         }
       } finally {

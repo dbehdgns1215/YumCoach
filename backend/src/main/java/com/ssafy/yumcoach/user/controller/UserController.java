@@ -78,8 +78,9 @@ public class UserController {
     @PostMapping("/signin")
     public ResponseEntity<?> signin(@RequestBody SigninRequest request, HttpServletResponse response) {
         try {
+            System.out.println("Signin request: " + request);
             User user = userService.signin(request.getEmail(), request.getPassword());
-            
+            System.out.println("유저 정보 " + user);
             // JWT 토큰 생성
             String accessToken = jwtUtil.createAccessToken(user.getId());
             String refreshToken = jwtUtil.createRefreshToken(user.getId());
@@ -97,7 +98,7 @@ public class UserController {
             accessTokenCookie.setHttpOnly(true);  // JavaScript 접근 차단
             accessTokenCookie.setSecure(false);   // HTTPS only (개발: false, 운영: true)
             accessTokenCookie.setPath("/");
-            accessTokenCookie.setMaxAge(60 * 60); // 1시간
+            accessTokenCookie.setMaxAge(60 * 15); // 15분
             response.addCookie(accessTokenCookie);
             
             // Refresh Token을 HttpOnly Cookie로 설정 (XSS 방어)
@@ -105,7 +106,7 @@ public class UserController {
             refreshTokenCookie.setHttpOnly(true);  // JavaScript 접근 차단
             refreshTokenCookie.setSecure(false);   // HTTPS only (개발: false, 운영: true)
             refreshTokenCookie.setPath("/"); // 모든 경로에서 접근 가능 (로그아웃 시 삭제 위해)
-            refreshTokenCookie.setMaxAge(7 * 24 * 60 * 60); // 7일
+            refreshTokenCookie.setMaxAge(60 * 60 * 24); // 1일
             response.addCookie(refreshTokenCookie);
             
             // 응답 (사용자 정보만 반환, 토큰은 쿠키에)
@@ -113,6 +114,7 @@ public class UserController {
             responseData.put("userId", user.getId());
             responseData.put("email", user.getEmail());
             responseData.put("name", user.getName());
+            responseData.put(accessTokenCookie.getName(), accessToken);
             responseData.put("message", "로그인 성공");
             
             return ResponseEntity.ok(responseData);
