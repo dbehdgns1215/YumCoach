@@ -18,7 +18,7 @@
     
     <!-- 로그인용 - 이메일과 비밀번호로 유저 조회 -->
     <select id="findByEmailAndPassword" resultType="User">
-        SELECT id, email, password, name
+        SELECT id, email, password, name, phone, role, created_at, updated_at
         FROM user
         WHERE email = #{email} AND password = #{password}
     </select>
