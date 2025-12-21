@@ -32,7 +32,7 @@ public class UserController {
     private final UserService userService;
     private final RefreshTokenService refreshTokenService;
     private final JwtUtil jwtUtil;
-    
+
     /**
      * 회원가입
      * @param request 회원가입 요청 (email, password, name)
@@ -176,14 +176,15 @@ public class UserController {
             String refreshToken = getTokenFromCookie(request, "refreshToken");
             if (refreshToken == null) {
                 Map<String, String> error = new HashMap<>();
-                error.put("error", "Refresh Token이 없습니다.");
+                error.put("error", "Refresh Token이 없습니다. 다시 로그인해주세요.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
             // Refresh Token 검증
             if (!jwtUtil.validateToken(refreshToken)) {
                 Map<String, String> error = new HashMap<>();
-                error.put("error", "유효하지 않은 토큰입니다.");
+                error.put("error", "유효하지 않은 Refresh 토큰입니다. 다시 로그인해주세요.");
+                refreshTokenService.deleteByToken(refreshToken);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
@@ -191,7 +192,7 @@ public class UserController {
             RefreshTokenDto tokenEntity = refreshTokenService.findByToken(refreshToken);
             if (tokenEntity == null) {
                 Map<String, String> error = new HashMap<>();
-                error.put("error", "유효하지 않은 토큰입니다.");
+                error.put("error", "Refresh 토큰이 DB와 일치하지 않습니다. 다시 로그인해주세요.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
@@ -200,7 +201,7 @@ public class UserController {
                 // 만료된 토큰은 DB에서 삭제
                 refreshTokenService.deleteByToken(refreshToken);
                 Map<String, String> error = new HashMap<>();
-                error.put("error", "만료된 토큰입니다. 다시 로그인해주세요.");
+                error.put("error", "만료된 Refresh 토큰입니다. 다시 로그인해주세요.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
@@ -261,7 +262,7 @@ public class UserController {
             // 토큰 검증 (만료된 경우 ExpiredJwtException 발생)
             if (!jwtUtil.validateToken(token)) {
                 Map<String, String> error = new HashMap<>();
-                error.put("error", "유효하지 않은 토큰입니다.");
+                error.put("error", "유효하지 않은 Access 토큰입니다.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
