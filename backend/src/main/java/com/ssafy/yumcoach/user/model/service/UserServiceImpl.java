@@ -2,7 +2,9 @@ package com.ssafy.yumcoach.user.model.service;
 
 import com.ssafy.yumcoach.user.model.User;
 import com.ssafy.yumcoach.user.model.UserHealth;
+import com.ssafy.yumcoach.user.model.UserDietRestriction;
 import com.ssafy.yumcoach.user.model.mapper.UserMapper;
+import com.ssafy.yumcoach.user.model.mapper.UserDietRestrictionMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
     
     private final UserMapper userMapper;
+    private final UserDietRestrictionMapper restrictionMapper;
     
     @Override
     @Transactional
@@ -52,6 +55,11 @@ public class UserServiceImpl implements UserService {
     @Override
     public User findById(Integer id) {
         return userMapper.findById(id);
+    }
+
+    @Override
+    public java.util.List<UserDietRestriction> findUserDietRestrictionsByUserId(Integer userId) {
+        return restrictionMapper.findByUserId(userId);
     }
     
     @Override

@@ -2,6 +2,8 @@ package com.ssafy.yumcoach.user.model.service;
 
 import com.ssafy.yumcoach.user.model.User;
 import com.ssafy.yumcoach.user.model.UserHealth;
+import com.ssafy.yumcoach.user.model.UserDietRestriction;
+import java.util.List;
 
 public interface UserService {
     
@@ -29,7 +31,12 @@ public interface UserService {
      * 유저 건강정보 조회
      */
     UserHealth findUserHealthByUserId(Integer userId);
-    
+
+    /**
+     * 유저 식이제한 조회
+     */
+    java.util.List<UserDietRestriction> findUserDietRestrictionsByUserId(Integer userId);
+
     /**
      * 유저 건강정보 수정
      */
