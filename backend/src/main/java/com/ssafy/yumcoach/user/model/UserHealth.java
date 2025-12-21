@@ -18,4 +18,5 @@ public class UserHealth {
     private Boolean highBloodPressure;
     private Boolean hyperlipidemia;
     private Boolean kidneyDisease;
+    private String activityLevel;
 }

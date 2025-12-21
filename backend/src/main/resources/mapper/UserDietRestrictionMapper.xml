@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yumcoach.user.model.mapper.UserDietRestrictionMapper">
+
+    <select id="findByUserId" resultType="com.ssafy.yumcoach.user.model.UserDietRestriction" parameterType="int">
+        SELECT id, user_id, restriction_type, restriction_value
+        FROM user_diet_restriction
+        WHERE user_id = #{userId}
+    </select>
+
+    <delete id="deleteByUserId" parameterType="int">
+        DELETE FROM user_diet_restriction
+        WHERE user_id = #{userId}
+    </delete>
+
+    <insert id="insertRestriction" parameterType="com.ssafy.yumcoach.user.model.UserDietRestriction" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_diet_restriction (user_id, restriction_type, restriction_value)
+        VALUES (#{userId}, #{restrictionType}, #{restrictionValue})
+    </insert>
+
+</mapper>
