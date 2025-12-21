@@ -120,43 +120,43 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-    
+
     /**
      * 로그아웃
-     * @param request HttpServletRequest (Cookie 조회용)
-     * @param response HttpServletResponse (Cookie 삭제용)
+     * @param request HttpServletRequest (Authorization 헤더에서 AT 추출)
+     * @param response HttpServletResponse (RT Cookie 삭제용)
      * @return 200 OK: 로그아웃 성공
-     * 주의: Cookie 삭제 + DB의 Refresh Token도 함께 삭제하여 완전한 로그아웃 보장
      */
     @PostMapping("/signout")
     public ResponseEntity<?> signout(HttpServletRequest request, HttpServletResponse response) {
         try {
-            // 요청에서 Access Token 가져오기 (Authorization 헤더 우선, 없으면 쿠키)
-            String token = extractToken(request);
-            if (token != null) {
-                int userId = jwtUtil.getUserId(token);
-                // DB에서 Refresh Token 삭제
-                refreshTokenService.deleteByUserId(userId);
+            // Authorization 헤더에서 Access Token 가져오기
+            String authHeader = request.getHeader("Authorization");
+
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+
+                try {
+                    int userId = jwtUtil.getUserId(token);
+                    // DB에서 Refresh Token 삭제
+                    refreshTokenService.deleteByUserId(userId);
+                    log.info("로그아웃: userId={} RT 삭제 완료", userId);
+                } catch (Exception e) {
+                    log.warn("로그아웃 시 AT에서 userId 추출 실패", e);
+                }
             }
-            
-            // Access Token Cookie 삭제
-            Cookie accessTokenCookie = new Cookie("accessToken", null);
-            accessTokenCookie.setHttpOnly(true);
-            accessTokenCookie.setPath("/");
-            accessTokenCookie.setMaxAge(0);
-            response.addCookie(accessTokenCookie);
-            
+
             // Refresh Token Cookie 삭제
             Cookie refreshTokenCookie = new Cookie("refreshToken", null);
             refreshTokenCookie.setHttpOnly(true);
             refreshTokenCookie.setPath("/");
             refreshTokenCookie.setMaxAge(0);
             response.addCookie(refreshTokenCookie);
-            
+
             Map<String, String> responseData = new HashMap<>();
             responseData.put("message", "로그아웃 되었습니다.");
             return ResponseEntity.ok(responseData);
-            
+
         } catch (Exception e) {
             log.error("Signout error", e);
             Map<String, String> error = new HashMap<>();

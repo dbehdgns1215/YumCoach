@@ -5,7 +5,7 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from "./App.vue";
 import router from "./router";
 import "./styles/tokens.css";
-import { useAuthStore } from './stores/auth'
+import { useAuthStore } from './stores/auth'	
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -26,3 +26,14 @@ app.use(pinia);
 	app.use(router);
 	app.mount("#app");
 })()
+
+window.addEventListener('storage', (e) => {
+  if (e.key === 'logout') {
+    const auth = useAuthStore()
+    auth.accessToken = null
+    auth.user = null
+    auth.isAuthenticated = false
+    try { sessionStorage.removeItem('auth') } catch (err) {}
+    router.push('/landing').catch(()=>{})
+  }
+})

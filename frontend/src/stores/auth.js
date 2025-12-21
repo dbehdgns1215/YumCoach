@@ -61,13 +61,23 @@ export const useAuthStore = defineStore('auth', {
 
     async logout() {
       try {
-        await axios.post('/api/user/logout', null, { withCredentials: true })
+        await axios.post('/api/user/signout', null, { withCredentials: true })
       } catch (e) {
         // 로그아웃 시 네트워크 오류는 무시
       } finally {
-        this.accessToken = null
-        this.user = null
-        this.isAuthenticated = false
+          this.accessToken = null
+          this.user = null
+          this.isAuthenticated = false
+          // Pinia persisted state는 sessionStorage에 저장되어 있으므로 명시적으로 제거
+          try {
+            if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('auth')
+          } catch (e) {}
+
+          // axios 전역 Authorization 헤더가 설정되어 있을 수 있으니 제거
+          try { delete axios.defaults.headers.common['Authorization'] } catch (e) {}
+
+          // 다른 탭/창에 로그아웃을 알리기 위해 localStorage 이벤트 전파
+          try { if (typeof localStorage !== 'undefined') localStorage.setItem('logout', Date.now().toString()) } catch (e) {}
       }
     },
 
