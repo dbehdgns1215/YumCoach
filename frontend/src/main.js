@@ -24,6 +24,19 @@ app.use(pinia);
 	}
 
 	app.use(router);
+
+	// 전역 라우터 가드: requiresAuth 메타가 있는 경로는 인증 확인 후 접근 허용
+	router.beforeEach(async (to, from, next) => {
+		const auth = useAuthStore()
+		const requiresAuth = to.matched.some(r => r.meta && r.meta.requiresAuth)
+		if (!requiresAuth) return next()
+		if (auth.isAuthenticated) return next()
+		try {
+			await auth.checkAuth()
+			if (auth.isAuthenticated) return next()
+		} catch (e) {}
+		return next('/login')
+	})
 	app.mount("#app");
 })()
 
