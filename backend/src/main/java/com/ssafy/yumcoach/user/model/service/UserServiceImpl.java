@@ -58,8 +58,29 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
+    public void updateUser(User user) {
+        userMapper.updateUser(user);
+        log.info("User updated: {}", user.getId());
+    }
+
+    @Override
     public java.util.List<UserDietRestriction> findUserDietRestrictionsByUserId(Integer userId) {
         return restrictionMapper.findByUserId(userId);
+    }
+
+    @Override
+    @Transactional
+    public void updateUserDietRestrictions(Integer userId, java.util.List<UserDietRestriction> restrictions) {
+        // 전체 삭제 후 재삽입
+        restrictionMapper.deleteByUserId(userId);
+        if (restrictions != null) {
+            for (UserDietRestriction r : restrictions) {
+                r.setUserId(userId);
+                restrictionMapper.insertRestriction(r);
+            }
+        }
+        log.info("UserDietRestrictions updated for userId={}", userId);
     }
     
     @Override

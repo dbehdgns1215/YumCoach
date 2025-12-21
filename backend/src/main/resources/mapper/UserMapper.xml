@@ -13,26 +13,26 @@
     <!-- 유저 건강정보 초기화 -->
     <insert id="insertUserHealth" parameterType="int">
         INSERT INTO user_health (user_id, height, weight, diabetes, high_blood_pressure, hyperlipidemia, kidney_disease, activity_level)
-        VALUES (#{userId}, 0, 0, false, false, false, false, 'SEDENTARY')
+        VALUES (#{userId}, 0, 0, false, false, false, false, 0)
     </insert>
     
     <!-- 로그인용 - 이메일과 비밀번호로 유저 조회 -->
     <select id="findByEmailAndPassword" resultType="User">
-        SELECT id, email, password, name
+        SELECT id, email, password, name, nickname
         FROM user
         WHERE email = #{email} AND password = #{password}
     </select>
     
     <!-- 이메일로 유저 조회 -->
     <select id="findByEmail" resultType="User">
-        SELECT id, email, password, name, phone, gender, age
+        SELECT id, email, password, name, phone, nickname, gender, age
         FROM user
         WHERE email = #{email}
     </select>
     
     <!-- ID로 유저 조회 -->
     <select id="findById" resultType="User">
-        SELECT id, email, password, name, phone, gender, age
+        SELECT id, email, password, name, phone, nickname, gender, age
         FROM user
         WHERE id = #{id}
     </select>
@@ -42,6 +42,7 @@
             UPDATE user
             SET name = #{name},
                 phone = #{phone},
+                nickname = #{nickname},
                 gender = #{gender},
                 age = #{age}
             WHERE id = #{id}
@@ -53,4 +54,18 @@
         FROM user_health
         WHERE user_id = #{userId}
     </select>
+    
+    <!-- 유저 건강정보 수정 -->
+    <update id="updateUserHealth" parameterType="UserHealth">
+        UPDATE user_health
+        SET height = #{height},
+            weight = #{weight},
+            diabetes = #{diabetes},
+            high_blood_pressure = #{highBloodPressure},
+            hyperlipidemia = #{hyperlipidemia},
+            kidney_disease = #{kidneyDisease},
+            activity_level = #{activityLevel}
+        WHERE user_id = #{userId}
+    </update>
+
 </mapper>

@@ -302,10 +302,14 @@ public class UserController {
         try {
             String token = extractToken(request);
             if (token == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(com.ssafy.yumcoach.api.response.ApiResponse.error("인증이 필요합니다."));
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "인증이 필요합니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             if (!jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(com.ssafy.yumcoach.api.response.ApiResponse.error("유효하지 않은 Access 토큰입니다."));
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "유효하지 않은 Access 토큰입니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             int userId = jwtUtil.getUserId(token);
 
@@ -313,18 +317,27 @@ public class UserController {
             UserHealth health = userService.findUserHealthByUserId(userId);
             List<UserDietRestriction> restrictions = userService.findUserDietRestrictionsByUserId(userId);
 
+            // 닉네임 기본값: 이름과 동일하게
+            if (user != null && (user.getNickname() == null || user.getNickname().isBlank())) {
+                user.setNickname(user.getName());
+            }
+
             Map<String, Object> data = new HashMap<>();
             data.put("user", user);
             data.put("health", health);
             data.put("dietRestrictions", restrictions);
 
-            return ResponseEntity.ok(com.ssafy.yumcoach.api.response.ApiResponse.success(data));
+            return ResponseEntity.ok(data);
 
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(com.ssafy.yumcoach.api.response.ApiResponse.error("토큰이 만료되었습니다."));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "토큰이 만료되었습니다.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         } catch (Exception e) {
             log.error("Get mypage error", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(com.ssafy.yumcoach.api.response.ApiResponse.error("마이페이지 조회 중 오류가 발생했습니다."));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "마이페이지 조회 중 오류가 발생했습니다.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
@@ -336,22 +349,33 @@ public class UserController {
         try {
             String token = extractToken(request);
             if (token == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(com.ssafy.yumcoach.api.response.ApiResponse.error("인증이 필요합니다."));
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "인증이 필요합니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             if (!jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(com.ssafy.yumcoach.api.response.ApiResponse.error("유효하지 않은 Access 토큰입니다."));
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "유효하지 않은 Access 토큰입니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             int userId = jwtUtil.getUserId(token);
 
-            // Update user basic info
-            User user = User.builder()
+                // 기존 사용자 정보 조회 (이름, 이메일 등 보존)
+                User existing = userService.findById(userId);
+                if (existing == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(com.ssafy.yumcoach.api.response.ApiResponse.error("사용자를 찾을 수 없습니다."));
+                }
+
+                // Update user basic info: 이름과 이메일은 보존, 닉네임은 수정 가능
+                User user = User.builder()
                     .id(userId)
-                    .name(update.getName())
-                    .phone(update.getPhone())
-                    .gender(update.getGender())
-                    .age(update.getAge())
+                    .name(existing.getName())
+                    .phone(update.getPhone() != null ? update.getPhone() : existing.getPhone())
+                    .nickname(update.getNickname() != null ? update.getNickname() : (existing.getNickname() != null ? existing.getNickname() : existing.getName()))
+                    .gender(update.getGender() != null ? update.getGender() : existing.getGender())
+                    .age(update.getAge() != null ? update.getAge() : existing.getAge())
                     .build();
-            userService.updateUser(user);
+                userService.updateUser(user);
 
             // Update health info
             UserHealth health = UserHealth.builder()
@@ -370,13 +394,19 @@ public class UserController {
             List<UserDietRestriction> restrictions = update.getDietRestrictions();
             userService.updateUserDietRestrictions(userId, restrictions);
 
-            return ResponseEntity.ok(com.ssafy.yumcoach.api.response.ApiResponse.success("마이페이지가 변경되었습니다."));
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "마이페이지가 변경되었습니다.");
+            return ResponseEntity.ok(response);
 
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(com.ssafy.yumcoach.api.response.ApiResponse.error("토큰이 만료되었습니다."));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "토큰이 만료되었습니다.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         } catch (Exception e) {
             log.error("Update mypage error", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(com.ssafy.yumcoach.api.response.ApiResponse.error("마이페이지 수정 중 오류가 발생했습니다."));
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "마이페이지 수정 중 오류가 발생했습니다.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
     
@@ -422,6 +452,61 @@ public class UserController {
             log.error("Get user health error", e);
             Map<String, String> error = new HashMap<>();
             error.put("error", "건강정보 조회 중 오류가 발생했습니다.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    
+    /**
+     * 건강정보 수정
+     * Cookie에서 Access Token을 읽어 사용자 인증
+     */
+    @PutMapping("/health")
+    public ResponseEntity<?> updateUserHealth(
+            HttpServletRequest request,
+            @RequestBody UpdateHealthRequest healthRequest) {
+        try {
+            // 요청에서 Access Token 추출 (Authorization 헤더 우선, 없으면 쿠키)
+            String token = extractToken(request);
+            if (token == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "인증이 필요합니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
+            // 토큰 검증
+            if (!jwtUtil.validateToken(token)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "유효하지 않은 토큰입니다.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
+            int userId = jwtUtil.getUserId(token);
+            
+            UserHealth userHealth = UserHealth.builder()
+                    .userId(userId)
+                    .height(healthRequest.getHeight())
+                    .weight(healthRequest.getWeight())
+                    .diabetes(healthRequest.getDiabetes())
+                    .highBloodPressure(healthRequest.getHighBloodPressure())
+                    .hyperlipidemia(healthRequest.getHyperlipidemia())
+                    .kidneyDisease(healthRequest.getKidneyDisease())
+                    .build();
+            
+            userService.updateUserHealth(userHealth);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "건강정보가 수정되었습니다.");
+            return ResponseEntity.ok(response);
+            
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            log.warn("Access token expired");
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "토큰이 만료되었습니다.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        } catch (Exception e) {
+            log.error("Update user health error", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "건강정보 수정 중 오류가 발생했습니다.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }

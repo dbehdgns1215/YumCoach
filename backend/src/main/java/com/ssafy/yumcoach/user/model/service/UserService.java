@@ -31,11 +31,21 @@ public interface UserService {
      * 유저 건강정보 조회
      */
     UserHealth findUserHealthByUserId(Integer userId);
+    
+    /**
+     * 유저 정보 수정
+     */
+    void updateUser(User user);
 
     /**
      * 유저 식이제한 조회
      */
     java.util.List<UserDietRestriction> findUserDietRestrictionsByUserId(Integer userId);
+
+    /**
+     * 유저 식이제한 전체 업데이트(기존 삭제 후 삽입)
+     */
+    void updateUserDietRestrictions(Integer userId, java.util.List<UserDietRestriction> restrictions);
 
     /**
      * 유저 건강정보 수정
