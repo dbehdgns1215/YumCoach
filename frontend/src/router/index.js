@@ -27,26 +27,27 @@ const routes = [
   {
     path: "/home",
     component: HomePage,
-    meta: { navKey: "home", navLabel: "오늘", navItems },
+    meta: { requiresAuth: true, navKey: "home", navLabel: "오늘", navItems },
   },
   {
     path: "/log",
     component: LogPage,
-    meta: { navKey: "log", navLabel: "기록", navItems },
+    meta: { requiresAuth: true, navKey: "log", navLabel: "기록", navItems },
   },
   {
     path: "/report",
     component: ReportPage,
-    meta: { navKey: "report", navLabel: "리포트", navItems },
+    meta: { requiresAuth: true, navKey: "report", navLabel: "리포트", navItems },
   },
   {
     path: "/coach",
     component: CoachPage,
-    meta: { navKey: "coach", navLabel: "코치", navItems },
+    meta: { requiresAuth: true, navKey: "coach", navLabel: "코치", navItems },
   },
   {
     path: "/mypage",
     component: MyPage,
+    meta: { requiresAuth: true },
   },
   {
     path: "/community",

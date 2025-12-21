@@ -1,5 +1,5 @@
 <template>
-    <TopBarNavigation :isLoggedIn="true" />
+    <TopBarNavigation />
     <AppShell title="마이페이지" subtitle="나의 정보를 관리해요" footerTheme="brand" @primary="noop">
         <StubPlaceholder text="MyPage (stub)" />
     </AppShell>

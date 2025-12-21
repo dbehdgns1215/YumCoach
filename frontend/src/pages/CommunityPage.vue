@@ -1,5 +1,5 @@
 <template>
-    <TopBarNavigation :isLoggedIn="true" />
+    <TopBarNavigation />
     <AppShell title="커뮤니티" subtitle="함께 이야기 나뉴요" footerTheme="brand" @primary="noop">
         <StubPlaceholder text="Community (stub)" />
     </AppShell>

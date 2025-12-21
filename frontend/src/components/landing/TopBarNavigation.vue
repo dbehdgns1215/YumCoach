@@ -60,8 +60,7 @@ import { useAuthStore } from '@/stores/auth'
 import logoSrc from '@/assets/logo.png'
 
 const props = defineProps({
-    hideActions: { type: Boolean, default: false },
-    isLoggedIn: { type: Boolean, default: undefined }
+    hideActions: { type: Boolean, default: false }
 })
 
 const auth = useAuthStore()
@@ -83,11 +82,8 @@ onUnmounted(() => {
     window.removeEventListener('resize', checkIsDesktop)
 })
 
-// 표시할 로그인 여부: 부모 프로퍼티가 명시적이면 우선 사용, 아니면 Pinia 스토어 사용
-const loggedIn = computed(() => {
-    if (typeof props.isLoggedIn === 'boolean') return props.isLoggedIn
-    return auth.isAuthenticated
-})
+// 로그인 여부는 항상 Pinia `auth` 스토어를 기준으로 결정합니다
+const loggedIn = computed(() => auth.isAuthenticated)
 
 async function handleLogout() {
     try {
