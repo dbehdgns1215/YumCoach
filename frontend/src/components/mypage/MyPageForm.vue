@@ -90,7 +90,7 @@
     </BaseCard>
 
     <div class="actions">
-      <BaseButton :variant="editMode ? 'primary' : 'ghost'" @click="onToggleEdit">{{ editMode ? '저장' : '수정' }}</BaseButton>
+      <BaseButton :variant="editMode ? 'primary' : 'secondary'" @click="onToggleEdit">{{ editMode ? '저장' : '수정' }}</BaseButton>
     </div>
   </form>
 </template>
@@ -231,6 +231,13 @@ onMounted(load)
 .btn { border-radius:8px; padding:8px 10px; }
 .ghost { background:transparent; border:1px solid var(--border); }
 .secondary { background:var(--primary-soft); color:var(--primary); }
+
+/* Make disabled inputs keep readable text color and normal opacity */
+.input:disabled {
+  color: var(--text);
+  opacity: 1;
+  background: transparent;
+}
 </style>
 
 
