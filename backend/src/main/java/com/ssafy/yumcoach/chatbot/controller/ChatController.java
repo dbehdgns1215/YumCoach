@@ -61,7 +61,7 @@ public class ChatController {
             return ResponseEntity.ok(response.getBody());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ChatResponse(null, "챗봇 서비스 오류: " + e.getMessage()));
+                .body(new ChatResponse("챗봇 서비스 오류: " + e.getMessage()));
         }
     }
 }
