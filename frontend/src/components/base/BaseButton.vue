@@ -1,13 +1,14 @@
 <template>
-  <button class="btn" :class="variant" :disabled="disabled" @click="$emit('click')">
+  <button :type="type" class="btn" :class="variant" :disabled="disabled" @click="$emit('click')">
     <slot />
   </button>
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   variant: { type: String, default: 'primary' }, // primary | secondary | ghost
   disabled: { type: Boolean, default: false },
+  type: { type: String, default: 'button' },
 })
 defineEmits(['click'])
 </script>
