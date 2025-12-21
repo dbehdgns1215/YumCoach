@@ -1,5 +1,5 @@
 <template>
-  <TopBarNavigation :isLoggedIn="true" />
+  <TopBarNavigation />
   <AppShell title="이번 주 식단 리포트" :subtitle="periodLabel" footerTheme="brand" @primary="onAddMeal">
     <div class="grid">
       <div class="colMain">
