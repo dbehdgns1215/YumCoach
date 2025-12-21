@@ -7,9 +7,9 @@ ADD COLUMN `age` INT DEFAULT NULL;
 ALTER TABLE `user`
 ADD COLUMN `nickname` VARCHAR(64) DEFAULT NULL;
 
--- Add activity_level to user_health
+-- Add activity_level to user_health (INT enum: 0..3)
 ALTER TABLE `user_health`
-ADD COLUMN `activity_level` VARCHAR(32) DEFAULT 'SEDENTARY';
+ADD COLUMN `activity_level` INT DEFAULT 0;
 
 -- Create user_diet_restriction table
 CREATE TABLE IF NOT EXISTS `user_diet_restriction` (
