@@ -23,6 +23,9 @@ public interface UserMapper {
     
     // ID로 유저 조회
     User findById(@Param("id") Integer id);
+
+    // 유저 정보 수정
+    void updateUser(User user);
     
     // 유저 건강정보 조회
     UserHealth findUserHealthByUserId(@Param("userId") Integer userId);
