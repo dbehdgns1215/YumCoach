@@ -22,6 +22,16 @@ export function transformMealsToUI(meals) {
   meals.forEach((meal) => {
     const mealKey = MEAL_TYPE_TO_KEY[meal.mealType] || "snack";
     meal.items.forEach((item) => {
+      // DB에 저장된 영양정보가 있으면 사용, 없으면 기본값 사용
+      const calc = item.kcal
+        ? {
+            kcal: item.kcal || 0,
+            protein: item.protein || 0,
+            carbs: item.carbs || 0,
+            fat: item.fat || 0,
+          }
+        : null;
+
       result[mealKey].push({
         id: item.id,
         historyId: item.historyId || meal.id,
@@ -29,9 +39,26 @@ export function transformMealsToUI(meals) {
         name: item.mealName,
         grams: item.amount || 0,
         per100g: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+        calc: calc, // DB에서 받은 계산값
       });
     });
   });
 
   return result;
+}
+
+/**
+ * 아이템의 영양정보 업데이트
+ * @param {Object} item 식사 아이템
+ * @param {Object} nutrition 영양정보 { kcal, protein, carbs, fat }
+ */
+export function updateItemNutrition(item, nutrition) {
+  if (item && nutrition) {
+    item.per100g = {
+      kcal: nutrition.kcal || 0,
+      protein: nutrition.protein || 0,
+      carbs: nutrition.carbs || 0,
+      fat: nutrition.fat || 0,
+    };
+  }
 }

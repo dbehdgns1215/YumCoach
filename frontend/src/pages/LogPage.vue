@@ -39,15 +39,20 @@ import WeekStrip from '@/components/log/WeekStrip.vue'
 import MealSection from '@/components/log/MealSection.vue'
 import FoodAddModal from '@/components/log/FoodAddModal.vue'
 import { createMeal, getMealsByDate, deleteMealItem } from '@/api/meals.js'
+import api from '@/lib/api.js'
 import DaySummaryCard from '@/components/log/DaySummaryCard.vue'
 
 import { startOfWeek, formatDate, formatDateDot, addDays, today as getToday } from '@/utils/date'
 import { sumNutrition } from '@/utils/nutrition'
-import { transformMealsToUI } from '@/utils/mealTransform'
+import { transformMealsToUI, updateItemNutrition } from '@/utils/mealTransform'
+import { fetchFoodDetail } from '@/api/foods.js'
 import { MEAL_KEYS, MEAL_LABELS, KEY_TO_MEAL_TYPE } from '@/constants/mealTypes'
 
 const mealKeys = MEAL_KEYS
 const mealLabels = MEAL_LABELS
+
+// 영양정보 캐시 (foodId -> nutrition)
+const nutritionCache = reactive({})
 
 // ---- 날짜/주간
 const today = getToday()
@@ -108,7 +113,7 @@ const loadMealsForDate = (date) =>
 {
     const key = formatDate(date)
     getMealsByDate(key)
-        .then(meals =>
+        .then(async meals =>
         {
             if (!meals || !meals.length) {
                 logsByDate[key] = emptyDay()
@@ -117,12 +122,50 @@ const loadMealsForDate = (date) =>
 
             const mealsUI = transformMealsToUI(meals)
             logsByDate[key] = { meals: mealsUI }
+
+            // 각 아이템의 영양정보 로드 (완료 대기)
+            await loadNutritionForItems(mealsUI)
         })
         .catch(e =>
         {
             console.error('식사 데이터 로드 실패:', e)
             logsByDate[key] = emptyDay()
         })
+}
+
+// 아이템들의 영양정보를 API에서 조회해서 업데이트 (캐시 활용)
+const loadNutritionForItems = async (mealsUI) =>
+{
+    const promises = []
+
+    MEAL_KEYS.forEach(mealKey =>
+    {
+        const items = mealsUI[mealKey]
+        items.forEach(item =>
+        {
+            // 캐시에서 먼저 확인
+            if (nutritionCache[item.foodId]) {
+                updateItemNutrition(item, nutritionCache[item.foodId])
+            } else {
+                // 캐시 없으면 API에서 조회
+                const promise = fetchFoodDetail(item.foodId)
+                    .then(nutrition =>
+                    {
+                        // 캐시에 저장
+                        nutritionCache[item.foodId] = nutrition
+                        updateItemNutrition(item, nutrition)
+                    })
+                    .catch(e =>
+                    {
+                        console.warn(`음식 ${item.foodId} 영양정보 로드 실패:`, e)
+                    })
+                promises.push(promise)
+            }
+        })
+    })
+
+    // 모든 영양정보 로드 완료 대기
+    await Promise.all(promises)
 }
 
 // ---- 영양 합산
@@ -151,7 +194,7 @@ function openAddQuick()
 
 async function addFoodToMeal(payload)
 {
-    // payload: { foodId, name, grams, per100g }
+    // payload: { foodId, name, grams, per100g, calc }
     const apiPayload = {
         date: formatDate(selectedDate.value),
         mealType: KEY_TO_MEAL_TYPE[modalMealKey.value] || 'SNACK',
@@ -160,6 +203,11 @@ async function addFoodToMeal(payload)
                 mealCode: String(payload.foodId),
                 mealName: payload.name,
                 amount: Number(payload.grams),
+                // 계산된 영양정보 저장
+                kcal: payload.calc.kcal,
+                protein: payload.calc.protein,
+                carbs: payload.calc.carbs,
+                fat: payload.calc.fat,
             }
         ]
     }
@@ -178,6 +226,7 @@ async function addFoodToMeal(payload)
         name: payload.name,
         grams: payload.grams,
         per100g: payload.per100g,
+        calc: payload.calc,  // 계산된 영양정보 추가
     }
     dayLog.value.meals[modalMealKey.value].push(row)
     modalOpen.value = false
@@ -206,7 +255,47 @@ function updateGrams(mealKey, rowId, grams)
 {
     const items = dayLog.value.meals[mealKey]
     const row = items.find(r => r.id === rowId)
-    if (row) row.grams = grams
+    if (row) {
+        row.grams = grams
+        // grams 변경 시 영양정보 재계산 및 API 업데이트
+        updateMealItemOnServer(row, mealKey)
+    }
+}
+
+// 서버에 아이템 수정 요청
+async function updateMealItemOnServer(row, mealKey)
+{
+    // calc가 있으면 사용, 없으면 per100g로 계산
+    const calc = row.calc || {
+        kcal: (row.per100g?.kcal || 0) * (row.grams / 100),
+        protein: (row.per100g?.protein || 0) * (row.grams / 100),
+        carbs: (row.per100g?.carbs || 0) * (row.grams / 100),
+        fat: (row.per100g?.fat || 0) * (row.grams / 100),
+    }
+
+    const updatePayload = {
+        mealCode: String(row.foodId),
+        mealName: row.name,
+        amount: Number(row.grams),
+        kcal: calc.kcal,
+        protein: calc.protein,
+        carbs: calc.carbs,
+        fat: calc.fat,
+    }
+
+    try {
+        const key = formatDate(selectedDate.value)
+        const mealLogId = dayLog.value.meals[mealKey]?.[0]?.historyId
+        if (mealLogId) {
+            // PUT /api/meals/{mealLogId}/items/{itemId}로 수정 요청
+            await api.put(`/meals/${mealLogId}/items/${row.id}`, updatePayload)
+            // calc 업데이트 (새로 계산한 값 저장)
+            row.calc = calc
+        }
+    } catch (e) {
+        console.warn('아이템 수정 실패:', e)
+        // 실패해도 로컬 UI는 유지
+    }
 }
 
 // 페이지 로드 시 오늘 날짜의 식사 데이터 초기 로드
