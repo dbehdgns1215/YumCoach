@@ -1,8 +1,8 @@
 <template>
     <TopBarNavigation />
     <AppShell title="기록" :subtitle="subtitle" footerTheme="brand" @primary="openAddQuick">
-        <WeekStrip :week-start="weekStart" :selected-date="selectedDate" @select="selectedDate = $event"
-            @prev="shiftWeek(-7)" @next="shiftWeek(7)" />
+        <WeekStrip :week-start="weekStart" :selected-date="selectedDate" :records="recordDates"
+            @select="selectDateAndShiftWeek($event)" @prev="shiftWeek(-7)" @next="shiftWeek(7)" />
 
         <div class="grid">
             <div class="colMain">
@@ -65,6 +65,12 @@ function shiftWeek(deltaDays)
     selectedDate.value = addDays(selectedDate.value, deltaDays)
 }
 
+function selectDateAndShiftWeek(date)
+{
+    selectedDate.value = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    weekStart.value = startOfWeek(selectedDate.value)
+}
+
 // ---- 로그 상태 (일단 메모리. 나중에 API/DB 연동)
 const logsByDate = reactive({}) // { 'YYYY-MM-DD': { meals: { breakfast:[...], ... } } }
 
@@ -80,6 +86,17 @@ function emptyDay()
         },
     }
 }
+
+// 기록이 있는 날짜 맵
+const recordDates = computed(() =>
+{
+    const dates = {}
+    Object.keys(logsByDate).forEach(dateKey =>
+    {
+        dates[dateKey] = true
+    })
+    return dates
+})
 
 const dayKey = computed(() => formatDate(selectedDate.value))
 const dayLog = computed(() =>
