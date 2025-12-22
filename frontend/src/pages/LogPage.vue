@@ -38,6 +38,7 @@ import BaseCard from '@/components/base/BaseCard.vue'
 import WeekStrip from '@/components/log/WeekStrip.vue'
 import MealSection from '@/components/log/MealSection.vue'
 import FoodAddModal from '@/components/log/FoodAddModal.vue'
+import { createMeal } from '@/api/meals.js'
 import DaySummaryCard from '@/components/log/DaySummaryCard.vue'
 
 import { startOfWeek, formatDate, formatDateDot, addDays, today as getToday } from '@/utils/date'
@@ -129,9 +130,37 @@ function openAddQuick()
     openAdd('snack')
 }
 
-function addFoodToMeal(payload)
+async function addFoodToMeal(payload)
 {
     // payload: { foodId, name, grams, per100g }
+    // 1) 서버에 식사 등록
+    const mealTypeMap = {
+        breakfast: 'BREAKFAST',
+        lunch: 'LUNCH',
+        dinner: 'DINNER',
+        snack: 'SNACK',
+        latenight: 'LATE_NIGHT',
+    }
+    const apiPayload = {
+        date: formatDate(selectedDate.value),
+        mealType: mealTypeMap[modalMealKey.value] || 'SNACK',
+        items: [
+            {
+                mealCode: String(payload.foodId),
+                mealName: payload.name,
+                amount: Number(payload.grams),
+            }
+        ]
+    }
+
+    try {
+        await createMeal(apiPayload)
+    } catch (e) {
+        console.error('식사 등록 실패:', e)
+        // 실패해도 로컬 UI 업데이트는 진행
+    }
+
+    // 2) 로컬 UI에 추가
     const row = {
         id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
         foodId: payload.foodId,

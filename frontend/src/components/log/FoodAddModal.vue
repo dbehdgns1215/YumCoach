@@ -21,7 +21,7 @@
                     <button v-for="f in displayedFoods" :key="f.id" class="result"
                         :class="{ selected: selected?.id === f.id }" @click="select(f)">
                         <div class="name">{{ f.name }}</div>
-                        <div class="meta">100g 기준 · {{ f.per100g.kcal }}kcal · P {{ f.per100g.protein }}g</div>
+                        <div class="meta">100g 기준 | {{ f.per100g.kcal }}kcal | P {{ f.per100g.protein }}g</div>
                     </button>
                 </div>
 
