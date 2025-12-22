@@ -43,12 +43,7 @@ public class MealController {
             @AuthenticationPrincipal CustomUserPrincipal user,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
 
-        System.out.println(user.getUserId());
-
         List<MealLogDto> meals = mealService.getMealsByDate(user.getUserId(), date);
-
-        System.out.println(meals);
-
         if (meals == null || meals.isEmpty()) {
             return ResponseEntity.noContent().build();
         }
