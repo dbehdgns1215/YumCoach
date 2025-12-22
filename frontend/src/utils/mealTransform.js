@@ -24,6 +24,7 @@ export function transformMealsToUI(meals) {
     meal.items.forEach((item) => {
       result[mealKey].push({
         id: item.id,
+        historyId: item.historyId || meal.id,
         foodId: item.mealCode,
         name: item.mealName,
         grams: item.amount || 0,
