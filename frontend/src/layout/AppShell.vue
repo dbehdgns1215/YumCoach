@@ -6,9 +6,6 @@
           <div class="pageTitle">{{ title }}</div>
           <div class="pageSub" v-if="subtitle">{{ subtitle }}</div>
         </div>
-        <div class="right">
-          <button class="pill" @click="$emit('primary')">식단 추가</button>
-        </div>
       </header>
 
       <div class="content">
