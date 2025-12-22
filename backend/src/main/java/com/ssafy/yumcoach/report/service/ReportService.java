@@ -10,7 +10,7 @@ public interface ReportService {
      *
      * @param userId 생성 요청자 유저 ID
      * @param date   생성 대상 날짜
-     * @return 생성된 ReportDto (IN_PROGRESS 상태 또는 생성 결과)
+     * @return 생성된 ReportDto (PROGRESS 상태 또는 생성 결과)
      */
     ReportDto createDailyReport(int userId, LocalDate date);
     /**

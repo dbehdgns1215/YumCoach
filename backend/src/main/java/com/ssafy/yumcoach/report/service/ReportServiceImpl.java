@@ -1,5 +1,6 @@
 package com.ssafy.yumcoach.report.service;
 
+import com.ssafy.yumcoach.ai.OpenAiService;
 import com.ssafy.yumcoach.report.model.ReportDto;
 import com.ssafy.yumcoach.report.model.ReportMealDto;
 import com.ssafy.yumcoach.report.model.mapper.ReportMapper;
@@ -37,13 +38,14 @@ public class ReportServiceImpl implements ReportService {
     private final MealMapper mealMapper;
     private final FoodMapper foodMapper;
     private final UserMapper userMapper;
+    private final OpenAiService openAiService;
 
     /**
      * 사용자 요청으로 일별 리포트를 생성합니다.
      *
      * 처리 순서:
      * 1. 사용자 권한/롤에 따른 생성 한도 검사
-     * 2. `report` 레코드 생성(status=IN_PROGRESS)
+     * 2. `report` 레코드 생성(status=PROGRESS)
      * 3. 해당 날짜의 `meal` 항목들을 조회하여 음식별 영양소를 합산
      * 4. `report_meal`에 요약을 저장
      * 5. `report_generation_log`에 결과 기록
@@ -54,7 +56,14 @@ public class ReportServiceImpl implements ReportService {
     public ReportDto createDailyReport(int userId, LocalDate date) {
         log.info("createDailyReport user={}, date={}", userId, date);
         User user = userMapper.findById(userId);
-        int dailyLimit = (user != null && "ADVANCED".equalsIgnoreCase(user.getRole())) ? 2 : 1;
+        int dailyLimit;
+        if (user != null && "ADMIN".equalsIgnoreCase(user.getRole())) {
+            dailyLimit = 1000; // 관리자 예외: 매우 높은 한도
+        } else if (user != null && "ADVANCED".equalsIgnoreCase(user.getRole())) {
+            dailyLimit = 2;
+        } else {
+            dailyLimit = 1;
+        }
         java.time.LocalDateTime start = date.atStartOfDay();
         java.time.LocalDateTime end = date.plusDays(1).atStartOfDay().minusSeconds(1);
         int existing = reportMapper.countGenerationLogsInPeriod(userId, "DAILY", start, end, "USER");
@@ -67,12 +76,21 @@ public class ReportServiceImpl implements ReportService {
         dto.setUserId(userId);
         dto.setDate(date);
         dto.setType("DAILY");
-        dto.setStatus("IN_PROGRESS");
+        dto.setStatus("PROGRESS");
+        dto.setCreatedBy("USER");
 
         reportMapper.insertReport(dto);
 
         java.util.List<MealLogDto> logs = mealMapper.selectMealLogsByUserAndDateRange(userId, date, date);
+        log.info("found meal logs count={} for user={} date={}", logs != null ? logs.size() : 0, userId, date);
         int totalCalories = 0, totalProtein = 0, totalCarb = 0, totalFat = 0, mealCount = 0;
+        // 디버그: 각 로그별 아이템 수 출력(문제 원인 조사용)
+        if (logs != null) {
+            for (MealLogDto l : logs) {
+                log.debug("meal history id={} date={} itemsSize={}", l.getId(), l.getDate(), l.getItems() == null ? 0 : l.getItems().size());
+            }
+        }
+        java.util.List<ReportMealDto> reportMeals = new java.util.ArrayList<>();
         for (MealLogDto log : logs) {
             if (log.getItems() == null) continue;
             for (MealItemDto item : log.getItems()) {
@@ -99,6 +117,7 @@ public class ReportServiceImpl implements ReportService {
                 rm.setCarbG(carb);
                 rm.setFatG(fat);
                 reportMapper.insertReportMeal(rm);
+                reportMeals.add(rm);
             }
         }
 
@@ -107,8 +126,26 @@ public class ReportServiceImpl implements ReportService {
         dto.setCarbG(totalCarb);
         dto.setFatG(totalFat);
         dto.setMealCount(mealCount);
+        // 식사 데이터가 없으면 명확한 예외를 던집니다.
+        if (mealCount == 0) {
+            reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER", "NO_DATA", dto.getId(), "no meals");
+            throw new IllegalStateException("NO_MEALS");
+        }
 
-        reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER", "CREATED", dto.getId(), "ok");
+        // AI 분석을 시도하기 전에 DTO에 meals 목록을 채웁니다.
+        dto.setMeals(reportMeals);
+
+        // AI 분석을 시도하여 결과를 리포트에 포함합니다. 실패 시에도 리포트는 생성됩니다.
+        boolean aiOk = false;
+        try {
+            openAiService.analyzeReport(dto);
+            aiOk = true;
+        } catch (Exception ex) {
+            log.warn("AI 분석 실패(일별): {}", ex.getMessage());
+        }
+
+        String result = aiOk ? "CREATED_WITH_AI" : "CREATED_NO_AI";
+        reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER", result, dto.getId(), aiOk ? "ok" : "ai_failed");
         return dto;
     }
 
@@ -128,7 +165,14 @@ public class ReportServiceImpl implements ReportService {
     public ReportDto createWeeklyReport(int userId, LocalDate fromDate, LocalDate toDate) {
         log.info("createWeeklyReport user={}, from={}, to={}", userId, fromDate, toDate);
         User user = userMapper.findById(userId);
-        int weeklyLimit = (user != null && "ADVANCED".equalsIgnoreCase(user.getRole())) ? 10 : 5;
+        int weeklyLimit;
+        if (user != null && "ADMIN".equalsIgnoreCase(user.getRole())) {
+            weeklyLimit = 1000; // 관리자 예외: 매우 높은 한도
+        } else if (user != null && "ADVANCED".equalsIgnoreCase(user.getRole())) {
+            weeklyLimit = 10;
+        } else {
+            weeklyLimit = 5;
+        }
         java.time.LocalDateTime start = fromDate.atStartOfDay();
         java.time.LocalDateTime end = toDate.plusDays(1).atStartOfDay().minusSeconds(1);
         int existing = reportMapper.countGenerationLogsInPeriod(userId, "WEEKLY", start, end, "USER");
@@ -142,12 +186,21 @@ public class ReportServiceImpl implements ReportService {
         dto.setFromDate(fromDate);
         dto.setToDate(toDate);
         dto.setType("WEEKLY");
-        dto.setStatus("IN_PROGRESS");
+        dto.setStatus("PROGRESS");
+        // 생성 주체를 명시합니다. 사용자 요청으로 생성되는 경우 'USER'로 설정해야
+        // DB의 NOT NULL 제약조건(created_by)을 만족시킵니다.
+        dto.setCreatedBy("USER");
 
         reportMapper.insertReport(dto);
 
         java.util.List<MealLogDto> logs = mealMapper.selectMealLogsByUserAndDateRange(userId, fromDate, toDate);
+        log.info("found meal logs count={} for user={} from={} to={}", logs != null ? logs.size() : 0, userId, fromDate, toDate);
         int totalCalories = 0, totalProtein = 0, totalCarb = 0, totalFat = 0, mealCount = 0;
+        if (logs != null) {
+            for (MealLogDto l : logs) {
+                log.debug("meal history id={} date={} itemsSize={}", l.getId(), l.getDate(), l.getItems() == null ? 0 : l.getItems().size());
+            }
+        }
         for (MealLogDto log : logs) {
             if (log.getItems() == null) continue;
             for (MealItemDto item : log.getItems()) {
@@ -182,8 +235,23 @@ public class ReportServiceImpl implements ReportService {
         dto.setCarbG(totalCarb);
         dto.setFatG(totalFat);
         dto.setMealCount(mealCount);
+        // 식사 데이터가 없으면 명확한 예외를 던집니다.
+        if (mealCount == 0) {
+            reportMapper.insertGenerationLog(userId, "WEEKLY", null, fromDate, toDate, "USER", "NO_DATA", dto.getId(), "no meals");
+            throw new IllegalStateException("NO_MEALS");
+        }
 
-        reportMapper.insertGenerationLog(userId, "WEEKLY", null, fromDate, toDate, "USER", "CREATED", dto.getId(), "ok");
+        // AI 분석을 시도하여 결과를 리포트에 포함합니다. 실패 시에도 리포트는 생성됩니다.
+        boolean aiOk = false;
+        try {
+            openAiService.analyzeReport(dto);
+            aiOk = true;
+        } catch (Exception ex) {
+            log.warn("AI 분석 실패(주간): {}", ex.getMessage());
+        }
+
+        String result = aiOk ? "CREATED_WITH_AI" : "CREATED_NO_AI";
+        reportMapper.insertGenerationLog(userId, "WEEKLY", null, fromDate, toDate, "USER", result, dto.getId(), aiOk ? "ok" : "ai_failed");
         return dto;
     }
 
@@ -205,6 +273,13 @@ public class ReportServiceImpl implements ReportService {
         ReportDto dto = reportMapper.selectReportById(reportId);
         if (dto == null) return null;
         if (!userIdEquals(dto.getUserId(), userId)) return null;
+        // 인사이트를 함께 로드
+        try {
+            java.util.List<com.ssafy.yumcoach.report.model.ReportInsightDto> insights = reportMapper.selectReportInsights(reportId);
+            dto.setInsights(insights);
+        } catch (Exception ex) {
+            log.warn("인사이트 로드 실패: {}", ex.getMessage());
+        }
         return dto;
     }
 
