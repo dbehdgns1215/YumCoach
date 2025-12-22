@@ -1,6 +1,6 @@
 <template>
     <TopBarNavigation />
-    <AppShell title="기록" :subtitle="subtitle" footerTheme="brand" @primary="openAddQuick">
+    <AppShell title="기록" :subtitle="subtitle" footerTheme="brand">
         <WeekStrip :week-start="weekStart" :selected-date="selectedDate" :records="recordDates"
             @select="selectDateAndShiftWeek($event)" @prev="shiftWeek(-7)" @next="shiftWeek(7)" />
 
