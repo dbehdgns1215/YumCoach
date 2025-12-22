@@ -26,6 +26,12 @@ public class MealItemDto implements Serializable {
     // meal.meal_name
     private String mealName;
 
-    // meal.amount (섭취량, g 기준이면 gram 개념)
+    // meal.amount (섭취량, g 기준)
     private Integer amount;
+
+    // 영양정보 (입력한 grams 기준)
+    private Double kcal;
+    private Double protein;
+    private Double carbs;
+    private Double fat;
 }
