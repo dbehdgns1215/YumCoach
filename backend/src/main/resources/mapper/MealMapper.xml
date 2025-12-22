@@ -153,4 +153,28 @@
         WHERE id = #{id}
     </update>
 
+    <!-- 단일 아이템 삭제-->
+    <delete id="deleteMealItemScoped" parameterType="map">
+        DELETE m
+        FROM meal m
+        JOIN meal_history h ON h.id = m.history_id
+        WHERE m.id = #{mealItemId}
+        AND m.history_id = #{historyId}
+        AND h.user_id = #{userId}
+    </delete>
+
+    <!-- 남은 아이템 수가 0이면 meal_history도 삭제하기 위힘 -->
+    <select id="countMealItemsByHistoryId" parameterType="long" resultType="int">
+        SELECT COUNT(*) FROM meal WHERE history_id = #{historyId}
+    </select>
+
+    <delete id="deleteMealLogByIdAndUserId" parameterType="map">
+        DELETE FROM meal_history
+        WHERE id = #{historyId}
+          AND user_id = #{userId}
+    </delete>
+
+
+
+
 </mapper>
