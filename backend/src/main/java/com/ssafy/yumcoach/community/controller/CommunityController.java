@@ -1,5 +1,6 @@
 package com.ssafy.yumcoach.community.controller;
 
+import com.ssafy.yumcoach.auth.principal.CustomUserPrincipal;
 import com.ssafy.yumcoach.auth.util.JwtUtil;
 import com.ssafy.yumcoach.community.model.Comment;
 import com.ssafy.yumcoach.community.model.Post;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -79,12 +81,11 @@ public class CommunityController {
      */
     @PostMapping
     public ResponseEntity<?> createPost(
-            HttpServletRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal user,
             @RequestBody Post post
     ) {
         try {
-            // JWT에서 사용자 ID 추출
-            Integer userId = getUserIdFromToken(request);
+            Integer userId = user.getUserId();
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("error", "인증이 필요합니다."));
