@@ -8,6 +8,8 @@ import org.apache.ibatis.annotations.Param;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.List;
+import com.ssafy.yumcoach.report.model.ReportInsightDto;
 
 @Mapper
 public interface ReportMapper {
@@ -59,4 +61,22 @@ public interface ReportMapper {
                                     @Param("end") LocalDateTime end,
                                     @Param("triggeredBy") String triggeredBy);
 
+    /**
+     * report.ai_response 컬럼에 AI 원문(JSON)을 저장합니다.
+     */
+    int updateReportAiResponse(@Param("reportId") Integer reportId, @Param("aiResponse") String aiResponse);
+
+    /**
+     * report_insight 테이블에 AI가 생성한 인사이트를 저장합니다.
+     */
+    int insertReportInsight(@Param("reportId") Integer reportId, @Param("kind") String kind, @Param("title") String title, @Param("body") String body);
+
+    /** 조회한 리포트의 인사이트 목록을 반환합니다. */
+    java.util.List<ReportInsightDto> selectReportInsights(@Param("reportId") Integer reportId);
+
+    /** 리포트 코치 메시지 업데이트 */
+    void updateReportCoachMessage(@Param("reportId") int reportId, @Param("coachMessage") String coachMessage);
+    
+    /** 리포트 다음 행동 업데이트 */
+    void updateReportNextAction(@Param("reportId") int reportId, @Param("nextAction") String nextAction);
 }

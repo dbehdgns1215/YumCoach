@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.ssafy.yumcoach.report.model.ReportInsightDto;
 
 @Data
 @Builder
@@ -19,7 +20,7 @@ public class ReportDto {
      *
      * - `type`: DAILY 또는 WEEKLY
      * - `date` / `fromDate`+`toDate`: 일/주 단위 기간 식별
-     * - `status`: IN_PROGRESS 또는 COMPLETED
+     * - `status`: PROGRESS 또는 COMPLETED
      *
      * 이 DTO는 프론트엔드에 전달하는 리포트 요약 정보를 담습니다.
      */
@@ -29,7 +30,7 @@ public class ReportDto {
     private LocalDate date;
     private LocalDate fromDate;
     private LocalDate toDate;
-    private String status; // IN_PROGRESS | COMPLETED
+    private String status; // PROGRESS | COMPLETED
     private Integer score;
     private Integer totalCalories;
     private Integer proteinG;
@@ -40,4 +41,8 @@ public class ReportDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<ReportMealDto> meals;
+    private String aiResponse;
+    private List<ReportInsightDto> insights;
+    private String coachMessage;
+    private String nextAction;
 }

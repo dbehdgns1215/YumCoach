@@ -3,31 +3,89 @@
   <AppShell title="이번 주 식단 리포트" :subtitle="periodLabel" footerTheme="brand" @primary="onAddMeal">
     <div class="grid">
       <div class="colMain">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <BaseButton variant="primary" @click="createAndAnalyze">리포트 생성 및 AI 분석</BaseButton>
+          <BaseButton variant="secondary" @click="clearResult">결과 초기화</BaseButton>
+        </div>
         <ReportHero :score="score" :period-label="periodLabel" :summary-title="heroTitle" :summary-line="heroLine" />
 
         <div class="insights">
-          <InsightCard kind="good" title="잘하고 있어요" body="단백질 섭취가 대부분의 날에서 목표에 가까웠어요." />
-          <InsightCard kind="warn" title="조금 아쉬워요" body="야식이 늦은 시간에 몰린 날이 몇 번 있었어요." />
-          <InsightCard kind="keep" title="이건 유지해요" body="점심 식단 균형이 좋아서 전체 컨디션에 도움이 됐어요." />
+          <InsightCard 
+            v-for="(ins, idx) in displayInsights" 
+            :key="idx" 
+            :kind="ins.kind" 
+            :title="ins.title" 
+            :body="ins.body" 
+          />
         </div>
 
         <AdvancedPreview @open="openPaywall = true" />
       </div>
 
       <div class="colRail">
-        <CoachCard :message="coachMessage" />
-        <NextActionCard :action-text="nextAction" @save="onSavePlan" />
+        <CoachCard :message="displayCoachMessage" />
+        <NextActionCard :action-text="displayNextAction" @save="onSavePlan" />
       </div>
     </div>
 
     <PaywallModal :open="openPaywall" @close="openPaywall = false" @upgrade="onUpgrade" />
 
+    <!-- 개발용: AI 분석 결과 출력 영역 (테스트용) -->
+    <div style="margin-top:16px">
+      <div v-if="devLoading">리포트 생성 중...</div>
+      <div v-if="analyzeLoading">AI 분석 중...</div>
+      <div v-if="devError" style="color:var(--danger); white-space:pre-wrap">오류: {{ devError }}</div>
+
+      <!-- 기본 리포트 객체(빠른 디버그) -->
+      <pre v-if="devResult && !devResult.aiResponse && (!devResult.insights || devResult.insights.length===0)" style="background:#f7f7f7; padding:12px; border-radius:8px; overflow:auto">{{ JSON.stringify(devResult, null, 2) }}</pre>
+
+      <!-- AI 원문 응답 노출 -->
+      <div v-if="devResult && devResult.aiResponse" style="margin-top:8px">
+        <h4>AI 원문 응답</h4>
+        <pre style="background:#f7f7f7; padding:12px; border-radius:8px; overflow:auto">{{ devResult.aiResponse }}</pre>
+      </div>
+
+      <!-- 코치 한마디 -->
+      <div v-if="displayCoachMessage" style="margin-top:12px">
+        <h4>코치 한마디</h4>
+        <div style="background:#f7f7f7; padding:12px; border-radius:8px; white-space:pre-wrap">
+          {{ displayCoachMessage }}
+        </div>
+      </div>
+
+      <!-- 내일의 제안 -->
+      <div v-if="displayNextAction" style="margin-top:12px">
+        <h4>내일은 이거 해봐요</h4>
+        <div style="background:#f7f7f7; padding:12px; border-radius:8px; white-space:pre-wrap">
+          {{ displayNextAction }}
+        </div>
+      </div>
+
+      <!-- 파싱된 인사이트 렌더링 -->
+      <div v-if="displayInsights.length" style="margin-top:12px">
+        <h4>AI 인사이트</h4>
+        <div style="display:grid; gap:8px;">
+          <InsightCard 
+            v-for="(ins, idx) in displayInsights" 
+            :key="idx" 
+            :kind="ins.kind" 
+            :title="ins.title" 
+            :body="ins.body" 
+          />
+        </div>
+      </div>
+
+      <!-- analyzeResult (legacy) 보여주기 -->
+      <pre v-if="analyzeResult" style="background:#eef7ff; padding:12px; border-radius:8px; overflow:auto">{{ JSON.stringify(analyzeResult, null, 2) }}</pre>
+    </div>
+
   </AppShell>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { api } from '@/lib/api.js'
 
 import AppShell from '@/layout/AppShell.vue'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
@@ -37,40 +95,90 @@ import NextActionCard from '@/components/report/NextActionCard.vue'
 import CoachCard from '@/components/report/CoachCard.vue'
 import AdvancedPreview from '@/components/report/AdvancedPreview.vue'
 import PaywallModal from '@/components/paywall/PaywallModal.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 
 const router = useRouter()
 
 const periodLabel = ref('3월 11일 – 3월 17일')
-
-/** 점수는 항상 노출(확정) */
 const score = ref(78)
-
 const heroTitle = ref('이번 주는 꽤 괜찮았어요 🙂')
 const heroLine = ref('전체적으로 괜찮았어요. 간식 타이밍만 조금 아쉬워요.')
 
-const coachMessage = ref(
-  '이번 주는 식사 간격이 꽤 안정적이었어요. 간식 타이밍만 조금 앞당기면 더 좋아질 것 같아요.'
-)
-
-const nextAction = ref('늦은 간식 대신 단백질 요거트를 미리 준비해보세요.')
-
 const openPaywall = ref(false)
+const devResult = ref(null)
+const devError = ref(null)
+const devLoading = ref(false)
+const analyzeLoading = ref(false)
+const analyzeResult = ref(null)
 
-function onAddMeal()
-{
+// insights에서 coach, action 추출
+const displayCoachMessage = computed(() => {
+  if (!devResult.value?.insights) return '이번 주는 식사 간격이 꽤 안정적이었어요. 간식 타이밍만 조금 앞당기면 더 좋아질 것 같아요.'
+  const coach = devResult.value.insights.find(i => i.kind === 'coach')
+  return coach?.body || '이번 주는 식사 간격이 꽤 안정적이었어요. 간식 타이밍만 조금 앞당기면 더 좋아질 것 같아요.'
+})
+
+const displayNextAction = computed(() => {
+  if (!devResult.value?.insights) return '늦은 간식 대신 단백질 요거트를 미리 준비해보세요.'
+  const action = devResult.value.insights.find(i => i.kind === 'action')
+  return action?.body || '늦은 간식 대신 단백질 요거트를 미리 준비해보세요.'
+})
+
+// good, warn, keep만 필터링
+const displayInsights = computed(() => {
+  if (!devResult.value?.insights) {
+    return [
+      { kind: 'good', title: '잘하고 있어요', body: '단백질 섭취가 대부분의 날에서 목표에 가까웠어요.' },
+      { kind: 'warn', title: '조금 아쉬워요', body: '야식이 늦은 시간에 몰린 날이 몇 번 있었어요.' },
+      { kind: 'keep', title: '이건 유지해요', body: '점심 식단 균형이 좋아서 전체 컨디션에 도움이 됐어요.' }
+    ]
+  }
+  return devResult.value.insights.filter(i => 
+    i.kind === 'good' || i.kind === 'warn' || i.kind === 'keep'
+  )
+})
+
+async function createAndAnalyze() {
+  devError.value = null
+  devResult.value = null
+  analyzeResult.value = null
+  devLoading.value = true
+  analyzeLoading.value = false
+  try {
+    const today = new Date()
+    const iso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+    const res = await api.post('/reports/daily', { date: iso })
+    const created = res.data
+    devResult.value = created
+  } catch (e) {
+    if (e?.response?.status === 429) {
+      devError.value = { error: '생성 한도를 초과했습니다. 잠시 후 다시 시도하세요.' }
+    } else {
+      devError.value = e?.response?.data || e.message
+    }
+  } finally {
+    devLoading.value = false
+  }
+}
+
+function clearResult() {
+  devResult.value = null
+  devError.value = null
+}
+
+function onAddMeal() {
   router.push('/log')
 }
-function onSavePlan()
-{
+
+function onSavePlan() {
   console.log('saved tomorrow plan')
 }
-function onUpgrade(payload)
-{
+
+function onUpgrade(payload) {
   openPaywall.value = false
-  console.log('selected plan:', payload?.plan) // 'monthly' | 'yearly'
+  console.log('selected plan:', payload?.plan)
   alert(`${payload?.plan === 'yearly' ? '연간' : '월간'} 플랜 결제는 곧 준비할게요 🙂`)
 }
-
 </script>
 
 <style scoped>

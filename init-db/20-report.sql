@@ -65,12 +65,19 @@ CREATE TABLE IF NOT EXISTS `report_generation_log` (
   `to_date` DATE DEFAULT NULL,
   `triggered_by` ENUM('USER','SYSTEM') NOT NULL,
   `trigger_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `result` ENUM('CREATED','FAILED','LIMIT_EXCEEDED') NOT NULL,
+  -- 결과 코드: 서비스에서 사용되는 값들을 모두 포함
+  -- 예: CREATED_WITH_AI, CREATED_NO_AI, NO_DATA 등
+  `result` ENUM('CREATED','FAILED','LIMIT_EXCEEDED','CREATED_WITH_AI','CREATED_NO_AI','NO_DATA') NOT NULL,
   `report_id` INT DEFAULT NULL,
   `details` TEXT DEFAULT NULL,
   PRIMARY KEY (`id`),
   INDEX `idx_genlog_user_time` (`user_id`,`trigger_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- report_insight 테이블 수정: kind에 'coach', 'action' 추가
+ALTER TABLE `report_insight` 
+MODIFY COLUMN `kind` ENUM('good','warn','keep','coach','action') NOT NULL;
 
 -- Optional: foreign key from report.user_id to user table if exists
 -- Uncomment if `user` table exists and you want FK enforcement

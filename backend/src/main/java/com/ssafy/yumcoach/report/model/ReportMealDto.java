@@ -22,6 +22,7 @@ public class ReportMealDto {
      * 이 객체는 `report_meal` 테이블과 매핑됩니다.
      */
     private Integer id;
+    private Integer reportId;
     private Integer mealId; // original meal id
     private LocalDateTime mealTime;
     private Integer calories;

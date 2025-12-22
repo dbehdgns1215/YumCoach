@@ -18,21 +18,21 @@
     
     <!-- 로그인용 - 이메일과 비밀번호로 유저 조회 -->
     <select id="findByEmailAndPassword" resultType="User">
-        SELECT id, email, password, name, nickname
+        SELECT id, email, password, name, nickname, role
         FROM user
         WHERE email = #{email} AND password = #{password}
     </select>
     
     <!-- 이메일로 유저 조회 -->
     <select id="findByEmail" resultType="User">
-        SELECT id, email, password, name, phone, nickname, gender, age
+        SELECT id, email, password, name, phone, nickname, gender, age, role
         FROM user
         WHERE email = #{email}
     </select>
     
     <!-- ID로 유저 조회 -->
     <select id="findById" resultType="User">
-        SELECT id, email, password, name, phone, nickname, gender, age
+        SELECT id, email, password, name, phone, nickname, gender, age, role
         FROM user
         WHERE id = #{id}
     </select>

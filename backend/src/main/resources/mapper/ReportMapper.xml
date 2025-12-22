@@ -16,6 +16,7 @@
     <result property="carbG" column="carb_g" />
     <result property="fatG" column="fat_g" />
     <result property="mealCount" column="meal_count" />
+    <result property="aiResponse" column="ai_response" />
     <result property="createdBy" column="created_by" />
     <result property="createdAt" column="created_at" />
     <result property="updatedAt" column="updated_at" />
@@ -33,6 +34,10 @@
 
   <select id="selectReportById" resultMap="ReportResult" parameterType="int">
     SELECT * FROM report WHERE id = #{id}
+  </select>
+
+  <select id="selectReportInsights" resultType="com.ssafy.yumcoach.report.model.ReportInsightDto" parameterType="int">
+    SELECT id, report_id as reportId, kind, title, body FROM report_insight WHERE report_id = #{reportId} ORDER BY id
   </select>
 
   <select id="selectReportByUserTypeDate" resultMap="ReportResult" parameterType="map">
@@ -56,4 +61,24 @@
       AND triggered_by = #{triggeredBy}
   </select>
 
+  <update id="updateReportAiResponse" parameterType="map">
+    UPDATE report SET ai_response = #{aiResponse} WHERE id = #{reportId}
+  </update>
+
+  <insert id="insertReportInsight" parameterType="map">
+    INSERT INTO report_insight (report_id, kind, title, body)
+    VALUES (#{reportId}, #{kind}, #{title}, #{body})
+  </insert>
+
+  <update id="updateReportCoachMessage">
+      UPDATE report
+      SET coach_message = #{coachMessage}
+      WHERE id = #{reportId}
+  </update>
+
+  <update id="updateReportNextAction">
+      UPDATE report
+      SET next_action = #{nextAction}
+      WHERE id = #{reportId}
+  </update>
 </mapper>
