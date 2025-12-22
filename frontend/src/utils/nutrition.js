@@ -4,10 +4,16 @@
 
 /**
  * 개별 음식 항목의 영양소 계산
- * @param {Object} row - { grams, per100g: { kcal, protein, carbs, fat } }
+ * @param {Object} row - { grams, per100g: { kcal, protein, carbs, fat }, calc?: { kcal, protein, carbs, fat } }
  * @returns {Object} { kcal, protein, carbs, fat }
  */
 export function calculateNutrition(row) {
+  // DB에 저장된 계산값이 있으면 우선 사용
+  if (row.calc) {
+    return row.calc;
+  }
+
+  // 아니면 per100g 데이터로 계산
   const factor = Number(row.grams || 0) / 100;
   return {
     kcal: (row.per100g?.kcal || 0) * factor,

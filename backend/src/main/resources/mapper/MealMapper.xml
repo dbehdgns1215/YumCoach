@@ -16,6 +16,10 @@
         <result property="mealCode"   column="meal_code" />
         <result property="mealName"   column="meal_name" />
         <result property="amount"     column="amount" />
+        <result property="kcal"       column="kcal" />
+        <result property="protein"    column="protein" />
+        <result property="carbs"      column="carbs" />
+        <result property="fat"        column="fat" />
     </resultMap>
 
     <!-- MealLogDto + items 컬렉션 -->
@@ -35,6 +39,10 @@
             <result property="mealCode"   column="meal_code" />
             <result property="mealName"   column="meal_name" />
             <result property="amount"     column="amount" />
+            <result property="kcal"       column="kcal" />
+            <result property="protein"    column="protein" />
+            <result property="carbs"      column="carbs" />
+            <result property="fat"        column="fat" />
         </collection>
     </resultMap>
 
@@ -56,7 +64,11 @@
             m.history_id,
             m.meal_code,
             m.meal_name,
-            m.amount
+            m.amount,
+            m.kcal,
+            m.protein,
+            m.carbs,
+            m.fat
         FROM meal_history h
                  LEFT JOIN meal m
                            ON h.id = m.history_id
@@ -79,7 +91,11 @@
             m.history_id,
             m.meal_code,
             m.meal_name,
-            m.amount
+            m.amount,
+            m.kcal,
+            m.protein,
+            m.carbs,
+            m.fat
         FROM meal_history h
                  LEFT JOIN meal m
                            ON h.id = m.history_id
@@ -131,13 +147,17 @@
     <!-- 여러 아이템 bulk insert -->
     <insert id="insertMealItems" parameterType="map">
         INSERT INTO meal
-        (history_id, meal_code, meal_name, amount)
+        (history_id, meal_code, meal_name, amount, kcal, protein, carbs, fat)
         VALUES
         <foreach collection="items" item="item" separator=",">
             (#{historyId},
             #{item.mealCode},
             #{item.mealName},
-            #{item.amount})
+            #{item.amount},
+            #{item.kcal},
+            #{item.protein},
+            #{item.carbs},
+            #{item.fat})
         </foreach>
     </insert>
 
@@ -149,7 +169,11 @@
         SET
             meal_code = #{mealCode},
             meal_name = #{mealName},
-            amount    = #{amount}
+            amount    = #{amount},
+            kcal      = #{kcal},
+            protein   = #{protein},
+            carbs     = #{carbs},
+            fat       = #{fat}
         WHERE id = #{id}
     </update>
 

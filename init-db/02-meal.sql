@@ -15,6 +15,10 @@ CREATE TABLE IF NOT EXISTS `meal` (
 	meal_code VARCHAR(255) NOT NULL,
 	meal_name VARCHAR(255) NOT NULL,
     amount INT,
+    kcal DECIMAL(10, 2) DEFAULT 0,
+    protein DECIMAL(10, 2) DEFAULT 0,
+    carbs DECIMAL(10, 2) DEFAULT 0,
+    fat DECIMAL(10, 2) DEFAULT 0,
 	FOREIGN KEY (history_id) REFERENCES meal_history(id) ON DELETE CASCADE
 );
 
