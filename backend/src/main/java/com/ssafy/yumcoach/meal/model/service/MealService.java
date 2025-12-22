@@ -21,4 +21,7 @@ public interface MealService {
 
     // 식사 로그 삭제
     void deleteMealLog(Long mealLogId);
+
+    // 식사 로그 안의 food 삭제
+    void deleteMealItem(long userId, long mealLogId, long mealItemId);
 }

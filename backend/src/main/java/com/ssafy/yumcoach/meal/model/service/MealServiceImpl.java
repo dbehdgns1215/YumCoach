@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -71,7 +72,25 @@ public class MealServiceImpl implements MealService {
     @Override
     public void deleteMealLog(Long mealLogId) {
         mealMapper.deleteMealItemsByHistoryId(mealLogId);
-        // meal_history 삭제 쿼리 필요하면 추가
-        // ex: mealMapper.deleteMealLog(mealLogId); 추가 작성 가능
     }
+
+    @Transactional
+    @Override
+    public void deleteMealItem(long userId, long mealLogId, long mealItemId) {
+        int deleted = mealMapper.deleteMealItemScoped(
+                userId,
+                mealLogId,
+                mealItemId
+        );
+        if (deleted == 0) {
+            throw new IllegalArgumentException("삭제할 아이템이 없거나 권한이 없습니다.");
+        }
+
+        // 옵션: 남은 아이템 수가 0이면 meal_history도 삭제
+        int remaining = mealMapper.countMealItemsByHistoryId(mealLogId);
+        if (remaining == 0) {
+            mealMapper.deleteMealLogByIdAndUserId(mealLogId, userId);
+        }
+    }
+
 }

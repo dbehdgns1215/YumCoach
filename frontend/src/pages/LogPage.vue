@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import AppShell from '@/layout/AppShell.vue'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 import BaseCard from '@/components/base/BaseCard.vue'
@@ -38,20 +38,16 @@ import BaseCard from '@/components/base/BaseCard.vue'
 import WeekStrip from '@/components/log/WeekStrip.vue'
 import MealSection from '@/components/log/MealSection.vue'
 import FoodAddModal from '@/components/log/FoodAddModal.vue'
-import { createMeal } from '@/api/meals.js'
+import { createMeal, getMealsByDate } from '@/api/meals.js'
 import DaySummaryCard from '@/components/log/DaySummaryCard.vue'
 
 import { startOfWeek, formatDate, formatDateDot, addDays, today as getToday } from '@/utils/date'
 import { sumNutrition } from '@/utils/nutrition'
+import { transformMealsToUI } from '@/utils/mealTransform'
+import { MEAL_KEYS, MEAL_LABELS, KEY_TO_MEAL_TYPE } from '@/constants/mealTypes'
 
-const mealKeys = ['breakfast', 'lunch', 'dinner', 'snack', 'latenight']
-const mealLabels = {
-    breakfast: '아침',
-    lunch: '점심',
-    dinner: '저녁',
-    snack: '간식',
-    latenight: '야식',
-}
+const mealKeys = MEAL_KEYS
+const mealLabels = MEAL_LABELS
 
 // ---- 날짜/주간
 const today = getToday()
@@ -70,6 +66,7 @@ function selectDateAndShiftWeek(date)
 {
     selectedDate.value = new Date(date.getFullYear(), date.getMonth(), date.getDate())
     weekStart.value = startOfWeek(selectedDate.value)
+    loadMealsForDate(selectedDate.value)
 }
 
 // ---- 로그 상태 (일단 메모리. 나중에 API/DB 연동)
@@ -106,6 +103,28 @@ const dayLog = computed(() =>
     return logsByDate[dayKey.value]
 })
 
+// API에서 식사 데이터 로드 (날짜 변경 시)
+const loadMealsForDate = (date) =>
+{
+    const key = formatDate(date)
+    getMealsByDate(key)
+        .then(meals =>
+        {
+            if (!meals || !meals.length) {
+                logsByDate[key] = emptyDay()
+                return
+            }
+
+            const mealsUI = transformMealsToUI(meals)
+            logsByDate[key] = { meals: mealsUI }
+        })
+        .catch(e =>
+        {
+            console.error('식사 데이터 로드 실패:', e)
+            logsByDate[key] = emptyDay()
+        })
+}
+
 // ---- 영양 합산
 const daySummary = computed(() =>
 {
@@ -133,17 +152,9 @@ function openAddQuick()
 async function addFoodToMeal(payload)
 {
     // payload: { foodId, name, grams, per100g }
-    // 1) 서버에 식사 등록
-    const mealTypeMap = {
-        breakfast: 'BREAKFAST',
-        lunch: 'LUNCH',
-        dinner: 'DINNER',
-        snack: 'SNACK',
-        latenight: 'LATE_NIGHT',
-    }
     const apiPayload = {
         date: formatDate(selectedDate.value),
-        mealType: mealTypeMap[modalMealKey.value] || 'SNACK',
+        mealType: KEY_TO_MEAL_TYPE[modalMealKey.value] || 'SNACK',
         items: [
             {
                 mealCode: String(payload.foodId),
@@ -185,6 +196,12 @@ function updateGrams(mealKey, rowId, grams)
     const row = items.find(r => r.id === rowId)
     if (row) row.grams = grams
 }
+
+// 페이지 로드 시 오늘 날짜의 식사 데이터 초기 로드
+onMounted(() =>
+{
+    loadMealsForDate(selectedDate.value)
+})
 </script>
 
 <style scoped>

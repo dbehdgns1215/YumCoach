@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface MealMapper {
@@ -41,4 +42,18 @@ public interface MealMapper {
 
     // 단일 아이템 수정 (필요하면)
     int updateMealItem(MealItemDto item);
+
+    int deleteMealItemScoped(
+            @Param("userId") long userId,
+            @Param("historyId") long historyId,
+            @Param("mealItemId") long mealItemId
+    );
+
+    int countMealItemsByHistoryId(@Param("historyId") long historyId);
+
+    int deleteMealLogByIdAndUserId(
+            @Param("historyId") long historyId,
+            @Param("userId") long userId
+    );
+
 }
