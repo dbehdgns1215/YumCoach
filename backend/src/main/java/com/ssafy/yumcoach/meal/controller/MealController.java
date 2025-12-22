@@ -182,4 +182,15 @@ public class MealController {
         return ResponseEntity.ok("식사 기록이 삭제되었습니다.");
     }
 
+
+    @DeleteMapping("/{mealLogId}/items/{mealItemId}")
+    public ResponseEntity<@NonNull String> deleteMealItem(
+            @AuthenticationPrincipal CustomUserPrincipal user,
+            @PathVariable Long mealLogId,
+            @PathVariable Long mealItemId
+    ) {
+        mealService.deleteMealItem(user.getUserId(), mealLogId, mealItemId);
+        return ResponseEntity.ok("식사 아이템이 삭제되었습니다.");
+    }
+
 }
