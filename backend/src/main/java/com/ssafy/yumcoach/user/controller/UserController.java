@@ -31,16 +31,17 @@ import java.util.Map;
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
 public class UserController {
-    
+
     private final UserService userService;
     private final RefreshTokenService refreshTokenService;
     private final JwtUtil jwtUtil;
 
     /**
      * 회원가입
+     * 
      * @param request 회원가입 요청 (email, password, name)
      * @return 200 OK: 회원가입 성공, 400 Bad Request: 중복 이메일 등
-     * 주의: 비밀번호는 평문 저장 (TODO: 암호화 필요)
+     *         주의: 비밀번호는 평문 저장 (TODO: 암호화 필요)
      */
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
@@ -52,13 +53,13 @@ public class UserController {
                     .name(request.getName())
                     .phone(request.getPhone())
                     .build();
-            
+
             userService.signup(user);
-            
+
             Map<String, String> response = new HashMap<>();
             response.put("message", "회원가입이 완료되었습니다.");
             return ResponseEntity.ok(response);
-            
+
         } catch (IllegalArgumentException e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
@@ -70,13 +71,15 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-    
+
     /**
      * 로그인
-     * @param request 로그인 요청 (email, password)
+     * 
+     * @param request  로그인 요청 (email, password)
      * @param response HttpServletResponse (Cookie 설정용)
      * @return 200 OK: 사용자 정보, 401 Unauthorized: 인증 실패
-     * 주의: Access Token(1시간), Refresh Token(7일)을 HttpOnly Cookie로 설정하여 XSS 공격 방지
+     *         주의: Access Token(1시간), Refresh Token(7일)을 HttpOnly Cookie로 설정하여 XSS
+     *         공격 방지
      */
     @PostMapping("/signin")
     public ResponseEntity<?> signin(@RequestBody SigninRequest request, HttpServletResponse response) {
@@ -87,7 +90,7 @@ public class UserController {
             // JWT 토큰 생성
             String accessToken = jwtUtil.createAccessToken(user.getId());
             String refreshToken = jwtUtil.createRefreshToken(user.getId());
-            
+
             // Refresh Token DB 저장
             RefreshTokenDto refreshTokenEntity = RefreshTokenDto.builder()
                     .userId(user.getId())
@@ -98,8 +101,8 @@ public class UserController {
 
             // Refresh Token을 HttpOnly Cookie로 설정 (XSS 방어)
             Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
-            refreshTokenCookie.setHttpOnly(true);  // JavaScript 접근 차단
-            refreshTokenCookie.setSecure(false);   // HTTPS only (개발: false, 운영: true)
+            refreshTokenCookie.setHttpOnly(true); // JavaScript 접근 차단
+            refreshTokenCookie.setSecure(false); // HTTPS only (개발: false, 운영: true)
             refreshTokenCookie.setPath("/"); // 모든 경로에서 접근 가능 (로그아웃 시 삭제 위해)
             refreshTokenCookie.setMaxAge(60 * 60 * 24); // 1일
             response.addCookie(refreshTokenCookie);
@@ -126,7 +129,8 @@ public class UserController {
 
     /**
      * 로그아웃
-     * @param request HttpServletRequest (Authorization 헤더에서 AT 추출)
+     * 
+     * @param request  HttpServletRequest (Authorization 헤더에서 AT 추출)
      * @param response HttpServletResponse (RT Cookie 삭제용)
      * @return 200 OK: 로그아웃 성공
      */
@@ -140,7 +144,7 @@ public class UserController {
                 String token = authHeader.substring(7);
 
                 try {
-                    int userId = jwtUtil.getUserId(token);
+                    Integer userId = jwtUtil.getUserId(token);
                     // DB에서 Refresh Token 삭제
                     refreshTokenService.deleteByUserId(userId);
                     log.info("로그아웃: userId={} RT 삭제 완료", userId);
@@ -167,7 +171,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-    
+
     /**
      * 토큰 갱신
      * Cookie에서 Refresh Token을 읽어 새 Access Token 발급
@@ -182,7 +186,7 @@ public class UserController {
                 error.put("error", "Refresh Token이 없습니다. 다시 로그인해주세요.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
+
             // Refresh Token 검증
             if (!jwtUtil.validateToken(refreshToken)) {
                 Map<String, String> error = new HashMap<>();
@@ -190,7 +194,7 @@ public class UserController {
                 refreshTokenService.deleteByToken(refreshToken);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
+
             // DB에서 토큰 확인
             RefreshTokenDto tokenEntity = refreshTokenService.findByToken(refreshToken);
             if (tokenEntity == null) {
@@ -198,7 +202,7 @@ public class UserController {
                 error.put("error", "Refresh 토큰이 DB와 일치하지 않습니다. 다시 로그인해주세요.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
+
             // 만료 시간 검증
             if (tokenEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
                 // 만료된 토큰은 DB에서 삭제
@@ -207,38 +211,38 @@ public class UserController {
                 error.put("error", "만료된 Refresh 토큰입니다. 다시 로그인해주세요.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
-                // Refresh Token rotation: 기존 RT 삭제, 새 RT 발급 및 DB 저장
-                log.info("[auth] refresh: rotating RT for userId={}", tokenEntity.getUserId());
-                log.debug("[auth] refresh: old RT=[{}]", refreshToken);
-                refreshTokenService.deleteByToken(refreshToken);
-                log.info("[auth] refresh: deleted old RT");
 
-                String newRefreshToken = jwtUtil.createRefreshToken(tokenEntity.getUserId());
-                RefreshTokenDto newTokenEntity = RefreshTokenDto.builder()
+            // Refresh Token rotation: 기존 RT 삭제, 새 RT 발급 및 DB 저장
+            log.info("[auth] refresh: rotating RT for userId={}", tokenEntity.getUserId());
+            log.debug("[auth] refresh: old RT=[{}]", refreshToken);
+            refreshTokenService.deleteByToken(refreshToken);
+            log.info("[auth] refresh: deleted old RT");
+
+            String newRefreshToken = jwtUtil.createRefreshToken(tokenEntity.getUserId());
+            RefreshTokenDto newTokenEntity = RefreshTokenDto.builder()
                     .userId(tokenEntity.getUserId())
                     .token(newRefreshToken)
                     .expiresAt(LocalDateTime.now().plusDays(1))
                     .build();
-                refreshTokenService.saveRefreshToken(newTokenEntity);
-                log.info("[auth] refresh: saved new RT for userId={}", tokenEntity.getUserId());
+            refreshTokenService.saveRefreshToken(newTokenEntity);
+            log.info("[auth] refresh: saved new RT for userId={}", tokenEntity.getUserId());
 
-                // 새 Refresh Token을 HttpOnly Cookie로 설정
-                Cookie refreshTokenCookie = new Cookie("refreshToken", newRefreshToken);
-                refreshTokenCookie.setHttpOnly(true);
-                refreshTokenCookie.setSecure(false);
-                refreshTokenCookie.setPath("/");
-                refreshTokenCookie.setMaxAge(60 * 60 * 24); // 1일
-                response.addCookie(refreshTokenCookie);
+            // 새 Refresh Token을 HttpOnly Cookie로 설정
+            Cookie refreshTokenCookie = new Cookie("refreshToken", newRefreshToken);
+            refreshTokenCookie.setHttpOnly(true);
+            refreshTokenCookie.setSecure(false);
+            refreshTokenCookie.setPath("/");
+            refreshTokenCookie.setMaxAge(60 * 60 * 24); // 1일
+            response.addCookie(refreshTokenCookie);
 
-                // 새 Access Token 발급 및 응답 바디로 반환
-                String newAccessToken = jwtUtil.createAccessToken(tokenEntity.getUserId());
-                log.info("[auth] refresh: issued new accessToken for userId={}", tokenEntity.getUserId());
-                Map<String, String> responseData = new HashMap<>();
-                responseData.put("accessToken", newAccessToken);
-                responseData.put("message", "토큰 갱신 성공");
-                return ResponseEntity.ok(responseData);
-            
+            // 새 Access Token 발급 및 응답 바디로 반환
+            String newAccessToken = jwtUtil.createAccessToken(tokenEntity.getUserId());
+            log.info("[auth] refresh: issued new accessToken for userId={}", tokenEntity.getUserId());
+            Map<String, String> responseData = new HashMap<>();
+            responseData.put("accessToken", newAccessToken);
+            responseData.put("message", "토큰 갱신 성공");
+            return ResponseEntity.ok(responseData);
+
         } catch (Exception e) {
             log.error("Token refresh error", e);
             Map<String, String> error = new HashMap<>();
@@ -246,7 +250,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-    
+
     /**
      * 내 정보 조회
      * Cookie에서 Access Token을 읽어 사용자 인증
@@ -261,25 +265,25 @@ public class UserController {
                 error.put("error", "인증이 필요합니다.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
+
             // 토큰 검증 (만료된 경우 ExpiredJwtException 발생)
             if (!jwtUtil.validateToken(token)) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "유효하지 않은 Access 토큰입니다.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
-            int userId = jwtUtil.getUserId(token);
-            
+
+            Integer userId = jwtUtil.getUserId(token);
+
             User user = userService.findById(userId);
             if (user == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "사용자를 찾을 수 없습니다.");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
             }
-            
+
             return ResponseEntity.ok(user);
-            
+
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
             // 토큰 만료 시 401 반환
             log.warn("Access token expired");
@@ -311,7 +315,7 @@ public class UserController {
                 error.put("error", "유효하지 않은 Access 토큰입니다.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            int userId = jwtUtil.getUserId(token);
+            Integer userId = jwtUtil.getUserId(token);
 
             User user = userService.findById(userId);
             UserHealth health = userService.findUserHealthByUserId(userId);
@@ -358,24 +362,26 @@ public class UserController {
                 error.put("error", "유효하지 않은 Access 토큰입니다.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            int userId = jwtUtil.getUserId(token);
+            Integer userId = jwtUtil.getUserId(token);
 
-                // 기존 사용자 정보 조회 (이름, 이메일 등 보존)
-                User existing = userService.findById(userId);
-                if (existing == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(com.ssafy.yumcoach.api.response.ApiResponse.error("사용자를 찾을 수 없습니다."));
-                }
+            // 기존 사용자 정보 조회 (이름, 이메일 등 보존)
+            User existing = userService.findById(userId);
+            if (existing == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(com.ssafy.yumcoach.api.response.ApiResponse.error("사용자를 찾을 수 없습니다."));
+            }
 
-                // Update user basic info: 이름과 이메일은 보존, 닉네임은 수정 가능
-                User user = User.builder()
+            // Update user basic info: 이름과 이메일은 보존, 닉네임은 수정 가능
+            User user = User.builder()
                     .id(userId)
                     .name(existing.getName())
                     .phone(update.getPhone() != null ? update.getPhone() : existing.getPhone())
-                    .nickname(update.getNickname() != null ? update.getNickname() : (existing.getNickname() != null ? existing.getNickname() : existing.getName()))
+                    .nickname(update.getNickname() != null ? update.getNickname()
+                            : (existing.getNickname() != null ? existing.getNickname() : existing.getName()))
                     .gender(update.getGender() != null ? update.getGender() : existing.getGender())
                     .age(update.getAge() != null ? update.getAge() : existing.getAge())
                     .build();
-                userService.updateUser(user);
+            userService.updateUser(user);
 
             // Update health info
             UserHealth health = UserHealth.builder()
@@ -409,7 +415,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-    
+
     /**
      * 건강정보 조회
      * Cookie에서 Access Token을 읽어 사용자 인증
@@ -424,25 +430,25 @@ public class UserController {
                 error.put("error", "인증이 필요합니다.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
+
             // 토큰 검증
             if (!jwtUtil.validateToken(token)) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "유효하지 않은 토큰입니다.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
-            int userId = jwtUtil.getUserId(token);
-            
+
+            Integer userId = jwtUtil.getUserId(token);
+
             UserHealth userHealth = userService.findUserHealthByUserId(userId);
             if (userHealth == null) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "건강정보를 찾을 수 없습니다.");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
             }
-            
+
             return ResponseEntity.ok(userHealth);
-            
+
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
             log.warn("Access token expired");
             Map<String, String> error = new HashMap<>();
@@ -455,7 +461,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-    
+
     /**
      * 건강정보 수정
      * Cookie에서 Access Token을 읽어 사용자 인증
@@ -472,16 +478,16 @@ public class UserController {
                 error.put("error", "인증이 필요합니다.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
+
             // 토큰 검증
             if (!jwtUtil.validateToken(token)) {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "유효하지 않은 토큰입니다.");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
-            int userId = jwtUtil.getUserId(token);
-            
+
+            Integer userId = jwtUtil.getUserId(token);
+
             UserHealth userHealth = UserHealth.builder()
                     .userId(userId)
                     .height(healthRequest.getHeight())
@@ -491,13 +497,13 @@ public class UserController {
                     .hyperlipidemia(healthRequest.getHyperlipidemia())
                     .kidneyDisease(healthRequest.getKidneyDisease())
                     .build();
-            
+
             userService.updateUserHealth(userHealth);
-            
+
             Map<String, String> response = new HashMap<>();
             response.put("message", "건강정보가 수정되었습니다.");
             return ResponseEntity.ok(response);
-            
+
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
             log.warn("Access token expired");
             Map<String, String> error = new HashMap<>();
@@ -510,7 +516,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-    
+
     /**
      * Cookie에서 토큰 추출 헬퍼 메소드
      */

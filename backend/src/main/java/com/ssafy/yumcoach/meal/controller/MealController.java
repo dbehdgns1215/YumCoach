@@ -1,5 +1,6 @@
 package com.ssafy.yumcoach.meal.controller;
 
+import com.ssafy.yumcoach.auth.principal.CustomUserPrincipal;
 import com.ssafy.yumcoach.meal.model.MealLogDto;
 import com.ssafy.yumcoach.meal.model.service.MealService;
 import lombok.NonNull;
@@ -7,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -112,7 +114,10 @@ public class MealController {
      * @return 저장 성공 메시지
      */
     @PostMapping
-    public ResponseEntity<@NonNull String> saveMealLog(@RequestBody MealLogDto mealLogDto) {
+    public ResponseEntity<@NonNull String> saveMealLog(@AuthenticationPrincipal CustomUserPrincipal user,
+                                                       @RequestBody MealLogDto mealLogDto) {
+
+        mealLogDto.setUserId(user.getUserId());
 
         // 필수 값 검증
         if (mealLogDto.getUserId() == 0 || mealLogDto.getDate() == null || mealLogDto.getMealType() == null) {
