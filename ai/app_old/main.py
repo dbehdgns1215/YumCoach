@@ -1,6 +1,7 @@
 # main.py
 from food_quantity_api import FoodQuantityPredictor
 from food_classification_api import FoodClassificationAPI, initModel, detect
+from hybrid_food_analyzer import HybridFoodAnalyzer
 import traceback
 from flask import Flask, request, jsonify, render_template
 import shutil
@@ -28,6 +29,11 @@ for path in paths_to_add:
 
 
 # 모듈 import
+try:
+    from dotenv import load_dotenv, find_dotenv
+    load_dotenv(find_dotenv(), override=False)
+except Exception:
+    pass
 
 # Flask 앱 설정
 template_dir = os.path.join(current_dir, "templates")
@@ -40,7 +46,7 @@ print("=" * 60)
 # 모델 초기화
 print("음식 종류 인식 모델 로딩 중...")
 food_classifier = FoodClassificationAPI(
-    conf_thres=0.05,  # 0.3 → 0.05로 대폭 낮춤
+    conf_thres=0.01,  # 0.05 → 0.01로 초기 검출 대폭 완화
     iou_thres=0.5
 )
 
@@ -81,6 +87,20 @@ except ImportError:
         return code
 
 print("모든 모델 준비 완료!")
+
+# 하이브리드 분석기 초기화 (극도로 완화)
+hybrid_analyzer = HybridFoodAnalyzer(
+    classifier=food_classifier,
+    quantity_predictor=quantity_predictor,
+    high_conf=0.65,       # 확정 임계값 상향: 0.65 (과신 방지)
+    low_conf=0.08,        # 최소 신뢰도: 0.08로 대폭 낮춤
+    max_gemini_crops=12,  # Gemini 최대 크롭: 12개로 증가
+    iou_dedupe=0.5,       # 중복 제거 완화: 0.5
+    min_area_ratio=0.0005,  # 최소 면적 대폭 완화: 0.0005
+    ensure_min=5,         # 최소 보장 항목: 5개
+    low_conf_floor=0.05,  # 최하한 신뢰도: 0.05까지 허용
+    exclude_null_code=False,  # null 코드도 일단 포함해서 검출 수 확보
+)
 
 
 @app.route('/')
@@ -178,6 +198,25 @@ def post():
                 'food_name': '인식 실패',
                 'quantity': '0'
             }), 500
+
+
+@app.route('/analyze', methods=['POST'])
+def analyze_multi():
+    """여러 음식이 포함된 이미지를 분석해 항목 리스트로 반환"""
+    if 'image' not in request.files:
+        return jsonify({'success': False, 'error': 'No image file. key=image'}), 400
+
+    image_file = request.files['image']
+    include_quantity = request.form.get(
+        'include_quantity', 'false').lower() == 'true'
+
+    try:
+        image_bytes = image_file.read()
+        res = hybrid_analyzer.analyze(
+            image_bytes, include_quantity=include_quantity)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -350,6 +350,17 @@
                        placeholder="사용자 ID를 입력하세요" value="test_user_1">
             </div>
             
+            <div class="form-group" style="display:flex; gap:12px; align-items:center;">
+                <label style="margin:0; display:flex; gap:8px; align-items:center;">
+                    <input type="checkbox" id="use_analyze" />
+                    다중 음식 분석 사용 (/analyze)
+                </label>
+                <label style="margin:0; display:flex; gap:8px; align-items:center;">
+                    <input type="checkbox" id="include_quantity" />
+                    각 항목 양 추정 포함
+                </label>
+            </div>
+            
             <div class="form-group">
                 <label for="user_img">음식 이미지 선택:</label>
                 <div class="file-input-wrapper">
@@ -362,7 +373,10 @@
                 <div class="file-name" id="fileName">선택된 파일 없음</div>
                 
                 <div class="preview-container" id="previewContainer">
-                    <img id="previewImage" class="preview-image" alt="미리보기">
+                    <div style="position: relative; display: inline-block;">
+                        <img id="previewImage" class="preview-image" alt="미리보기">
+                        <canvas id="bboxCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+                    </div>
                 </div>
             </div>
             
@@ -411,6 +425,12 @@
                 </span>
             </div>
         </div>
+
+        <!-- 다중 결과 렌더링 영역 -->
+        <div class="result" id="multiResult">
+            <h2>📊 다중 음식 분석 결과</h2>
+            <div id="itemsContainer" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
     </div>
 
     <script>
@@ -449,6 +469,8 @@
             const formData = new FormData();
             const userSeq = document.getElementById('user_seq').value;
             const userImg = document.getElementById('user_img').files[0];
+            const useAnalyze = document.getElementById('use_analyze').checked;
+            const includeQuantity = document.getElementById('include_quantity').checked;
             
             if (!userImg) {
                 showError('이미지 파일을 선택해주세요.');
@@ -456,16 +478,30 @@
             }
             
             formData.append('user_seq', userSeq);
-            formData.append('user_img', userImg);
+            if (useAnalyze) {
+                formData.append('image', userImg); // /analyze는 image 키 사용
+                formData.append('include_quantity', includeQuantity ? 'true' : 'false');
+            } else {
+                formData.append('user_img', userImg); // /cf는 user_img 키 사용
+            }
             
             // UI 상태 업데이트
             document.getElementById('loading').classList.add('show');
             document.getElementById('result').classList.remove('show');
+            document.getElementById('multiResult').classList.remove('show');
             document.getElementById('error').classList.remove('show');
             document.querySelector('button[type="submit"]').disabled = true;
             
+            // Clear previous bounding boxes
+            const canvas = document.getElementById('bboxCanvas');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            
             try {
-                const response = await fetch('/cf', {
+                const endpoint = useAnalyze ? '/analyze' : '/cf';
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     body: formData
                 });
@@ -473,10 +509,18 @@
                 const data = await response.json();
                 console.log('서버 응답:', data);
                 
-                if (response.ok && (data.status === 'success' || data.status === 'partial_success')) {
-                    displayResults(data);
+                if (useAnalyze) {
+                    if (response.ok && data.success) {
+                        displayMultiResults(data);
+                    } else {
+                        throw new Error(data.error || data.message || '다중 분석 중 오류가 발생했습니다.');
+                    }
                 } else {
-                    throw new Error(data.message || data.detail || '분석 중 오류가 발생했습니다.');
+                    if (response.ok && (data.status === 'success' || data.status === 'partial_success')) {
+                        displayResults(data);
+                    } else {
+                        throw new Error(data.message || data.detail || '분석 중 오류가 발생했습니다.');
+                    }
                 }
             } catch (error) {
                 console.error('에러 발생:', error);
@@ -556,6 +600,118 @@
                     block: 'nearest' 
                 });
             }, 100);
+        }
+
+        function displayMultiResults(data) {
+            const container = document.getElementById('itemsContainer');
+            container.innerHTML = '';
+
+            const items = Array.isArray(data.items) ? data.items : [];
+            if (items.length === 0) {
+                showWarning('검출된 항목이 없습니다. 임계값을 낮추거나 이미지를 바꿔보세요.');
+            }
+
+            items.forEach((it, idx) => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                const box = it.box ? `[${it.box.join(', ')}]` : '-';
+                const qty = it.quantity ? ` / 양: ${it.quantity}` : '';
+                div.innerHTML = `
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div><span class="result-label">#${idx+1}</span> <span class="result-value food-name">${it.final_name || '-'}</span></div>
+                        <div><span class="result-label">코드</span> <span class="result-value">${it.code || '00000000'}</span></div>
+                        <div><span class="result-label">신뢰도</span> <span class="result-value">${(it.local_conf!=null)?(it.local_conf.toFixed(3)):'-'}</span></div>
+                        <div><span class="result-label">출처</span> <span class="result-value">${it.source || '-'}</span></div>
+                        <div><span class="result-label">박스</span> <span class="result-value">${box}</span></div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            // Draw bounding boxes on canvas
+            drawBoundingBoxes(items);
+
+            document.getElementById('multiResult').classList.add('show');
+            setTimeout(() => {
+                document.getElementById('multiResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+
+        function drawBoundingBoxes(items) {
+            const img = document.getElementById('previewImage');
+            const canvas = document.getElementById('bboxCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Wait for image to load if needed
+            if (!img.complete) {
+                img.onload = () => drawBoundingBoxes(items);
+                return;
+            }
+
+            // Set canvas size to match displayed image
+            canvas.width = img.width;
+            canvas.height = img.height;
+            canvas.style.width = img.style.width || `${img.width}px`;
+            canvas.style.height = img.style.height || `${img.height}px`;
+
+            // Clear previous drawings
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Get scale factors (natural size vs displayed size)
+            const scaleX = img.naturalWidth / img.width;
+            const scaleY = img.naturalHeight / img.height;
+
+            // Define colors
+            const colors = [
+                '#667eea', '#764ba2', '#f093fb', '#4facfe',
+                '#43e97b', '#fa709a', '#fee140', '#30cfd0'
+            ];
+
+            items.forEach((item, idx) => {
+                if (!item.box || item.box.length !== 4) return;
+
+                const [x1, y1, x2, y2] = item.box;
+                // Scale box coordinates to displayed size
+                const dx1 = x1 / scaleX;
+                const dy1 = y1 / scaleY;
+                const dx2 = x2 / scaleX;
+                const dy2 = y2 / scaleY;
+                const w = dx2 - dx1;
+                const h = dy2 - dy1;
+
+                const color = colors[idx % colors.length];
+
+                // Draw box
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(dx1, dy1, w, h);
+
+                // Draw label background
+                const label = `${idx + 1}: ${item.final_name || '?'}`;
+                ctx.font = 'bold 14px sans-serif';
+                const textWidth = ctx.measureText(label).width;
+                const labelHeight = 20;
+
+                ctx.fillStyle = color;
+                ctx.fillRect(dx1, dy1 - labelHeight, textWidth + 10, labelHeight);
+
+                // Draw label text
+                ctx.fillStyle = 'white';
+                ctx.fillText(label, dx1 + 5, dy1 - 5);
+
+                // Draw confidence badge
+                if (item.local_conf != null) {
+                    const confText = `${(item.local_conf * 100).toFixed(0)}%`;
+                    ctx.font = 'bold 12px sans-serif';
+                    const confWidth = ctx.measureText(confText).width;
+                    
+                    ctx.fillStyle = item.source === 'local' ? '#4caf50' : '#ff9800';
+                    ctx.fillRect(dx2 - confWidth - 10, dy1 - labelHeight, confWidth + 10, labelHeight);
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(confText, dx2 - confWidth - 5, dy1 - 5);
+                }
+            });
         }
 
         // 페이지 로드 시 초기화

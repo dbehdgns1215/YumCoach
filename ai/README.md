@@ -1,6 +1,6 @@
-# 음식 정보 OCR을 위한 API
+# 음식 이미지 분석 API (하이브리드)
 
-FastAPI와 YOLO 모델을 사용하여 구축된 음식 종류 및 중량 OCR을 위한 API 백엔드입니다.
+YOLOv3 로컬 모델로 음식 종류를 1차 인식하고, 불확실한 경우에만 Gemini 2.0 Flash를 호출해 보강하는 하이브리드 API입니다. 여러 음식이 있는 이미지에서도 각 항목을 검출/식별합니다.
 
 ## 사전 준비
 
@@ -51,7 +51,7 @@ pip install -r requirements.txt
 
 ### 가상환경 재실행
 
-```
+````
 # 현재 가상환경 비활성화 및 삭제
 deactivate
 rm -rf venv
@@ -63,4 +63,69 @@ source venv/bin/activate
 # pip 업그레이드 후 패키지 설치
 pip install --upgrade pip
 pip install -r requirements.txt
+
+## 실행 방법 (Flask)
+
+```bash
+cd ai/app
+# 방법 A) .env 파일 사용 (권장)
+cp .env.example .env  # 없는 경우
+# .env를 열어 아래 중 하나를 설정
+# 1) GMS 프록시 사용(권장):
+#    GMS_KEY=YOUR_GMS_KEY
+#    # (선택) GMS_BASE_URL, GMS_MODEL 커스터마이즈 가능
+# 2) 구글 SDK 사용:
+#    GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY
+
+# 쉘에 export 하고 싶다면 (macOS/zsh/bash)
+set -a; source .env; set +a
+
+# 방법 B) 직접 export
+# export GMS_KEY=YOUR_GMS_KEY
+# or export GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY
+
+python main.py
 ```
+
+- 서버: http://localhost:8100
+- 엔드포인트:
+  - `GET /health` 모델 상태 체크
+  - `POST /cf` 단일 최상위 음식 + 양 추정 (기존)
+  - `POST /analyze` 다중 음식 분석 (하이브리드)
+
+### /analyze 사용 예시
+
+```bash
+curl -X POST \
+	-F "image=@/path/to/meal.jpg" \
+	-F "include_quantity=true" \
+	http://localhost:8100/analyze | jq
+```
+
+응답 형태
+
+```json
+{
+	"success": true,
+	"items": [
+		{"box":[x1,y1,x2,y2],"source":"local","local_conf":0.87,"code":"01011001","final_name":"쌀밥","quantity":"Q3"},
+		{"box":[...],"source":"gemini","local_conf":0.41,"code":"00000000","final_name":"된장찌개"}
+	]
+}
+```
+
+## 로컬 테스트 스크립트
+
+```bash
+cd ai/app
+python test_hybrid.py --image /path/to/meal.jpg --include-quantity
+```
+
+## 요약 (작업 내용)
+
+로컬 YOLO 다중 검출을 확장하고, 불확실 박스만 크롭 후 Gemini 2.0 Flash로 일괄 분석해 토큰을 절약하는 하이브리드 파이프라인을 추가했습니다. 이름→코드 매핑과 `/analyze` 엔드포인트, 테스트 스크립트를 제공해 빠르게 검증할 수 있습니다.
+
+```
+
+```
+````

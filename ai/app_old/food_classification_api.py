@@ -275,6 +275,70 @@ class FoodClassificationAPI:
                 'error': str(e)
             }
 
+    def predict_multi(self, image_input) -> Dict:
+        """여러 음식 객체를 검출하여 박스/신뢰도와 함께 반환
+
+        Returns
+        -------
+        dict: {
+            'success': bool,
+            'detections': [
+                {
+                    'box': [x1, y1, x2, y2],
+                    'class_id': int,
+                    'class_name': str,  # 보통 코드값
+                    'confidence': float
+                }, ...
+            ]
+        }
+        """
+        try:
+            img, img0 = self.preprocess_image(image_input)
+
+            img_tensor = torch.from_numpy(img).to(self.device)
+            img_tensor = img_tensor.half() if self.half else img_tensor.float()
+            img_tensor /= 255.0
+            if img_tensor.ndimension() == 3:
+                img_tensor = img_tensor.unsqueeze(0)
+
+            with torch.no_grad():
+                pred = self.model(img_tensor, augment=False)[0]
+            if self.half:
+                pred = pred.float()
+
+            pred = non_max_suppression(
+                pred, self.conf_thres, self.iou_thres,
+                multi_label=False, classes=None, agnostic=False
+            )
+
+            detections = []
+            for det in pred:
+                if det is not None and len(det):
+                    det[:, :4] = scale_coords(
+                        img_tensor.shape[2:], det[:, :4], img0.shape).round()
+                    for (*xyxy, conf, cls) in det:
+                        x1, y1, x2, y2 = [int(v.item()) for v in xyxy]
+                        class_id = int(cls)
+                        confidence = float(conf)
+                        class_name = self.names[class_id] if class_id < len(
+                            self.names) else f"Unknown({class_id})"
+                        detections.append({
+                            'box': [x1, y1, x2, y2],
+                            'class_id': class_id,
+                            'class_name': class_name,
+                            'confidence': confidence
+                        })
+
+            detections.sort(key=lambda d: d['confidence'], reverse=True)
+            return {'success': True, 'detections': detections}
+
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'detections': []
+            }
+
 
 # =============================================================================
 # 기존 코드 호환성을 위한 함수들
