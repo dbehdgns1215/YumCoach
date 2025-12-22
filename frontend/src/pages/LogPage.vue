@@ -38,7 +38,7 @@ import BaseCard from '@/components/base/BaseCard.vue'
 import WeekStrip from '@/components/log/WeekStrip.vue'
 import MealSection from '@/components/log/MealSection.vue'
 import FoodAddModal from '@/components/log/FoodAddModal.vue'
-import { createMeal, getMealsByDate } from '@/api/meals.js'
+import { createMeal, getMealsByDate, deleteMealItem } from '@/api/meals.js'
 import DaySummaryCard from '@/components/log/DaySummaryCard.vue'
 
 import { startOfWeek, formatDate, formatDateDot, addDays, today as getToday } from '@/utils/date'
@@ -187,7 +187,19 @@ function removeItem(mealKey, rowId)
 {
     const items = dayLog.value.meals[mealKey]
     const idx = items.findIndex(r => r.id === rowId)
-    if (idx >= 0) items.splice(idx, 1)
+    if (idx >= 0) {
+        const item = items[idx]
+        // API 호출로 삭제 (mealLogId, mealItemId)
+        deleteMealItem(item.historyId, item.id)
+            .then(() =>
+            {
+                items.splice(idx, 1)
+            })
+            .catch(e =>
+            {
+                console.error('식사 아이템 삭제 실패:', e)
+            })
+    }
 }
 
 function updateGrams(mealKey, rowId, grams)

@@ -21,3 +21,13 @@ export async function createMeal(payload) {
   const { data } = await api.post("/meals", payload);
   return data;
 }
+
+/**
+ * 식사 아이템 삭제
+ * @param {number} mealLogId 식사 로그 ID
+ * @param {number} mealItemId 식사 아이템 ID
+ * @returns {Promise<void>}
+ */
+export async function deleteMealItem(mealLogId, mealItemId) {
+  await api.delete(`/meals/${mealLogId}/items/${mealItemId}`);
+}
