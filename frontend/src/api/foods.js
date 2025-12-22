@@ -1,10 +1,9 @@
 // 음식 관련 API 모듈
+import api from "../lib/api.js";
 import {
   transformSearchFood,
   transformNutrition,
 } from "../utils/foodTransform.js";
-
-const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
 /**
  * 음식 검색 API 호출
@@ -12,12 +11,11 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL;
  * @returns {Promise<Array>} 변환된 음식 목록
  */
 export async function fetchFoodSearch(keyword) {
-  const encodedKeyword = encodeURIComponent(keyword.trim());
-  const response = await fetch(
-    `${baseUrl}/foods/search?keyword=${encodedKeyword}&limit=50`
-  );
-  if (!response.ok) throw new Error("음식 검색 실패");
-  const data = await response.json();
+  const q = (keyword || "").trim();
+  const res = await api.get("/foods/search", {
+    params: { keyword: q, limit: 50 },
+  });
+  const data = res.data || {};
   return (data.foods || data).map(transformSearchFood);
 }
 
@@ -27,8 +25,7 @@ export async function fetchFoodSearch(keyword) {
  * @returns {Promise<Object>} 변환된 영양정보
  */
 export async function fetchFoodDetail(foodId) {
-  const response = await fetch(`${baseUrl}/foods/${foodId}`);
-  if (!response.ok) throw new Error("음식 상세정보 조회 실패");
-  const data = await response.json();
+  const res = await api.get(`/foods/${foodId}`);
+  const data = res.data || {};
   return transformNutrition(data.nutrition || {});
 }
