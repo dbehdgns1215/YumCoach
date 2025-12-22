@@ -1,8 +1,8 @@
 <template>
     <TopBarNavigation />
-    <AppShell title="기록" :subtitle="subtitle" footerTheme="brand" @primary="openAddQuick">
-        <WeekStrip :week-start="weekStart" :selected-date="selectedDate" @select="selectedDate = $event"
-            @prev="shiftWeek(-7)" @next="shiftWeek(7)" />
+    <AppShell title="기록" :subtitle="subtitle" footerTheme="brand">
+        <WeekStrip :week-start="weekStart" :selected-date="selectedDate" :records="recordDates"
+            @select="selectDateAndShiftWeek($event)" @prev="shiftWeek(-7)" @next="shiftWeek(7)" />
 
         <div class="grid">
             <div class="colMain">
@@ -38,6 +38,7 @@ import BaseCard from '@/components/base/BaseCard.vue'
 import WeekStrip from '@/components/log/WeekStrip.vue'
 import MealSection from '@/components/log/MealSection.vue'
 import FoodAddModal from '@/components/log/FoodAddModal.vue'
+import { createMeal } from '@/api/meals.js'
 import DaySummaryCard from '@/components/log/DaySummaryCard.vue'
 
 import { startOfWeek, formatDate, formatDateDot, addDays, today as getToday } from '@/utils/date'
@@ -65,6 +66,12 @@ function shiftWeek(deltaDays)
     selectedDate.value = addDays(selectedDate.value, deltaDays)
 }
 
+function selectDateAndShiftWeek(date)
+{
+    selectedDate.value = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    weekStart.value = startOfWeek(selectedDate.value)
+}
+
 // ---- 로그 상태 (일단 메모리. 나중에 API/DB 연동)
 const logsByDate = reactive({}) // { 'YYYY-MM-DD': { meals: { breakfast:[...], ... } } }
 
@@ -80,6 +87,17 @@ function emptyDay()
         },
     }
 }
+
+// 기록이 있는 날짜 맵
+const recordDates = computed(() =>
+{
+    const dates = {}
+    Object.keys(logsByDate).forEach(dateKey =>
+    {
+        dates[dateKey] = true
+    })
+    return dates
+})
 
 const dayKey = computed(() => formatDate(selectedDate.value))
 const dayLog = computed(() =>
@@ -112,9 +130,37 @@ function openAddQuick()
     openAdd('snack')
 }
 
-function addFoodToMeal(payload)
+async function addFoodToMeal(payload)
 {
     // payload: { foodId, name, grams, per100g }
+    // 1) 서버에 식사 등록
+    const mealTypeMap = {
+        breakfast: 'BREAKFAST',
+        lunch: 'LUNCH',
+        dinner: 'DINNER',
+        snack: 'SNACK',
+        latenight: 'LATE_NIGHT',
+    }
+    const apiPayload = {
+        date: formatDate(selectedDate.value),
+        mealType: mealTypeMap[modalMealKey.value] || 'SNACK',
+        items: [
+            {
+                mealCode: String(payload.foodId),
+                mealName: payload.name,
+                amount: Number(payload.grams),
+            }
+        ]
+    }
+
+    try {
+        await createMeal(apiPayload)
+    } catch (e) {
+        console.error('식사 등록 실패:', e)
+        // 실패해도 로컬 UI 업데이트는 진행
+    }
+
+    // 2) 로컬 UI에 추가
     const row = {
         id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
         foodId: payload.foodId,

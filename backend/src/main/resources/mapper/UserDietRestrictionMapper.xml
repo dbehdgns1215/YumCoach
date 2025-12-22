@@ -4,13 +4,13 @@
 
 <mapper namespace="com.ssafy.yumcoach.user.model.mapper.UserDietRestrictionMapper">
 
-    <select id="findByUserId" resultType="com.ssafy.yumcoach.user.model.UserDietRestriction" parameterType="int">
+    <select id="findByUserId" resultType="com.ssafy.yumcoach.user.model.UserDietRestriction" parameterType="java.lang.Integer">
         SELECT id, user_id, restriction_type, restriction_value
         FROM user_diet_restriction
         WHERE user_id = #{userId}
     </select>
 
-    <delete id="deleteByUserId" parameterType="int">
+    <delete id="deleteByUserId" parameterType="java.lang.Integer">
         DELETE FROM user_diet_restriction
         WHERE user_id = #{userId}
     </delete>

@@ -54,7 +54,8 @@
                         <router-link to="/login" class="link">로그인</router-link>
                     </div>
 
-                    <button type="submit" class="signup-button" :disabled="isSubmitting">{{ isSubmitting ? '가입 중...' : '계정 만들기' }}</button>
+                    <button type="submit" class="signup-button" :disabled="isSubmitting">{{ isSubmitting ? '가입 중...' :
+                        '계정 만들기' }}</button>
                 </form>
             </div>
         </div>
@@ -65,6 +66,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
+import api from '@/lib/api.js'
 
 const router = useRouter()
 
@@ -129,31 +131,20 @@ async function handleSignup()
     }
 
     const payload = {
-    email: email.value,
-    password: password.value,
-    name: name.value,
-    phone: phone.value,
-    referralCode: referralCode.value
+        email: email.value,
+        password: password.value,
+        name: name.value,
+        phone: phone.value,
+        referralCode: referralCode.value
     }
 
     isSubmitting.value = true
     try {
-        const res = await fetch('/api/user/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) {
-            serverError.value = data.message || '가입 실패'
-            return
-        }
-
-        // 성공 시 이동
+        await api.post('/user/signup', payload)
         router.push('/login')
     } catch (err) {
-        serverError.value = err.message || '가입 중 오류'
+        const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message
+        serverError.value = msg || '가입 중 오류'
     } finally {
         isSubmitting.value = false
     }
