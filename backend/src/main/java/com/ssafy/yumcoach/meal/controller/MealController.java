@@ -25,13 +25,12 @@ public class MealController {
     /**
      * 특정 날짜의 식사 기록 조회 API
      *
-     * GET /api/meals?userId={userId}&date={yyyy-MM-dd}
+     * GET /api/meals?date={yyyy-MM-dd}
      *
-     * @param userId   조회할 사용자 ID (필수)
      * @param date     조회할 날짜 (yyyy-MM-dd 형식, 필수)
      *
      * Request Example:
-     *  GET /api/meals?userId=1&date=2025-12-10
+     *  GET /api/meals?date=2025-12-10
      *
      * Response:
      * - 200 OK: List<MealLogDto> (해당 날짜의 모든 식사 기록 목록)
@@ -41,10 +40,14 @@ public class MealController {
      */
     @GetMapping
     public ResponseEntity<@NonNull List<MealLogDto>> getMealsByDate(
-            @RequestParam Integer userId,
+            @AuthenticationPrincipal CustomUserPrincipal user,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
 
-        List<MealLogDto> meals = mealService.getMealsByDate(userId, date);
+        System.out.println(user.getUserId());
+
+        List<MealLogDto> meals = mealService.getMealsByDate(user.getUserId(), date);
+
+        System.out.println(meals);
 
         if (meals == null || meals.isEmpty()) {
             return ResponseEntity.noContent().build();
@@ -56,14 +59,13 @@ public class MealController {
     /**
      * 특정 기간 동안의 식사 기록 조회 API
      *
-     * GET /api/meals/range?userId={userId}&startDate={yyyy-MM-dd}&endDate={yyyy-MM-dd}
+     * GET /api/meals/range?startDate={yyyy-MM-dd}&endDate={yyyy-MM-dd}
      *
-     * @param userId     사용자 ID (필수)
      * @param startDate  시작 날짜 (yyyy-MM-dd 형식)
      * @param endDate    종료 날짜 (yyyy-MM-dd 형식)
      *
      * Request Example:
-     *  GET /api/meals/range?userId=1&startDate=2025-12-01&endDate=2025-12-10
+     *  GET /api/meals/range?startDate=2025-12-01&endDate=2025-12-10
      *
      * Response:
      * - 200 OK: List<MealLogDto> (기간 내 식사 기록 전체)
@@ -73,11 +75,11 @@ public class MealController {
      */
     @GetMapping("/range")
     public ResponseEntity<List<MealLogDto>> getMealsByDateRange(
-            @RequestParam Integer userId,
+            @AuthenticationPrincipal CustomUserPrincipal user,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate) {
 
-        List<MealLogDto> meals = mealService.getMealsByDateRange(userId, startDate, endDate);
+        List<MealLogDto> meals = mealService.getMealsByDateRange(user.getUserId(), startDate, endDate);
         return meals == null || meals.isEmpty()
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.ok(meals);
@@ -91,7 +93,6 @@ public class MealController {
      * @param mealLogDto 저장할 식사 정보 DTO
      *
      * Required Fields:
-     * - userId: 사용자 ID
      * - date: 식사 날짜 (yyyy-MM-dd)
      * - mealType: 식사 타입 (BREAKFAST, LUNCH, DINNER, SNACK)
      * - items: 식사 구성(food items)
