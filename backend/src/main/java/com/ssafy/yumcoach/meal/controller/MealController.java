@@ -1,6 +1,7 @@
 package com.ssafy.yumcoach.meal.controller;
 
 import com.ssafy.yumcoach.auth.principal.CustomUserPrincipal;
+import com.ssafy.yumcoach.meal.model.MealItemDto;
 import com.ssafy.yumcoach.meal.model.MealLogDto;
 import com.ssafy.yumcoach.meal.model.service.MealService;
 import lombok.NonNull;
@@ -27,14 +28,14 @@ public class MealController {
      *
      * GET /api/meals?date={yyyy-MM-dd}
      *
-     * @param date     조회할 날짜 (yyyy-MM-dd 형식, 필수)
+     * @param date 조회할 날짜 (yyyy-MM-dd 형식, 필수)
      *
-     * Request Example:
-     *  GET /api/meals?date=2025-12-10
+     *             Request Example:
+     *             GET /api/meals?date=2025-12-10
      *
-     * Response:
-     * - 200 OK: List<MealLogDto> (해당 날짜의 모든 식사 기록 목록)
-     * - 204 No Content: 해당 날짜의 기록 없음
+     *             Response:
+     *             - 200 OK: List<MealLogDto> (해당 날짜의 모든 식사 기록 목록)
+     *             - 204 No Content: 해당 날짜의 기록 없음
      *
      * @return 해당 날짜에 기록된 식사 목록 또는 NoContent
      */
@@ -56,15 +57,15 @@ public class MealController {
      *
      * GET /api/meals/range?startDate={yyyy-MM-dd}&endDate={yyyy-MM-dd}
      *
-     * @param startDate  시작 날짜 (yyyy-MM-dd 형식)
-     * @param endDate    종료 날짜 (yyyy-MM-dd 형식)
+     * @param startDate 시작 날짜 (yyyy-MM-dd 형식)
+     * @param endDate   종료 날짜 (yyyy-MM-dd 형식)
      *
-     * Request Example:
-     *  GET /api/meals/range?startDate=2025-12-01&endDate=2025-12-10
+     *                  Request Example:
+     *                  GET /api/meals/range?startDate=2025-12-01&endDate=2025-12-10
      *
-     * Response:
-     * - 200 OK: List<MealLogDto> (기간 내 식사 기록 전체)
-     * - 204 No Content: 기간 내 기록 없음
+     *                  Response:
+     *                  - 200 OK: List<MealLogDto> (기간 내 식사 기록 전체)
+     *                  - 204 No Content: 기간 내 기록 없음
      *
      * @return 기간 내 식사 기록 목록 또는 NoContent
      */
@@ -87,31 +88,46 @@ public class MealController {
      *
      * @param mealLogDto 저장할 식사 정보 DTO
      *
-     * Required Fields:
-     * - date: 식사 날짜 (yyyy-MM-dd)
-     * - mealType: 식사 타입 (BREAKFAST, LUNCH, DINNER, SNACK)
-     * - items: 식사 구성(food items)
+     *                   Required Fields:
+     *                   - date: 식사 날짜 (yyyy-MM-dd)
+     *                   - mealType: 식사 타입 (BREAKFAST, LUNCH, DINNER, SNACK)
+     *                   - items: 식사 구성(food items) - 각 item의 kcal, protein, carbs,
+     *                   fat 필수
      *
-     * Request Example:
-     *  {
-     *    "userId": 3,
-     *    "date": "2025-12-10",
-     *    "mealType": "BREAKFAST",
-     *    "items": [
-     *      { "mealCode": "APL001", "mealName": "Apple", "amount": 150 },
-     *      { "mealCode": "BAN001", "mealName": "Banana", "amount": 100 }
-     *    ]
-     *  }
+     *                   Request Example:
+     *                   {
+     *                   "userId": 3,
+     *                   "date": "2025-12-10",
+     *                   "mealType": "BREAKFAST",
+     *                   "items": [
+     *                   { "mealCode": "APL001", "mealName": "Apple", "amount": 150,
+     *                   "kcal": 81, "protein": 0.3, "carbs": 21.0, "fat": 0.2 },
+     *                   { "mealCode": "BAN001", "mealName": "Banana", "amount":
+     *                   100, "kcal": 89, "protein": 1.1, "carbs": 23.0, "fat": 0.3
+     *                   }
+     *                   ]
+     *                   }
      *
-     * Response:
-     * - 200 OK: "식사 기록이 등록되었습니다."
-     * - 400 Bad Request: 필수값 누락 시
+     *                   Response:
+     *                   - 200 OK: "식사 기록이 등록되었습니다."
+     *                   - 400 Bad Request: 필수값 누락 시
      *
      * @return 저장 성공 메시지
-     */
+     *
+     *         { "mealCode": "APL001", "mealName": "Apple", "amount": 150 },
+     *         { "mealCode": "BAN001", "mealName": "Banana", "amount": 100 }
+     *         ]
+     *         }
+     *
+     *         Response:
+     *         - 200 OK: "식사 기록이 등록되었습니다."
+     *         - 400 Bad Request: 필수값 누락 시
+     *
+     * @return 저장 성공 메시지
+     **/
     @PostMapping
     public ResponseEntity<@NonNull String> saveMealLog(@AuthenticationPrincipal CustomUserPrincipal user,
-                                                       @RequestBody MealLogDto mealLogDto) {
+            @RequestBody MealLogDto mealLogDto) {
 
         mealLogDto.setUserId(user.getUserId());
 
@@ -133,19 +149,20 @@ public class MealController {
      * @param mealLogId  수정할 식사 기록 ID
      * @param mealLogDto 수정할 내용 DTO (mealLogId는 내부에서 세팅됨)
      *
-     * Request Example:
-     *  PUT /api/meals/10
-     *  {
-     *    "userId": 3,
-     *    "date": "2025-12-10",
-     *    "mealType": "LUNCH",
-     *    "items": [
-     *      { "mealCode": "CHK001", "mealName": "Chicken Breast", "amount": 200 }
-     *    ]
-     *  }
+     *                   Request Example:
+     *                   PUT /api/meals/10
+     *                   {
+     *                   "userId": 3,
+     *                   "date": "2025-12-10",
+     *                   "mealType": "LUNCH",
+     *                   "items": [
+     *                   { "mealCode": "CHK001", "mealName": "Chicken Breast",
+     *                   "amount": 200 }
+     *                   ]
+     *                   }
      *
-     * Response:
-     * - 200 OK: "식사 기록이 수정되었습니다."
+     *                   Response:
+     *                   - 200 OK: "식사 기록이 수정되었습니다."
      *
      * @return 수정 성공 메시지
      */
@@ -167,11 +184,11 @@ public class MealController {
      *
      * @param mealLogId 삭제할 식사 기록 ID
      *
-     * Request Example:
-     *  DELETE /api/meals/15
+     *                  Request Example:
+     *                  DELETE /api/meals/15
      *
-     * Response:
-     * - 200 OK: "식사 기록이 삭제되었습니다."
+     *                  Response:
+     *                  - 200 OK: "식사 기록이 삭제되었습니다."
      *
      * @return 삭제 성공 메시지
      */
@@ -182,15 +199,49 @@ public class MealController {
         return ResponseEntity.ok("식사 기록이 삭제되었습니다.");
     }
 
-
     @DeleteMapping("/{mealLogId}/items/{mealItemId}")
     public ResponseEntity<@NonNull String> deleteMealItem(
             @AuthenticationPrincipal CustomUserPrincipal user,
             @PathVariable Long mealLogId,
-            @PathVariable Long mealItemId
-    ) {
+            @PathVariable Long mealItemId) {
         mealService.deleteMealItem(user.getUserId(), mealLogId, mealItemId);
         return ResponseEntity.ok("식사 아이템이 삭제되었습니다.");
     }
 
+    /**
+     * 식사 아이템 수정 API
+     *
+     * PUT /api/meals/{mealLogId}/items/{mealItemId}
+     *
+     * @param mealLogId   수정할 아이템이 속한 식사 기록 ID
+     * @param mealItemId  수정할 아이템 ID
+     * @param mealItemDto 수정할 내용 (amount, kcal, protein, carbs, fat)
+     *
+     *                    Request Example:
+     *                    PUT /api/meals/10/items/25
+     *                    {
+     *                    "mealCode": "APL001",
+     *                    "mealName": "Apple",
+     *                    "amount": 200,
+     *                    "kcal": 108,
+     *                    "protein": 0.4,
+     *                    "carbs": 28.0,
+     *                    "fat": 0.3
+     *                    }
+     *
+     *                    Response:
+     *                    - 200 OK: "식사 아이템이 수정되었습니다."
+     *
+     * @return 수정 성공 메시지
+     */
+    @PutMapping("/{mealLogId}/items/{mealItemId}")
+    public ResponseEntity<@NonNull String> updateMealItem(
+            @AuthenticationPrincipal CustomUserPrincipal user,
+            @PathVariable Long mealLogId,
+            @PathVariable Long mealItemId,
+            @RequestBody MealItemDto mealItemDto) {
+        mealItemDto.setId(mealItemId);
+        mealService.updateMealItem(user.getUserId(), mealLogId, mealItemDto);
+        return ResponseEntity.ok("식사 아이템이 수정되었습니다.");
+    }
 }

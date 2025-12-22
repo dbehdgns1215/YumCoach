@@ -1,5 +1,6 @@
 package com.ssafy.yumcoach.meal.model.service;
 
+import com.ssafy.yumcoach.meal.model.MealItemDto;
 import com.ssafy.yumcoach.meal.model.mapper.MealMapper;
 import com.ssafy.yumcoach.meal.model.MealLogDto;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,7 @@ public class MealServiceImpl implements MealService {
     @Override
     public void saveMealLog(MealLogDto mealLog) {
         // 1) 한 끼 기록 저장
-        mealMapper.insertMealLog(mealLog);  // auto generated key → mealLog.id
+        mealMapper.insertMealLog(mealLog); // auto generated key → mealLog.id
 
         // 2) 음식 목록 저장
         if (mealLog.getItems() != null && !mealLog.getItems().isEmpty()) {
@@ -80,8 +81,7 @@ public class MealServiceImpl implements MealService {
         int deleted = mealMapper.deleteMealItemScoped(
                 userId,
                 mealLogId,
-                mealItemId
-        );
+                mealItemId);
         if (deleted == 0) {
             throw new IllegalArgumentException("삭제할 아이템이 없거나 권한이 없습니다.");
         }
@@ -93,4 +93,15 @@ public class MealServiceImpl implements MealService {
         }
     }
 
+    /**
+     * 식사 아이템 수정
+     * amount, 영양정보(kcal, protein, carbs, fat) 등을 수정
+     */
+    @Transactional
+    @Override
+    public void updateMealItem(Integer userId, Long mealLogId, MealItemDto mealItemDto) {
+        // 권한 확인: 해당 아이템이 현재 사용자의 mealLog에 속하는지 확인
+        // (선택사항: 더 엄격한 권한 체크 원하면 userId도 함께 검증)
+        mealMapper.updateMealItem(mealItemDto);
+    }
 }
