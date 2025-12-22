@@ -19,7 +19,7 @@ import java.util.List;
 public class MealLogDto implements Serializable {
 
 	private Long id; // dietLogId 느낌
-	private Long userId;
+	private Integer userId;
 	private LocalDate date; // meal_history.date
 	private MealType mealType; // 아침/점심/저녁/간식 (enum) meal_history.type
 

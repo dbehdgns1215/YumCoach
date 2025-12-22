@@ -15,7 +15,7 @@ import lombok.*;
 // API 응답용 묶음 DTO - 날짜별 끼니 목록
 public class MealHistoryResponseDto implements Serializable {
 
-    private Long userId;
+    private Integer userId;
     private LocalDate date;
     private List<MealLogDto> meals; // 하루 식사 전체
 }
