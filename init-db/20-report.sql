@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `report_meal` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `report_id` INT NOT NULL,
   `meal_id` INT DEFAULT NULL,
+  `meal_name` VARCHAR(255) DEFAULT NULL,
   `meal_time` DATETIME DEFAULT NULL,
   `calories` INT DEFAULT NULL,
   `protein_g` INT DEFAULT NULL,
@@ -72,6 +73,19 @@ CREATE TABLE IF NOT EXISTS `report_generation_log` (
   `details` TEXT DEFAULT NULL,
   PRIMARY KEY (`id`),
   INDEX `idx_genlog_user_time` (`user_id`,`trigger_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- user_generation_count: stored daily/weekly summary counts for each user (for batch sync)
+CREATE TABLE IF NOT EXISTS `user_generation_count` (
+  `user_id` INT NOT NULL,
+  `daily_date` DATE DEFAULT NULL,
+  `daily_used` INT DEFAULT 0,
+  `weekly_from` DATE DEFAULT NULL,
+  `weekly_used` INT DEFAULT 0,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  INDEX (`daily_date`),
+  INDEX (`weekly_from`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 

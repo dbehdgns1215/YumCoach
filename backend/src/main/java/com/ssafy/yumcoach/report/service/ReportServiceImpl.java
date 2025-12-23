@@ -119,6 +119,17 @@ public class ReportServiceImpl implements ReportService {
                 rm.setProteinG(protein);
                 rm.setCarbG(carb);
                 rm.setFatG(fat);
+                // 음식명 설정: representativeFoodName 우선, 없으면 foodName 사용
+                try {
+                    if (fd.getFood() != null) {
+                        String name = fd.getFood().getRepresentativeFoodName() != null && !fd.getFood().getRepresentativeFoodName().isBlank()
+                                ? fd.getFood().getRepresentativeFoodName()
+                                : fd.getFood().getFoodName();
+                        rm.setMealName(name);
+                    }
+                } catch (Exception ex) {
+                    // 무시
+                }
                 reportMapper.insertReportMeal(rm);
                 reportMeals.add(rm);
             }
@@ -129,6 +140,18 @@ public class ReportServiceImpl implements ReportService {
         dto.setCarbG(totalCarb);
         dto.setFatG(totalFat);
         dto.setMealCount(mealCount);
+        // 계산된 합계를 report 테이블에 반영
+        try {
+            reportMapper.updateReportSummary(dto.getId(), totalCalories, totalProtein, totalCarb, totalFat, mealCount);
+        } catch (Exception ex) {
+            log.warn("report summary update failed: {}", ex.getMessage());
+        }
+        // 계산된 합계를 report 테이블에 반영
+        try {
+            reportMapper.updateReportSummary(dto.getId(), totalCalories, totalProtein, totalCarb, totalFat, mealCount);
+        } catch (Exception ex) {
+            log.warn("report summary update failed: {}", ex.getMessage());
+        }
         // 식사 데이터가 없으면 명확한 예외를 던집니다.
         if (mealCount == 0) {
             reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER", "NO_DATA", dto.getId(), "no meals");
@@ -196,7 +219,20 @@ public class ReportServiceImpl implements ReportService {
                         try { reportMapper.updateReportNextAction(dto.getId(), next); } catch (Exception ex) { log.warn("updateReportNextAction failed: {}", ex.getMessage()); }
                     }
                     if (root.has("score") && dto.getScore() == null) {
-                        try { dto.setScore(root.get("score").asInt()); } catch (Exception ex) { /* ignore */ }
+                        try {
+                            int s = root.get("score").asInt();
+                            dto.setScore(s);
+                            try { reportMapper.updateReportScore(dto.getId(), s); } catch (Exception ue) { log.warn("updateReportScore failed: {}", ue.getMessage()); }
+                        } catch (Exception ex) { /* ignore */ }
+                    }
+                    if ((dto.getHeroTitle() == null || dto.getHeroTitle().isBlank()) && root.has("heroTitle")) {
+                        try {
+                            String ht = root.get("heroTitle").asText();
+                            String hl = root.has("heroLine") ? root.get("heroLine").asText() : null;
+                            dto.setHeroTitle(ht);
+                            dto.setHeroLine(hl);
+                            try { reportMapper.updateReportHero(dto.getId(), ht, hl); } catch (Exception ue) { log.warn("updateReportHero failed: {}", ue.getMessage()); }
+                        } catch (Exception ex) { /* ignore */ }
                     }
                 } catch (Exception pe) {
                     log.warn("aiResponse JSON parse failed for report {}: {}", dto.getId(), pe.getMessage());
@@ -276,6 +312,16 @@ public class ReportServiceImpl implements ReportService {
                 rm.setProteinG(protein);
                 rm.setCarbG(carb);
                 rm.setFatG(fat);
+                try {
+                    if (fd.getFood() != null) {
+                        String name = fd.getFood().getRepresentativeFoodName() != null && !fd.getFood().getRepresentativeFoodName().isBlank()
+                                ? fd.getFood().getRepresentativeFoodName()
+                                : fd.getFood().getFoodName();
+                        rm.setMealName(name);
+                    }
+                } catch (Exception ex) {
+                    // 무시
+                }
                 reportMapper.insertReportMeal(rm);
             }
         }
@@ -346,7 +392,20 @@ public class ReportServiceImpl implements ReportService {
                         try { reportMapper.updateReportNextAction(dto.getId(), next); } catch (Exception ex) { log.warn("updateReportNextAction failed: {}", ex.getMessage()); }
                     }
                     if (root.has("score") && dto.getScore() == null) {
-                        try { dto.setScore(root.get("score").asInt()); } catch (Exception ex) { /* ignore */ }
+                        try {
+                            int s = root.get("score").asInt();
+                            dto.setScore(s);
+                            try { reportMapper.updateReportScore(dto.getId(), s); } catch (Exception ue) { log.warn("updateReportScore failed: {}", ue.getMessage()); }
+                        } catch (Exception ex) { /* ignore */ }
+                    }
+                    if ((dto.getHeroTitle() == null || dto.getHeroTitle().isBlank()) && root.has("heroTitle")) {
+                        try {
+                            String ht = root.get("heroTitle").asText();
+                            String hl = root.has("heroLine") ? root.get("heroLine").asText() : null;
+                            dto.setHeroTitle(ht);
+                            dto.setHeroLine(hl);
+                            try { reportMapper.updateReportHero(dto.getId(), ht, hl); } catch (Exception ue) { log.warn("updateReportHero failed: {}", ue.getMessage()); }
+                        } catch (Exception ex) { /* ignore */ }
                     }
                 } catch (Exception pe) {
                     log.warn("aiResponse JSON parse failed for report {}: {}", dto.getId(), pe.getMessage());

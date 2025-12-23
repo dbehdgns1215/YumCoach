@@ -37,6 +37,11 @@
         WHERE id = #{id}
     </select>
 
+    <!-- 모든 유저 ID 조회 (배치/관리용) -->
+    <select id="findAllUserIds" resultType="int">
+        SELECT id FROM user
+    </select>
+
         <!-- 유저 정보 수정 -->
         <update id="updateUser" parameterType="User">
             UPDATE user
