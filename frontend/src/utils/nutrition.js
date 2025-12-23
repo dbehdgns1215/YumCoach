@@ -8,6 +8,11 @@
  * @returns {Object} { kcal, protein, carbs, fat }
  */
 export function calculateNutrition(row) {
+  // row가 없으면 0 반환
+  if (!row) {
+    return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  }
+
   // DB에 저장된 계산값이 있으면 우선 사용
   if (row.calc) {
     return row.calc;
