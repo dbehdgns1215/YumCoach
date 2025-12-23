@@ -37,11 +37,10 @@
                     </div>
                     <div class="commentBody">{{ c.content }}</div>
 
-                    <button class="deleteBtn" @click="deleteCommentFn(c.id)">삭제</button>
+                    <button v-if="canDeleteComment(c)" class="deleteBtn" @click="deleteCommentFn(c.id)">삭제</button>
                 </div>
             </div>
 
-            <!-- ✅ 댓글 입력 (사이즈/배경 개선 버전만 적용) -->
             <div class="commentInputBar">
                 <div class="commentInputInner">
                     <input v-model="newComment" class="commentInput" placeholder="댓글을 입력하세요" />
@@ -55,11 +54,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 import AppShell from '@/layout/AppShell.vue'
 import { getPost, getComments, createComment, deleteComment } from '@/api/community.js'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const postId = Number(route.params.id)
@@ -69,6 +69,24 @@ const comments = ref([])
 const newComment = ref('')
 const loading = ref(false)
 const submitting = ref(false)
+const auth = useAuthStore()
+const currentUserId = computed(() => {
+    if (auth.user?.id == null) return null
+    return Number(auth.user.id)
+})
+const currentUserName = computed(() => auth.user?.name || auth.user?.nickname || null)
+
+function canDeleteComment(comment)
+{
+    if (!comment) return false
+    if (currentUserId.value != null && comment.userId != null) {
+        return Number(comment.userId) === currentUserId.value
+    }
+    if (currentUserName.value && comment.userName) {
+        return comment.userName === currentUserName.value
+    }
+    return false
+}
 
 async function loadComments()
 {
@@ -139,7 +157,12 @@ function formatDate(dateString)
     return date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
 }
 
-onMounted(loadPost)
+onMounted(async () => {
+    try {
+        await auth.checkAuth()
+    } catch (e) {}
+    await loadPost()
+})
 </script>
 
 <style scoped>
