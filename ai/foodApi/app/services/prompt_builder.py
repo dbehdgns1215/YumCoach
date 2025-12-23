@@ -35,12 +35,17 @@ def _resize_and_compress_image(image_bytes: bytes, max_side: int = 256, quality:
 
 SIMPLE_FOOD_LIST_PROMPT = """Find all foods. Return JSON only: {"items":[{"name":"food in Korean","portion":null}]}"""
 
-MULTI_FOOD_ANALYSIS_SYSTEM_PROMPT = """Find all foods and estimate calories. Return JSON: {"items":[{"name":"food","portion":null,"calories_kcal":0,"protein_g":0,"fat_g":0,"carbs_g":0}],"total_calories_kcal":0,"total_protein_g":0,"total_fat_g":0,"total_carbs_g":0}
+MULTI_FOOD_ANALYSIS_SYSTEM_PROMPT = """Find all foods in the image. Return JSON only:
+{
+  "items": [
+    {"name": "food name in Korean"},
+    {"name": "food name in Korean"}
+  ]
+}
 
 Rules:
 - JSON only. No markdown. No extra keys.
 - Include every visible dish; if uncertain, include best guess.
-- Numbers must be realistic; if unknown, estimate.
 """
 
 
@@ -89,7 +94,7 @@ def build_simple_food_list_messages(image_url: str, extra_text: str | None = Non
 
 
 def build_multi_food_messages(image_url: str, extra_text: str | None = None) -> List[Dict[str, Any]]:
-    user_text = extra_text or "Analyze all foods in this image. Detect multiple dishes and estimate macros."
+    user_text = extra_text or "Analyze all foods in this image. Detect multiple dishes."
 
     # HTTP/HTTPS URL인 경우 이미지 다운로드 후 base64 변환
     if image_url.startswith(("http://", "https://")):
