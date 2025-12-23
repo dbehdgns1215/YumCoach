@@ -7,9 +7,11 @@
           <div style="display:flex; align-items:center; gap:12px;">
             <ReportTabs :mode="mode" @update:mode="updateMode" />
             <div style="flex:1"></div>
+            <!-- create button moved to header (right) -->
+            <BaseButton :disabled="selectionState !== 'today'" variant="primary" @click="openCreateModal = true" style="margin-right:8px; width: 76%; align-items: center;">리포트 생성</BaseButton>
             <!-- locate button: go to default (yesterday / last week) -->
             <button class="locateBtn" @click="goToDefault" title="초기 위치로 이동" aria-label="초기 위치로 이동">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"> 
                 <circle cx="12" cy="12" r="7" stroke="currentColor" stroke-width="1.5" />
                 <circle cx="12" cy="12" r="2" fill="currentColor" />
               </svg>
@@ -33,26 +35,11 @@
             </div>
           </div>
         </div>
-        <div style="display:flex; gap:8px; margin-bottom:8px;">
-          <BaseButton :disabled="selectionState !== 'today'" variant="primary" @click="createAndAnalyze">리포트 생성 및 AI 분석</BaseButton>
-          <BaseButton variant="secondary" @click="clearResult">결과 초기화</BaseButton>
-        </div>
-        <ReportHero :score="score" :period-label="periodLabel" :summary-title="heroTitle" :summary-line="heroLine" />
+        <!-- 상단으로 이동: 생성 버튼 제거(중복) 및 결과 초기화 버튼 제거 -->
+        <ReportHero :score="score" :period-label="periodLabel" :summary-title="displayHeroTitle" :summary-line="displayHeroLine" />
 
-        <div v-if="selectionState === 'future'" style="margin-top:8px;">
-          <BaseCard>
-            <div>미래 날짜는 리포트를 생성하거나 조회할 수 없습니다.</div>
-          </BaseCard>
-        </div>
-
-        <div v-else-if="selectionState === 'past' && !devResult" style="margin-top:8px;">
-          <BaseCard>
-            <div>{{ noReportMessage }}</div>
-          </BaseCard>
-        </div>
-
-        <div v-else>
-          <div class="insights">
+        <div style="margin-top:12px;">
+          <div v-if="devResult && displayInsights.length > 0" class="insights">
             <InsightCard 
               v-for="(ins, idx) in displayInsights" 
               :key="idx" 
@@ -61,30 +48,36 @@
               :body="ins.body" 
             />
           </div>
+          <!-- When there's no devResult, hero displays the empty-state (title/score) so no extra placeholder here -->
         </div>
 
         <AdvancedPreview @open="openPaywall = true" />
       </div>
 
       <div class="colRail">
-        <template v-if="selectionState === 'future'">
-          <BaseCard>
-            <div>미래 날짜는 리포트를 생성하거나 조회할 수 없습니다.</div>
-          </BaseCard>
-        </template>
-        <template v-else-if="selectionState === 'past' && !devResult">
-          <BaseCard>
-            <div>{{ noReportMessage }}</div>
-          </BaseCard>
-        </template>
-        <template v-else>
+        <template v-if="devResult">
           <CoachCard :message="displayCoachMessage" />
           <NextActionCard :action-text="displayNextAction" @save="onSavePlan" />
+        </template>
+        <template v-else>
+          <!-- keep rail visually balanced when empty -->
+          <div style="min-height:160px"></div>
         </template>
       </div>
     </div>
 
     <PaywallModal :open="openPaywall" @close="openPaywall = false" @upgrade="onUpgrade" />
+    <CreateReportModal
+      :open="openCreateModal"
+      :mode="mode"
+      :date="selectedDate"
+      :weekStart="selectedWeekStart"
+      :selectionState="selectionState"
+      @close="handleModalClose"
+      @created="handleModalCreated"
+      @error="handleModalError"
+    />
+    <ToastContainer />
   </AppShell>
 </template>
 
@@ -104,6 +97,9 @@ import AdvancedPreview from '@/components/report/AdvancedPreview.vue'
 import PaywallModal from '@/components/paywall/PaywallModal.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import ReportTabs from '@/components/report/ReportTabs.vue'
+import CreateReportModal from '@/components/report/CreateReportModal.vue'
+import ToastContainer from '@/components/ui/ToastContainer.vue'
+import { showToast } from '@/lib/toast.js'
 // Date/Week pickers implemented inline below; removed Fancy components
 import { defaultCoachMessage, defaultNextAction, defaultInsights, noReportMessage } from '@/lib/reportDefaults.js'
 import BaseCard from '@/components/base/BaseCard.vue'
@@ -253,8 +249,16 @@ async function fetchDaily(date){
     if (e?.response?.status === 404) {
       devResult.value = null
       devError.value = '해당 날짜의 리포트가 없습니다.'
+      // 리포트가 없을 때 히어로/점수 리셋
+      heroTitle.value = noReportMessage
+      heroLine.value = ''
+      score.value = 0
     } else {
       devError.value = e?.response?.data || e.message
+      // 기타 에러일 때도 히어로를 안전하게 초기화
+      heroTitle.value = noReportMessage
+      heroLine.value = ''
+      score.value = 0
     }
   }finally{ devLoading.value = false }
 }
@@ -270,8 +274,14 @@ async function fetchWeekly(weekStart){
     if (e?.response?.status === 404) {
       devResult.value = null
       devError.value = '해당 주차의 리포트가 없습니다.'
+      heroTitle.value = noReportMessage
+      heroLine.value = ''
+      score.value = 0
     } else {
       devError.value = e?.response?.data || e.message
+      heroTitle.value = noReportMessage
+      heroLine.value = ''
+      score.value = 0
     }
   }finally{ devLoading.value = false }
 }
@@ -311,12 +321,71 @@ const score = ref(78)
 const heroTitle = ref('이번 주는 꽤 괜찮았어요 🙂')
 const heroLine = ref('전체적으로 괜찮았어요. 간식 타이밍만 조금 아쉬워요.')
 
+// UI용 가공 제목/부제: 모드(일간/주간)에 따라 문구 조정
+const displayHeroTitle = computed(() => {
+  const t = (heroTitle.value || '').trim()
+  if (!t) return mode.value === 'daily' ? '오늘은 아직 리포트가 없습니다.' : '이번 주는 아직 리포트가 없습니다.'
+
+  if (mode.value === 'daily') {
+    // 이미 '오늘' 계열이면 그대로, '이번 주' 계열은 '오늘'으로 변환, 그 외는 '오늘은 '을 앞에 붙임
+    if (/오늘/.test(t)) return t
+    if (/이번\s*주/.test(t) || /주차/.test(t) || /주/.test(t) && /주/.test(t)) return t.replace(/이번\s*주/g, '오늘의')
+    return `오늘은 ${t}`
+  } else {
+    // weekly
+    if (/이번/.test(t) || /주차/.test(t)) return t
+    if (/오늘/.test(t)) return t.replace(/오늘/g, '이번 주는')
+    return `이번 주는 ${t}`
+  }
+})
+
+const displayHeroLine = computed(() => {
+  const l = (heroLine.value || '').trim()
+  if (!l) return ''
+  return l
+})
+
 const openPaywall = ref(false)
+const openCreateModal = ref(false)
 const devResult = ref(null)
 const devError = ref(null)
 const devLoading = ref(false)
 const analyzeLoading = ref(false)
 const analyzeResult = ref(null)
+
+// 업데이트: devResult가 들어오면 top-level 값을 우선 사용하고, 없으면 aiResponse 문자열을 파싱해서 채웁니다.
+watch(devResult, (val) => {
+  // 값이 있을 때만 처리 (값이 없을 때는 기존 UI 상태 유지)
+  if (!val) return
+
+  // score
+  if (val.score !== undefined && val.score !== null) {
+    score.value = val.score
+  } else if (val.aiResponse) {
+    try {
+      const parsed = typeof val.aiResponse === 'string' ? JSON.parse(val.aiResponse) : val.aiResponse
+      if (parsed && parsed.score !== undefined) score.value = parsed.score
+    } catch (e) {
+      // 파싱 실패 시 기존 score 유지
+    }
+  }
+
+  // heroTitle / heroLine
+  if (val.heroTitle) {
+    heroTitle.value = val.heroTitle
+    heroLine.value = val.heroLine || heroLine.value
+  } else if (val.aiResponse) {
+    try {
+      const parsed = typeof val.aiResponse === 'string' ? JSON.parse(val.aiResponse) : val.aiResponse
+      if (parsed?.heroTitle) heroTitle.value = parsed.heroTitle
+      if (parsed?.heroLine) heroLine.value = parsed.heroLine
+    } catch (e) {
+      // 파싱 실패 시 기존 값 유지
+    }
+  }
+
+  if (val.overallAssessment) overallAssessment.value = val.overallAssessment
+})
 
 // insights에서 coach, action 추출
 // determine whether selected period is in the past, today, or future
@@ -389,9 +458,21 @@ async function createAndAnalyze() {
   }
 }
 
+// show errors via toast when devError changes
+watch(devError, (v) => {
+  if (v) {
+    const msg = typeof v === 'string' ? v : (v?.error || JSON.stringify(v))
+    showToast(msg, 'error')
+  }
+})
+
 function clearResult() {
   devResult.value = null
   devError.value = null
+  // clear 버튼은 UI를 초기 상태(리포트 없음)로 되돌림
+  heroTitle.value = noReportMessage
+  heroLine.value = ''
+  score.value = 0
 }
 
 function onAddMeal() {
@@ -407,9 +488,28 @@ function onUpgrade(payload) {
   console.log('selected plan:', payload?.plan)
   alert(`${payload?.plan === 'yearly' ? '연간' : '월간'} 플랜 결제는 곧 준비할게요 🙂`)
 }
+
+function handleModalClose() {
+  openCreateModal.value = false
+}
+
+function handleModalCreated(payload) {
+  // payload is the created ReportDto from backend
+  devResult.value = payload
+  openCreateModal.value = false
+}
+
+function handleModalError(msg) {
+  devError.value = msg
+}
 </script>
 
 <style scoped>
+.placeholder { padding: 18px; }
+.ph-grid{ display:flex; gap:12px; align-items:center }
+.ph-icon{ width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:10px; background: linear-gradient(180deg,#fbfdff,#f6f8fb); border:1px solid rgba(16,24,40,0.04) }
+.ph-title{ font-weight:800; margin-bottom:4px }
+.ph-sub{ color:var(--muted); font-size:13px }
 .grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -492,8 +592,8 @@ function onUpgrade(payload) {
 /* ensure subBadge and badge stack predictably when both present */
 .stripItem .badge{ z-index:4 }
 
-/* ensure badge doesn't overlap when item is active */
-.stripItem.active .badge{ transform: translateX(-50%) translateY(-4px); }
+/* ensure badge doesn't overlap when item is active (keep same vertical position) */
+.stripItem.active .badge{ transform: translateX(-50%); }
 
 @media (min-width: 768px) {
   .insights {
