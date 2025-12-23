@@ -9,6 +9,8 @@ import LoginPage from "@/pages/LoginPage.vue";
 import SignupPage from "@/pages/SignupPage.vue";
 import MyPage from "@/pages/MyPage.vue";
 import CommunityPage from "@/pages/CommunityPage.vue";
+import CommunityPostDetail from "@/components/community/CommunityPostDetail.vue";
+import CommunityWrite from "@/components/community/CommunityWrite.vue";
 import ChallengePage from "@/pages/ChallengePage.vue";
 
 const navItems = [
@@ -37,7 +39,12 @@ const routes = [
   {
     path: "/report",
     component: ReportPage,
-    meta: { requiresAuth: true, navKey: "report", navLabel: "리포트", navItems },
+    meta: {
+      requiresAuth: true,
+      navKey: "report",
+      navLabel: "리포트",
+      navItems,
+    },
   },
   {
     path: "/coach",
@@ -52,6 +59,16 @@ const routes = [
   {
     path: "/community",
     component: CommunityPage,
+  },
+  {
+    path: "/community/write",
+    component: CommunityWrite,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/community/:id",
+    component: CommunityPostDetail,
+    meta: { requiresAuth: true },
   },
   {
     path: "/challenge",

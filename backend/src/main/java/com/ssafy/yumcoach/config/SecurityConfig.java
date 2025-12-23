@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers("/", "/health", "/error").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/api/user/signin", "/api/user/signup").permitAll()
+                        .requestMatchers("/api/community").permitAll()
 
                         // Swagger/Springdoc
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
