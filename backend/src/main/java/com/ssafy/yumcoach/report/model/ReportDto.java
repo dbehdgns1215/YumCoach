@@ -32,6 +32,8 @@ public class ReportDto {
     private LocalDate toDate;
     private String status; // PROGRESS | COMPLETED
     private Integer score;
+    private String heroTitle;
+    private String heroLine;
     private Integer totalCalories;
     private Integer proteinG;
     private Integer carbG;

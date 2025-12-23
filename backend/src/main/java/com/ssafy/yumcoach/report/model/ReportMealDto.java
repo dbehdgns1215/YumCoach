@@ -29,4 +29,5 @@ public class ReportMealDto {
     private Integer proteinG;
     private Integer carbG;
     private Integer fatG;
+    private String mealName;
 }
