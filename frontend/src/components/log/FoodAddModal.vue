@@ -10,49 +10,134 @@
                     <button class="x" @click="$emit('close')">✕</button>
                 </div>
 
-                <input class="search" v-model="q" placeholder="예: 닭가슴살, 바나나, 현미밥…" @keyup.enter="searchFoods" />
-                <button class="searchBtn" @click="searchFoods">검색</button>
-
-                <div class="results">
-                    <div v-if="loading" class="loading">검색 중...</div>
-                    <div v-else-if="displayedFoods.length === 0" class="noResults">
-                        음식을 검색해주세요.
-                    </div>
-                    <button v-for="f in displayedFoods" :key="f.id" class="result"
-                        :class="{ selected: selected?.id === f.id }" @click="select(f)">
-                        <div class="name">{{ f.name }}</div>
-                        <!-- <div class="meta">100g 기준 | {{ f.per100g.kcal }}kcal | P {{ f.per100g.protein }}g</div> -->
+                <input class="search" v-model="search.q.value" placeholder="예: 닭가슴살, 바나나, 현미밥…"
+                    @keyup.enter="search.searchFoods" />
+                <div class="searchActions">
+                    <button class="searchBtn" @click="search.searchFoods">검색</button>
+                    <button class="photoBtn" @click="imageAnalysis.triggerFileInput" title="카메라로 음식 분석">
+                        📷
                     </button>
                 </div>
 
-                <!-- 페이지네이션 -->
-                <div v-if="totalPages > 1" class="pagination">
-                    <button class="pageBtn" :disabled="currentPage === 1" @click="currentPage--">
+                <!-- 숨겨진 파일 input -->
+                <input ref="fileInputElement" type="file" accept="image/*" style="display:none"
+                    @change="imageAnalysis.handleImageSelect" />
+
+                <div class="results">
+                    <!-- 분석 모드 -->
+                    <div v-if="imageAnalysis.showAnalyzedList.value">
+                        <div v-if="imageAnalysis.analyzingImage.value" class="loading">분석 중...</div>
+                        <div v-else class="analyzedContainer">
+                            <div class="sectionTitle">인식된 음식</div>
+                            <button v-for="food in imageAnalysis.analyzedFoods.value" :key="food.name"
+                                class="analyzedFood" :class="{ selected: selection.selectedFoods.value[food.name] }"
+                                @click="selection.searchAnalyzedFood(food.name)">
+                                <span class="foodName">{{ food.name }}</span>
+                                <span v-if="selection.selectedFoods.value[food.name]" class="checkmark">✓</span>
+                            </button>
+
+                            <!-- 선택된 음식 리스트 -->
+                            <div v-if="Object.keys(selection.selectedFoods.value).length > 0" class="selectedList">
+                                <div class="sectionTitle">선택된 음식</div>
+                                <div v-for="(food, foodName) in selection.selectedFoods.value" :key="foodName"
+                                    class="selectedItem">
+                                    <div class="itemInfo">
+                                        <div class="itemName">{{ food.name }}</div>
+                                        <input v-model.number="food.grams" type="number" min="0" class="grams" />
+                                        <span class="gUnit">g</span>
+                                    </div>
+                                    <button class="removeBtn" @click="selection.removeSelectedFood(foodName)">✕</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 검색 모드 -->
+                    <div v-else>
+                        <div v-if="search.loading.value" class="loading">검색 중...</div>
+                        <div v-else-if="search.displayedFoods.value.length === 0" class="noResults">
+                            음식을 검색해주세요.
+                        </div>
+                        <button v-for="f in search.displayedFoods.value" :key="f.id" class="result"
+                            :class="{ selected: search.selected.value?.id === f.id }" @click="search.select(f)">
+                            <div class="name">{{ f.name }}</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 페이지네이션 (검색 모드에만) -->
+                <div v-if="!imageAnalysis.showAnalyzedList.value && search.totalPages.value > 1" class="pagination">
+                    <button class="pageBtn" :disabled="search.currentPage.value === 1"
+                        @click="search.currentPage.value--">
                         ←
                     </button>
-                    <span class="pageInfo">{{ currentPage }} / {{ totalPages }}</span>
-                    <button class="pageBtn" :disabled="currentPage === totalPages" @click="currentPage++">
+                    <span class="pageInfo">{{ search.currentPage.value }} / {{ search.totalPages.value }}</span>
+                    <button class="pageBtn" :disabled="search.currentPage.value === search.totalPages.value"
+                        @click="search.currentPage.value++">
                         →
                     </button>
                 </div>
 
-                <div class="gramsRow">
+                <div class="gramsRow" v-if="!imageAnalysis.showAnalyzedList.value && search.selected.value">
                     <div class="label">그램</div>
-                    <input class="grams" type="number" min="0" v-model.number="grams" />
+                    <input class="grams" type="number" min="0" v-model.number="singleAdd.grams.value" />
                     <div class="unit">g</div>
                 </div>
 
-                <div class="preview" v-if="selected">
-                    <div class="pTitle">예상 영양 ({{ grams }}g)</div>
+                <div v-if="imageAnalysis.analyzingImage.value" class="analyzing">
+                    분석 중... 🤔
+                </div>
+
+                <div class="preview" v-else-if="!imageAnalysis.showAnalyzedList.value && search.selected.value">
+                    <div class="pTitle">예상 영양 ({{ singleAdd.grams.value }}g)</div>
                     <div class="pLine">
-                        {{ calc.kcal }}kcal · P {{ calc.protein }}g · C {{ calc.carbs }}g · F {{ calc.fat }}g
+                        {{ singleAdd.calc.value.kcal }}kcal · P {{ singleAdd.calc.value.protein }}g · C {{
+                            singleAdd.calc.value.carbs }}g · F {{ singleAdd.calc.value.fat }}g
                     </div>
                 </div>
 
                 <div class="actions">
-                    <button class="btn ghost" @click="$emit('close')">취소</button>
-                    <button class="btn primary" :disabled="!canAdd" @click="add">
+                    <button class="btn ghost" @click="$emit('close')">
+                        취소
+                    </button>
+
+                    <!-- 단일 검색 모드일 때만 TODO에 추가 버튼 표시 -->
+                    <button v-if="!imageAnalysis.showAnalyzedList.value && singleAdd.canAdd.value" class="btn secondary"
+                        @click="addToTodos">
+                        📝 TODO에 추가
+                    </button>
+
+                    <button v-if="imageAnalysis.showAnalyzedList.value" class="btn primary"
+                        :disabled="Object.keys(selection.selectedFoods.value).length === 0" @click="addAllSelected">
+                        {{ Object.keys(selection.selectedFoods.value).length }}개 추가
+                    </button>
+                    <button v-else class="btn primary" :disabled="!singleAdd.canAdd.value" @click="add">
                         추가
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 음식 상세 선택 모달 -->
+        <div v-if="selection.showFoodDetailModal.value" class="backdrop detailBackdrop"
+            @click.self="selection.closeFoodDetailModal">
+            <div class="sheet detailSheet" role="dialog" aria-modal="true">
+                <div class="top">
+                    <div>
+                        <div class="title">{{ selection.selectedAnalyzedFood.value }} 선택</div>
+                        <div class="sub">정확한 음식을 선택해주세요</div>
+                    </div>
+                    <button class="x" @click="selection.closeFoodDetailModal">✕</button>
+                </div>
+
+                <div class="results">
+                    <div v-if="selection.loading.value" class="loading">검색 중...</div>
+                    <div v-else-if="selection.allFoods.value.length === 0" class="noResults">
+                        음식이 없습니다.
+                    </div>
+                    <button v-for="f in selection.allFoods.value" :key="f.id" class="result"
+                        @click="selection.selectDetailFood(f)">
+                        <div class="name">{{ f.name }}</div>
                     </button>
                 </div>
             </div>
@@ -61,30 +146,38 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { fetchFoodSearch, fetchFoodDetail } from '../../api/foods.js'
-import { DEFAULT_GRAMS, ITEMS_PER_PAGE, DECIMAL_PLACES } from '../../constants/nutrition.js'
+import { watch, ref } from 'vue'
+import { useFoodSearch } from '../../composables/useFoodSearch.js'
+import { useImageAnalysis } from '../../composables/useImageAnalysis.js'
+import { useFoodSelection } from '../../composables/useFoodSelection.js'
+import { useSingleFoodAdd } from '../../composables/useSingleFoodAdd.js'
+import { DEFAULT_GRAMS, DECIMAL_PLACES } from '../../constants/nutrition.js'
 
 const props = defineProps({
     open: { type: Boolean, default: false },
     mealTitle: { type: String, default: '' },
 })
-const emit = defineEmits(['close', 'add'])
+const emit = defineEmits(['close', 'add', 'add-to-todos'])
+
+// Template ref
+const fileInputElement = ref(null)
+
+// Composables 사용
+const search = useFoodSearch()
+const imageAnalysis = useImageAnalysis()
+const selection = useFoodSelection()
+const singleAdd = useSingleFoodAdd(search.selected)
+
+// fileInput ref 연결
+watch(fileInputElement, (el) =>
+{
+    if (el) {
+        imageAnalysis.fileInput.value = el
+    }
+})
 
 // ============================================
-// 상태 (State)
-// ============================================
-
-const q = ref('')
-const grams = ref(DEFAULT_GRAMS)
-const selected = ref(null)
-const loading = ref(false)
-const loadingDetail = ref(false)
-const allFoods = ref([])
-const currentPage = ref(1)
-
-// ============================================
-// 상태 관리 함수
+// 헬퍼 함수
 // ============================================
 
 /**
@@ -92,113 +185,78 @@ const currentPage = ref(1)
  */
 function resetModal()
 {
-    q.value = ''
-    grams.value = DEFAULT_GRAMS
-    selected.value = null
-    allFoods.value = []
-    currentPage.value = 1
-}
-
-// ============================================
-// 사용자 인터랙션 함수
-// ============================================
-
-/**
- * 음식 검색 실행
- * 빈 검색어는 무시하고, API 오류 시에도 진행
- */
-async function searchFoods()
-{
-    // 빈 검색어 확인
-    if (!q.value.trim()) {
-        allFoods.value = []
-        currentPage.value = 1
-        return
-    }
-
-    loading.value = true
-    try {
-        const foods = await fetchFoodSearch(q.value)
-        allFoods.value = foods
-        currentPage.value = 1
-    } catch (error) {
-        console.error('검색 중 오류 발생:', error)
-        allFoods.value = []
-    } finally {
-        loading.value = false
-    }
+    search.reset()
+    imageAnalysis.reset()
+    selection.reset()
+    singleAdd.reset()
 }
 
 /**
- * 음식 상세정보 로드 및 선택
- * 상세정보 조회 실패 시에도 기본 정보로 진행
- * @param {Object} food - 선택된 음식 객체
- */
-async function select(food)
-{
-    loadingDetail.value = true
-    try {
-        // 음식 상세정보(영양정보) 조회
-        const nutrition = await fetchFoodDetail(food.id)
-        selected.value = {
-            ...food,
-            per100g: nutrition
-        }
-    } catch (error) {
-        // 조회 실패 시 기본 영양정보로 진행
-        console.warn('상세정보 조회 실패, 기본 정보로 진행:', error)
-        selected.value = food
-    } finally {
-        loadingDetail.value = false
-    }
-}
-
-/**
- * 선택된 음식을 식사에 추가
+ * 선택된 음식을 식사에 추가 (단일 검색 모드)
  */
 function add()
 {
-    if (!canAdd.value) return
+    if (!singleAdd.canAdd.value) return
     emit('add', {
-        foodId: selected.value.id,
-        name: selected.value.name,
-        grams: Number(grams.value),
-        per100g: selected.value.per100g,
-        calc: calc.value,  // 계산된 영양정보
+        foodId: search.selected.value.id,
+        name: search.selected.value.name,
+        grams: Number(singleAdd.grams.value),
+        per100g: search.selected.value.per100g,
+        calc: singleAdd.calc.value,
     })
+    resetModal()
 }
 
-// ============================================
-// 계산식 (Computed)
-// ============================================
-
 /**
- * 전체 페이지 수 계산
+ * TODO에 추가
  */
-const totalPages = computed(() => Math.ceil(allFoods.value.length / ITEMS_PER_PAGE))
-
-/**
- * 현재 페이지의 음식 목록 (페이지네이션)
- */
-const displayedFoods = computed(() =>
+function addToTodos()
 {
-    const start = (currentPage.value - 1) * ITEMS_PER_PAGE
-    const end = start + ITEMS_PER_PAGE
-    return allFoods.value.slice(start, end)
-})
+    if (!singleAdd.canAdd.value) return
+    emit('add-to-todos', {
+        foodId: search.selected.value.id,
+        name: search.selected.value.name,
+        grams: Number(singleAdd.grams.value),
+        per100g: search.selected.value.per100g,
+        calc: singleAdd.calc.value,
+    })
+    resetModal()
+}
 
 /**
- * 입력된 그램 수를 기반으로 계산된 영양정보
- * 100g 기준 영양정보에 (입력 그램 / 100) 계수를 곱함
+ * 선택된 모든 음식을 한 번에 추가
  */
-const calc = computed(() =>
+function addAllSelected()
 {
-    if (!selected.value) {
-        return { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+    const foods = Object.values(selection.selectedFoods.value)
+    if (foods.length === 0) {
+        alert('추가할 음식을 선택해주세요.')
+        return
     }
 
-    const factor = Number(grams.value || 0) / 100
-    const nutrition = selected.value.per100g
+    foods.forEach(food =>
+    {
+        emit('add', {
+            foodId: food.id,
+            name: food.name,
+            grams: food.grams,
+            per100g: food.per100g,
+            calc: calculateNutrition(food),
+        })
+    })
+
+    resetModal()
+    imageAnalysis.showAnalyzedList.value = false
+    emit('close')
+}
+
+/**
+ * 음식의 영양정보 계산
+ */
+function calculateNutrition(food)
+{
+    const factor = Number(food.grams || 0) / 100
+    const nutrition = food.per100g
 
     return {
         kcal: Math.round(nutrition.kcal * factor),
@@ -206,13 +264,7 @@ const calc = computed(() =>
         carbs: Math.round(nutrition.carbs * factor * DECIMAL_PLACES) / DECIMAL_PLACES,
         fat: Math.round(nutrition.fat * factor * DECIMAL_PLACES) / DECIMAL_PLACES,
     }
-})
-
-/**
- * 음식 추가 버튼 활성화 여부
- * 음식이 선택되고 그램이 0보다 커야 활성화
- */
-const canAdd = computed(() => !!selected.value && Number(grams.value) > 0)
+}
 
 // ============================================
 // 라이프사이클 (Watchers)
@@ -229,254 +281,4 @@ watch(() => props.open, (isOpen) =>
 })
 </script>
 
-<style scoped>
-.backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(16, 24, 40, .45);
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding: 12px;
-    z-index: 9999;
-}
-
-.sheet {
-    width: min(640px, 100%);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    box-shadow: var(--shadow);
-    padding: 14px;
-    max-height: 86vh;
-    overflow: auto;
-}
-
-.top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-}
-
-.title {
-    font-weight: 1000;
-    font-size: 15px;
-}
-
-.sub {
-    color: var(--muted);
-    font-weight: 800;
-    font-size: 12px;
-    margin-top: 4px;
-}
-
-.x {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: transparent;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.x:hover {
-    background: var(--primary-soft);
-    border-color: rgba(47, 107, 255, 0.35);
-}
-
-.search {
-    width: 100%;
-    margin-top: 12px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 12px;
-    font-weight: 900;
-}
-
-.searchBtn {
-    margin-top: 8px;
-    width: 100%;
-    border: 1px solid var(--border);
-    background: #fff;
-    border-radius: 14px;
-    padding: 12px;
-    font-weight: 1000;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.searchBtn:hover {
-    background: var(--primary-soft);
-    border-color: rgba(47, 107, 255, 0.35);
-}
-
-.results {
-    margin-top: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-height: 60px;
-}
-
-.loading {
-    text-align: center;
-    color: var(--muted);
-    padding: 20px;
-    font-weight: 800;
-}
-
-.noResults {
-    text-align: center;
-    color: var(--muted);
-    padding: 20px;
-    font-weight: 800;
-}
-
-.result {
-    text-align: left;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 10px 12px;
-    background: #fff;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.result:hover {
-    border-color: rgba(47, 107, 255, 0.35);
-    background: rgba(47, 107, 255, 0.05);
-}
-
-.result.selected {
-    background: var(--primary-soft);
-    border-color: rgba(47, 107, 255, .35);
-}
-
-.name {
-    font-weight: 1000;
-}
-
-.meta {
-    color: var(--muted);
-    font-weight: 800;
-    font-size: 12px;
-    margin-top: 4px;
-}
-
-.pagination {
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-.pageBtn {
-    width: 36px;
-    height: 36px;
-    border: 1px solid var(--border);
-    background: #fff;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 900;
-    transition: all 0.2s;
-}
-
-.pageBtn:hover:not(:disabled) {
-    background: var(--primary-soft);
-    border-color: rgba(47, 107, 255, 0.35);
-}
-
-.pageBtn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.pageInfo {
-    font-weight: 900;
-    font-size: 12px;
-}
-
-.gramsRow {
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.label {
-    font-weight: 1000;
-}
-
-.grams {
-    width: 120px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 10px 12px;
-    font-weight: 1000;
-}
-
-.unit {
-    color: var(--muted);
-    font-weight: 1000;
-}
-
-.preview {
-    margin-top: 12px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 12px;
-    background: #fff;
-}
-
-.pTitle {
-    font-weight: 1000;
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.pLine {
-    margin-top: 6px;
-    font-weight: 1000;
-}
-
-.actions {
-    margin-top: 14px;
-    display: flex;
-    gap: 10px;
-}
-
-.btn {
-    flex: 1;
-    border: 0;
-    border-radius: 14px;
-    padding: 12px 14px;
-    font-weight: 1000;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.primary {
-    background: var(--primary);
-    color: #fff;
-}
-
-.ghost {
-    background: #fff;
-    color: var(--text);
-    border: 1px solid var(--border);
-}
-
-.btn:disabled {
-    opacity: .55;
-    cursor: not-allowed;
-}
-
-@media (min-width: 900px) {
-    .backdrop {
-        align-items: center;
-    }
-}
-</style>
+<style src="../../styles/FoodAddModal.css" scoped></style>
