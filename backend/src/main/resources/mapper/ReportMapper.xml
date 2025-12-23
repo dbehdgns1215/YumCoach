@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.yumcoach.report.model.mapper.ReportMapper">
+
+  <resultMap id="ReportResult" type="com.ssafy.yumcoach.report.model.ReportDto">
+    <id property="id" column="id" />
+    <result property="userId" column="user_id" />
+    <result property="type" column="type" />
+    <result property="date" column="date" />
+    <result property="fromDate" column="from_date" />
+    <result property="toDate" column="to_date" />
+    <result property="status" column="status" />
+    <result property="score" column="score" />
+    <result property="totalCalories" column="total_calories" />
+    <result property="proteinG" column="protein_g" />
+    <result property="carbG" column="carb_g" />
+    <result property="fatG" column="fat_g" />
+    <result property="mealCount" column="meal_count" />
+    <result property="aiResponse" column="ai_response" />
+    <result property="createdBy" column="created_by" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+  </resultMap>
+
+  <insert id="insertReport" parameterType="com.ssafy.yumcoach.report.model.ReportDto" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO report (user_id, type, date, from_date, to_date, status, score, total_calories, protein_g, carb_g, fat_g, meal_count, created_by)
+    VALUES (#{userId}, #{type}, #{date}, #{fromDate}, #{toDate}, #{status}, #{score}, #{totalCalories}, #{proteinG}, #{carbG}, #{fatG}, #{mealCount}, #{createdBy})
+  </insert>
+
+  <insert id="insertReportMeal" parameterType="com.ssafy.yumcoach.report.model.ReportMealDto">
+    INSERT INTO report_meal (report_id, meal_id, meal_time, calories, protein_g, carb_g, fat_g)
+    VALUES (#{reportId}, #{mealId}, #{mealTime}, #{calories}, #{proteinG}, #{carbG}, #{fatG})
+  </insert>
+
+  <select id="selectReportById" resultMap="ReportResult" parameterType="int">
+    SELECT * FROM report WHERE id = #{id}
+  </select>
+
+  <select id="selectReportInsights" resultType="com.ssafy.yumcoach.report.model.ReportInsightDto" parameterType="int">
+    SELECT id, report_id as reportId, kind, title, body FROM report_insight WHERE report_id = #{reportId} ORDER BY id
+  </select>
+
+  <select id="selectReportByUserTypeDate" resultMap="ReportResult" parameterType="map">
+    SELECT * FROM report WHERE user_id = #{userId} AND type = #{type} AND date = #{date} LIMIT 1
+  </select>
+
+  <select id="selectReportByUserAndRange" resultMap="ReportResult" parameterType="map">
+    SELECT * FROM report WHERE user_id = #{userId} AND type = #{type} AND from_date = #{fromDate} AND to_date = #{toDate} LIMIT 1
+  </select>
+
+  <insert id="insertGenerationLog" parameterType="map">
+    INSERT INTO report_generation_log (user_id, type, date, from_date, to_date, triggered_by, result, report_id, details)
+    VALUES (#{userId}, #{type}, #{date}, #{fromDate}, #{toDate}, #{triggeredBy}, #{result}, #{reportId}, #{details})
+  </insert>
+
+  <select id="countGenerationLogsInPeriod" resultType="int" parameterType="map">
+    SELECT COUNT(*) FROM report_generation_log
+    WHERE user_id = #{userId}
+      AND type = #{type}
+      AND trigger_time BETWEEN #{start} AND #{end}
+      AND triggered_by = #{triggeredBy}
+  </select>
+
+  <update id="updateReportAiResponse" parameterType="map">
+    UPDATE report SET ai_response = #{aiResponse} WHERE id = #{reportId}
+  </update>
+
+  <insert id="insertReportInsight" parameterType="map">
+    INSERT INTO report_insight (report_id, kind, title, body)
+    VALUES (#{reportId}, #{kind}, #{title}, #{body})
+  </insert>
+
+  <update id="updateReportCoachMessage">
+      UPDATE report
+      SET coach_message = #{coachMessage}
+      WHERE id = #{reportId}
+  </update>
+
+  <update id="updateReportNextAction">
+      UPDATE report
+      SET next_action = #{nextAction}
+      WHERE id = #{reportId}
+  </update>
+</mapper>
