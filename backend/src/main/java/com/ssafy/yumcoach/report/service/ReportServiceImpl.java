@@ -16,6 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.ssafy.yumcoach.report.model.ReportInsightDto;
 
 /**
  * Report 관련 서비스 구현체
@@ -116,6 +119,17 @@ public class ReportServiceImpl implements ReportService {
                 rm.setProteinG(protein);
                 rm.setCarbG(carb);
                 rm.setFatG(fat);
+                // 음식명 설정: representativeFoodName 우선, 없으면 foodName 사용
+                try {
+                    if (fd.getFood() != null) {
+                        String name = fd.getFood().getRepresentativeFoodName() != null && !fd.getFood().getRepresentativeFoodName().isBlank()
+                                ? fd.getFood().getRepresentativeFoodName()
+                                : fd.getFood().getFoodName();
+                        rm.setMealName(name);
+                    }
+                } catch (Exception ex) {
+                    // 무시
+                }
                 reportMapper.insertReportMeal(rm);
                 reportMeals.add(rm);
             }
@@ -126,6 +140,18 @@ public class ReportServiceImpl implements ReportService {
         dto.setCarbG(totalCarb);
         dto.setFatG(totalFat);
         dto.setMealCount(mealCount);
+        // 계산된 합계를 report 테이블에 반영
+        try {
+            reportMapper.updateReportSummary(dto.getId(), totalCalories, totalProtein, totalCarb, totalFat, mealCount);
+        } catch (Exception ex) {
+            log.warn("report summary update failed: {}", ex.getMessage());
+        }
+        // 계산된 합계를 report 테이블에 반영
+        try {
+            reportMapper.updateReportSummary(dto.getId(), totalCalories, totalProtein, totalCarb, totalFat, mealCount);
+        } catch (Exception ex) {
+            log.warn("report summary update failed: {}", ex.getMessage());
+        }
         // 식사 데이터가 없으면 명확한 예외를 던집니다.
         if (mealCount == 0) {
             reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER", "NO_DATA", dto.getId(), "no meals");
@@ -155,7 +181,67 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public ReportDto getDailyReport(int userId, LocalDate date) {
         log.info("getDailyReport user={}, date={}", userId, date);
-        return reportMapper.selectReportByUserTypeDate(userId, "DAILY", date);
+        ReportDto dto = reportMapper.selectReportByUserTypeDate(userId, "DAILY", date);
+        if (dto == null) return null;
+        // load persisted insights
+        try {
+            java.util.List<ReportInsightDto> insights = reportMapper.selectReportInsights(dto.getId());
+            if (insights != null && !insights.isEmpty()) {
+                dto.setInsights(insights);
+            }
+            // Regardless of whether insights exist, parse aiResponse to fill coach/next/score if missing
+            if (dto.getAiResponse() != null) {
+                ObjectMapper mapper = new ObjectMapper();
+                try {
+                    JsonNode root = mapper.readTree(dto.getAiResponse());
+                    // only insert insights if DB had none
+                    if ((dto.getInsights() == null || dto.getInsights().isEmpty()) && root.has("insights") && root.get("insights").isArray()) {
+                        java.util.List<ReportInsightDto> parsed = new java.util.ArrayList<>();
+                        for (JsonNode n : root.get("insights")) {
+                            String kind = n.has("kind") ? n.get("kind").asText() : null;
+                            String title = n.has("title") ? n.get("title").asText() : null;
+                            String body = n.has("body") ? n.get("body").asText() : null;
+                            if (kind != null && body != null) {
+                                try { reportMapper.insertReportInsight(dto.getId(), kind, title, body); } catch (Exception ex) { log.warn("insertReportInsight failed: {}", ex.getMessage()); }
+                                parsed.add(new ReportInsightDto(null, dto.getId(), kind, title, body));
+                            }
+                        }
+                        if (!parsed.isEmpty()) dto.setInsights(parsed);
+                    }
+                    if ((dto.getCoachMessage() == null || dto.getCoachMessage().isBlank()) && root.has("coachMessage")) {
+                        String coach = root.get("coachMessage").asText();
+                        dto.setCoachMessage(coach);
+                        try { reportMapper.updateReportCoachMessage(dto.getId(), coach); } catch (Exception ex) { log.warn("updateReportCoachMessage failed: {}", ex.getMessage()); }
+                    }
+                    if ((dto.getNextAction() == null || dto.getNextAction().isBlank()) && root.has("nextAction")) {
+                        String next = root.get("nextAction").asText();
+                        dto.setNextAction(next);
+                        try { reportMapper.updateReportNextAction(dto.getId(), next); } catch (Exception ex) { log.warn("updateReportNextAction failed: {}", ex.getMessage()); }
+                    }
+                    if (root.has("score") && dto.getScore() == null) {
+                        try {
+                            int s = root.get("score").asInt();
+                            dto.setScore(s);
+                            try { reportMapper.updateReportScore(dto.getId(), s); } catch (Exception ue) { log.warn("updateReportScore failed: {}", ue.getMessage()); }
+                        } catch (Exception ex) { /* ignore */ }
+                    }
+                    if ((dto.getHeroTitle() == null || dto.getHeroTitle().isBlank()) && root.has("heroTitle")) {
+                        try {
+                            String ht = root.get("heroTitle").asText();
+                            String hl = root.has("heroLine") ? root.get("heroLine").asText() : null;
+                            dto.setHeroTitle(ht);
+                            dto.setHeroLine(hl);
+                            try { reportMapper.updateReportHero(dto.getId(), ht, hl); } catch (Exception ue) { log.warn("updateReportHero failed: {}", ue.getMessage()); }
+                        } catch (Exception ex) { /* ignore */ }
+                    }
+                } catch (Exception pe) {
+                    log.warn("aiResponse JSON parse failed for report {}: {}", dto.getId(), pe.getMessage());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("인사이트 로드 실패(일별): {}", ex.getMessage());
+        }
+        return dto;
     }
 
     /**
@@ -226,6 +312,16 @@ public class ReportServiceImpl implements ReportService {
                 rm.setProteinG(protein);
                 rm.setCarbG(carb);
                 rm.setFatG(fat);
+                try {
+                    if (fd.getFood() != null) {
+                        String name = fd.getFood().getRepresentativeFoodName() != null && !fd.getFood().getRepresentativeFoodName().isBlank()
+                                ? fd.getFood().getRepresentativeFoodName()
+                                : fd.getFood().getFoodName();
+                        rm.setMealName(name);
+                    }
+                } catch (Exception ex) {
+                    // 무시
+                }
                 reportMapper.insertReportMeal(rm);
             }
         }
@@ -261,7 +357,64 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public ReportDto getWeeklyReport(int userId, LocalDate fromDate, LocalDate toDate) {
         log.info("getWeeklyReport user={}, from={}, to={}", userId, fromDate, toDate);
-        return reportMapper.selectReportByUserAndRange(userId, "WEEKLY", fromDate, toDate);
+        ReportDto dto = reportMapper.selectReportByUserAndRange(userId, "WEEKLY", fromDate, toDate);
+        if (dto == null) return null;
+        try {
+            java.util.List<ReportInsightDto> insights = reportMapper.selectReportInsights(dto.getId());
+            if (insights != null && !insights.isEmpty()) {
+                dto.setInsights(insights);
+            }
+            if (dto.getAiResponse() != null) {
+                ObjectMapper mapper = new ObjectMapper();
+                try {
+                    JsonNode root = mapper.readTree(dto.getAiResponse());
+                    if ((dto.getInsights() == null || dto.getInsights().isEmpty()) && root.has("insights") && root.get("insights").isArray()) {
+                        java.util.List<ReportInsightDto> parsed = new java.util.ArrayList<>();
+                        for (JsonNode n : root.get("insights")) {
+                            String kind = n.has("kind") ? n.get("kind").asText() : null;
+                            String title = n.has("title") ? n.get("title").asText() : null;
+                            String body = n.has("body") ? n.get("body").asText() : null;
+                            if (kind != null && body != null) {
+                                try { reportMapper.insertReportInsight(dto.getId(), kind, title, body); } catch (Exception ex) { log.warn("insertReportInsight failed: {}", ex.getMessage()); }
+                                parsed.add(new ReportInsightDto(null, dto.getId(), kind, title, body));
+                            }
+                        }
+                        if (!parsed.isEmpty()) dto.setInsights(parsed);
+                    }
+                    if ((dto.getCoachMessage() == null || dto.getCoachMessage().isBlank()) && root.has("coachMessage")) {
+                        String coach = root.get("coachMessage").asText();
+                        dto.setCoachMessage(coach);
+                        try { reportMapper.updateReportCoachMessage(dto.getId(), coach); } catch (Exception ex) { log.warn("updateReportCoachMessage failed: {}", ex.getMessage()); }
+                    }
+                    if ((dto.getNextAction() == null || dto.getNextAction().isBlank()) && root.has("nextAction")) {
+                        String next = root.get("nextAction").asText();
+                        dto.setNextAction(next);
+                        try { reportMapper.updateReportNextAction(dto.getId(), next); } catch (Exception ex) { log.warn("updateReportNextAction failed: {}", ex.getMessage()); }
+                    }
+                    if (root.has("score") && dto.getScore() == null) {
+                        try {
+                            int s = root.get("score").asInt();
+                            dto.setScore(s);
+                            try { reportMapper.updateReportScore(dto.getId(), s); } catch (Exception ue) { log.warn("updateReportScore failed: {}", ue.getMessage()); }
+                        } catch (Exception ex) { /* ignore */ }
+                    }
+                    if ((dto.getHeroTitle() == null || dto.getHeroTitle().isBlank()) && root.has("heroTitle")) {
+                        try {
+                            String ht = root.get("heroTitle").asText();
+                            String hl = root.has("heroLine") ? root.get("heroLine").asText() : null;
+                            dto.setHeroTitle(ht);
+                            dto.setHeroLine(hl);
+                            try { reportMapper.updateReportHero(dto.getId(), ht, hl); } catch (Exception ue) { log.warn("updateReportHero failed: {}", ue.getMessage()); }
+                        } catch (Exception ex) { /* ignore */ }
+                    }
+                } catch (Exception pe) {
+                    log.warn("aiResponse JSON parse failed for report {}: {}", dto.getId(), pe.getMessage());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("인사이트 로드 실패(주간): {}", ex.getMessage());
+        }
+        return dto;
     }
 
     /**

@@ -11,6 +11,10 @@
     <result property="toDate" column="to_date" />
     <result property="status" column="status" />
     <result property="score" column="score" />
+    <result property="heroTitle" column="hero_title" />
+    <result property="heroLine" column="hero_line" />
+    <result property="coachMessage" column="coach_message" />
+    <result property="nextAction" column="next_action" />
     <result property="totalCalories" column="total_calories" />
     <result property="proteinG" column="protein_g" />
     <result property="carbG" column="carb_g" />
@@ -28,8 +32,8 @@
   </insert>
 
   <insert id="insertReportMeal" parameterType="com.ssafy.yumcoach.report.model.ReportMealDto">
-    INSERT INTO report_meal (report_id, meal_id, meal_time, calories, protein_g, carb_g, fat_g)
-    VALUES (#{reportId}, #{mealId}, #{mealTime}, #{calories}, #{proteinG}, #{carbG}, #{fatG})
+    INSERT INTO report_meal (report_id, meal_id, meal_name, meal_time, calories, protein_g, carb_g, fat_g)
+    VALUES (#{reportId}, #{mealId}, #{mealName}, #{mealTime}, #{calories}, #{proteinG}, #{carbG}, #{fatG})
   </insert>
 
   <select id="selectReportById" resultMap="ReportResult" parameterType="int">
@@ -61,8 +65,34 @@
       AND triggered_by = #{triggeredBy}
   </select>
 
+  <!-- 배치/관리용: user_generation_count에 삽입 또는 업데이트 -->
+  <insert id="upsertUserGenerationCount" parameterType="map">
+    INSERT INTO user_generation_count (user_id, daily_date, daily_used, weekly_from, weekly_used)
+    VALUES (#{userId}, #{dailyDate}, #{dailyUsed}, #{weeklyFrom}, #{weeklyUsed})
+    ON DUPLICATE KEY UPDATE
+      daily_date = VALUES(daily_date),
+      daily_used = VALUES(daily_used),
+      weekly_from = VALUES(weekly_from),
+      weekly_used = VALUES(weekly_used),
+      updated_at = CURRENT_TIMESTAMP
+  </insert>
+
   <update id="updateReportAiResponse" parameterType="map">
     UPDATE report SET ai_response = #{aiResponse} WHERE id = #{reportId}
+  </update>
+
+  <update id="updateReportSummary" parameterType="map">
+    UPDATE report
+    SET total_calories = #{totalCalories}, protein_g = #{proteinG}, carb_g = #{carbG}, fat_g = #{fatG}, meal_count = #{mealCount}
+    WHERE id = #{reportId}
+  </update>
+
+  <update id="updateReportScore" parameterType="map">
+    UPDATE report SET score = #{score} WHERE id = #{reportId}
+  </update>
+
+  <update id="updateReportHero">
+    UPDATE report SET hero_title = #{heroTitle}, hero_line = #{heroLine} WHERE id = #{reportId}
   </update>
 
   <insert id="insertReportInsight" parameterType="map">

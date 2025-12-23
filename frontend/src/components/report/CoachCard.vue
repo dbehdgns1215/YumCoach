@@ -4,8 +4,8 @@
       <div class="h">
         <div class="avatar">🤖</div>
         <div>
-          <div class="title">AI 코치의 한마디</div>
-          <div class="sub">가볍게 방향만 잡아줄게요</div>
+          <div class="title">{{ title }}</div>
+          <div class="sub">{{ subtitle }}</div>
         </div>
       </div>
     </template>
@@ -18,6 +18,8 @@ import BaseCard from '@/components/base/BaseCard.vue'
 
 defineProps({
   message: { type: String, required: true },
+  title: { type: String, required: false, default: 'AI 코치의 한마디' },
+  subtitle: { type: String, required: false, default: '가볍게 방향만 잡아줄게요' },
 })
 </script>
 
@@ -31,5 +33,5 @@ defineProps({
 }
 .title{ font-weight:900; font-size:14px; }
 .sub{ color:var(--muted); font-size:12px; margin-top:2px; }
-.msg{ font-size:14px; line-height:1.45; color:var(--text); }
+.msg{ font-size:14px; line-height:1.45; color:var(--text); white-space: pre-wrap; }
 </style>

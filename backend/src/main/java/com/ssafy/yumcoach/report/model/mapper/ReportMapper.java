@@ -62,9 +62,27 @@ public interface ReportMapper {
                                     @Param("triggeredBy") String triggeredBy);
 
     /**
+     * user_generation_count 테이블에 삽입하거나 업데이트합니다.
+     * - 배치가 전체 사용자에 대해 일별/주별 집계를 계산한 후 이 메서드를 호출합니다.
+     */
+    int upsertUserGenerationCount(@Param("userId") Integer userId,
+                                 @Param("dailyDate") LocalDate dailyDate,
+                                 @Param("dailyUsed") Integer dailyUsed,
+                                 @Param("weeklyFrom") LocalDate weeklyFrom,
+                                 @Param("weeklyUsed") Integer weeklyUsed);
+
+    /**
      * report.ai_response 컬럼에 AI 원문(JSON)을 저장합니다.
      */
     int updateReportAiResponse(@Param("reportId") Integer reportId, @Param("aiResponse") String aiResponse);
+
+    /** 리포트 요약(영양소 합계/식사수) 업데이트 */
+    int updateReportSummary(@Param("reportId") Integer reportId,
+                            @Param("totalCalories") Integer totalCalories,
+                            @Param("proteinG") Integer proteinG,
+                            @Param("carbG") Integer carbG,
+                            @Param("fatG") Integer fatG,
+                            @Param("mealCount") Integer mealCount);
 
     /**
      * report_insight 테이블에 AI가 생성한 인사이트를 저장합니다.
@@ -79,4 +97,10 @@ public interface ReportMapper {
     
     /** 리포트 다음 행동 업데이트 */
     void updateReportNextAction(@Param("reportId") int reportId, @Param("nextAction") String nextAction);
+
+    /** 리포트 점수 업데이트 */
+    void updateReportScore(@Param("reportId") int reportId, @Param("score") Integer score);
+
+    /** 리포트 요약(헤로) 업데이트 */
+    void updateReportHero(@Param("reportId") int reportId, @Param("heroTitle") String heroTitle, @Param("heroLine") String heroLine);
 }
