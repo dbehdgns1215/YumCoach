@@ -122,7 +122,7 @@ async def analyze_food_image(request: FoodImageAnalysisRequest):
     try:
         messages = build_multi_food_messages(
             image_url=request.image_url,
-            extra_text=request.extra_text or "Analyze the main food in this image and estimate macros."
+            extra_text=request.extra_text or "Analyze a list of foods in this image and return results in Korean"
         )
 
         raw = await call_gms_openai_raw(messages)
@@ -225,7 +225,7 @@ async def analyze_food_upload_multi(
 
         messages = build_multi_food_messages(
             image_url=image_url,
-            extra_text=extra_text or "Analyze all foods in this image. Detect multiple dishes and estimate macros."
+            extra_text=extra_text or "이미지에 있는 모든 음식의 이름을 알려주세요"
         )
 
         raw = await call_gms_openai_raw(messages)

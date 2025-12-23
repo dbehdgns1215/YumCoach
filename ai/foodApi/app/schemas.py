@@ -20,25 +20,25 @@ class FoodItem(BaseModel):
     name: str = Field(..., description="food name in Korean")
     portion: Optional[str] = Field(
         None, description="e.g., 1 그릇, 2 조각, 반접시")
-    calories_kcal: float
-    protein_g: float
-    fat_g: float
-    carbs_g: float
+    calories_kcal: Optional[float] = None
+    protein_g: Optional[float] = None
+    fat_g: Optional[float] = None
+    carbs_g: Optional[float] = None
 
 
 class FoodAnalysisResult(BaseModel):
     """Single food analysis result"""
     name: str = Field(..., description="food name in Korean")
     portion: Optional[str] = Field(None, description="e.g., 1 그릇, 2 조각, 반접시")
-    calories_kcal: float
-    protein_g: float
-    fat_g: float
-    carbs_g: float
+    calories_kcal: Optional[float] = None
+    protein_g: Optional[float] = None
+    fat_g: Optional[float] = None
+    carbs_g: Optional[float] = None
 
 
 class MultiFoodAnalysisResult(BaseModel):
     items: List[FoodItem]
-    total_calories_kcal: float
-    total_protein_g: float
-    total_fat_g: float
-    total_carbs_g: float
+    total_calories_kcal: Optional[float] = None
+    total_protein_g: Optional[float] = None
+    total_fat_g: Optional[float] = None
+    total_carbs_g: Optional[float] = None
