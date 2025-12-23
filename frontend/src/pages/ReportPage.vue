@@ -29,56 +29,6 @@
     </div>
 
     <PaywallModal :open="openPaywall" @close="openPaywall = false" @upgrade="onUpgrade" />
-
-    <!-- 개발용: AI 분석 결과 출력 영역 (테스트용) -->
-    <div style="margin-top:16px">
-      <div v-if="devLoading">리포트 생성 중...</div>
-      <div v-if="analyzeLoading">AI 분석 중...</div>
-      <div v-if="devError" style="color:var(--danger); white-space:pre-wrap">오류: {{ devError }}</div>
-
-      <!-- 기본 리포트 객체(빠른 디버그) -->
-      <pre v-if="devResult && !devResult.aiResponse && (!devResult.insights || devResult.insights.length===0)" style="background:#f7f7f7; padding:12px; border-radius:8px; overflow:auto">{{ JSON.stringify(devResult, null, 2) }}</pre>
-
-      <!-- AI 원문 응답 노출 -->
-      <div v-if="devResult && devResult.aiResponse" style="margin-top:8px">
-        <h4>AI 원문 응답</h4>
-        <pre style="background:#f7f7f7; padding:12px; border-radius:8px; overflow:auto">{{ devResult.aiResponse }}</pre>
-      </div>
-
-      <!-- 코치 한마디 -->
-      <div v-if="displayCoachMessage" style="margin-top:12px">
-        <h4>코치 한마디</h4>
-        <div style="background:#f7f7f7; padding:12px; border-radius:8px; white-space:pre-wrap">
-          {{ displayCoachMessage }}
-        </div>
-      </div>
-
-      <!-- 내일의 제안 -->
-      <div v-if="displayNextAction" style="margin-top:12px">
-        <h4>내일은 이거 해봐요</h4>
-        <div style="background:#f7f7f7; padding:12px; border-radius:8px; white-space:pre-wrap">
-          {{ displayNextAction }}
-        </div>
-      </div>
-
-      <!-- 파싱된 인사이트 렌더링 -->
-      <div v-if="displayInsights.length" style="margin-top:12px">
-        <h4>AI 인사이트</h4>
-        <div style="display:grid; gap:8px;">
-          <InsightCard 
-            v-for="(ins, idx) in displayInsights" 
-            :key="idx" 
-            :kind="ins.kind" 
-            :title="ins.title" 
-            :body="ins.body" 
-          />
-        </div>
-      </div>
-
-      <!-- analyzeResult (legacy) 보여주기 -->
-      <pre v-if="analyzeResult" style="background:#eef7ff; padding:12px; border-radius:8px; overflow:auto">{{ JSON.stringify(analyzeResult, null, 2) }}</pre>
-    </div>
-
   </AppShell>
 </template>
 
