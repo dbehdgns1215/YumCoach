@@ -90,7 +90,9 @@ public class ReportController {
 
             ReportDto dto = reportService.getDailyReport(userId, target);
             if (dto == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+                Map<String,String> err = new HashMap<>();
+                err.put("error","리포트를 찾을 수 없습니다.");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
             }
             return ResponseEntity.ok(dto);
 
@@ -162,7 +164,9 @@ public class ReportController {
 
             ReportDto dto = reportService.getWeeklyReport(userId, from, to);
             if (dto == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+                Map<String,String> err = new HashMap<>();
+                err.put("error","리포트를 찾을 수 없습니다.");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
             }
             return ResponseEntity.ok(dto);
 
@@ -187,7 +191,9 @@ public class ReportController {
 
             ReportDto dto = reportService.getReportById(userId, id);
             if (dto == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+                Map<String,String> err = new HashMap<>();
+                err.put("error","리포트를 찾을 수 없습니다.");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
             }
             return ResponseEntity.ok(dto);
 

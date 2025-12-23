@@ -1,6 +1,6 @@
 <template>
   <TopBarNavigation />
-  <AppShell title="이번 주 식단 리포트" :subtitle="periodLabel" footerTheme="brand" @primary="onAddMeal">
+  <AppShell title="식단 리포트" :subtitle="periodLabel" footerTheme="brand" @primary="onAddMeal">
     <div class="grid">
       <div class="colMain">
         <div class="report-controls" style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;">
@@ -34,27 +34,53 @@
           </div>
         </div>
         <div style="display:flex; gap:8px; margin-bottom:8px;">
-          <BaseButton variant="primary" @click="createAndAnalyze">리포트 생성 및 AI 분석</BaseButton>
+          <BaseButton :disabled="selectionState !== 'today'" variant="primary" @click="createAndAnalyze">리포트 생성 및 AI 분석</BaseButton>
           <BaseButton variant="secondary" @click="clearResult">결과 초기화</BaseButton>
         </div>
         <ReportHero :score="score" :period-label="periodLabel" :summary-title="heroTitle" :summary-line="heroLine" />
 
-        <div class="insights">
-          <InsightCard 
-            v-for="(ins, idx) in displayInsights" 
-            :key="idx" 
-            :kind="ins.kind" 
-            :title="ins.title" 
-            :body="ins.body" 
-          />
+        <div v-if="selectionState === 'future'" style="margin-top:8px;">
+          <BaseCard>
+            <div>미래 날짜는 리포트를 생성하거나 조회할 수 없습니다.</div>
+          </BaseCard>
+        </div>
+
+        <div v-else-if="selectionState === 'past' && !devResult" style="margin-top:8px;">
+          <BaseCard>
+            <div>{{ noReportMessage }}</div>
+          </BaseCard>
+        </div>
+
+        <div v-else>
+          <div class="insights">
+            <InsightCard 
+              v-for="(ins, idx) in displayInsights" 
+              :key="idx" 
+              :kind="ins.kind" 
+              :title="ins.title" 
+              :body="ins.body" 
+            />
+          </div>
         </div>
 
         <AdvancedPreview @open="openPaywall = true" />
       </div>
 
       <div class="colRail">
-        <CoachCard :message="displayCoachMessage" />
-        <NextActionCard :action-text="displayNextAction" @save="onSavePlan" />
+        <template v-if="selectionState === 'future'">
+          <BaseCard>
+            <div>미래 날짜는 리포트를 생성하거나 조회할 수 없습니다.</div>
+          </BaseCard>
+        </template>
+        <template v-else-if="selectionState === 'past' && !devResult">
+          <BaseCard>
+            <div>{{ noReportMessage }}</div>
+          </BaseCard>
+        </template>
+        <template v-else>
+          <CoachCard :message="displayCoachMessage" />
+          <NextActionCard :action-text="displayNextAction" @save="onSavePlan" />
+        </template>
       </div>
     </div>
 
@@ -79,6 +105,8 @@ import PaywallModal from '@/components/paywall/PaywallModal.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import ReportTabs from '@/components/report/ReportTabs.vue'
 // Date/Week pickers implemented inline below; removed Fancy components
+import { defaultCoachMessage, defaultNextAction, defaultInsights, noReportMessage } from '@/lib/reportDefaults.js'
+import BaseCard from '@/components/base/BaseCard.vue'
 
 const router = useRouter()
 
@@ -235,7 +263,8 @@ async function fetchWeekly(weekStart){
   devError.value = null
   devLoading.value = true
   try{
-    const res = await api.get(`/reports/weekly?weekStart=${weekStart}`)
+    // backend expects `fromDate` query param (week start YYYY-MM-DD)
+    const res = await api.get(`/reports/weekly?fromDate=${weekStart}`)
     devResult.value = res.data
   }catch(e){
     if (e?.response?.status === 404) {
@@ -290,27 +319,43 @@ const analyzeLoading = ref(false)
 const analyzeResult = ref(null)
 
 // insights에서 coach, action 추출
+// determine whether selected period is in the past, today, or future
+const selectionState = computed(() => {
+  const todayIso = isoDate(new Date())
+  if (mode.value === 'daily') {
+    const sel = selectedDate.value
+    if (sel < todayIso) return 'past'
+    if (sel === todayIso) return 'today'
+    return 'future'
+  } else {
+    // weekly: compare week range to today
+    const start = selectedWeekStart.value
+    const s = new Date(start + 'T00:00:00')
+    const e = new Date(s); e.setDate(s.getDate()+6)
+    const endIso = isoDate(e)
+    if (endIso < todayIso) return 'past'
+    if (start > todayIso) return 'future'
+    return 'today'
+  }
+})
+
 const displayCoachMessage = computed(() => {
-  if (!devResult.value?.insights) return '이번 주는 식사 간격이 꽤 안정적이었어요. 간식 타이밍만 조금 앞당기면 더 좋아질 것 같아요.'
-  const coach = devResult.value.insights.find(i => i.kind === 'coach')
-  return coach?.body || '이번 주는 식사 간격이 꽤 안정적이었어요. 간식 타이밍만 조금 앞당기면 더 좋아질 것 같아요.'
+  if (!devResult.value) return ''
+  if (devResult.value?.coachMessage) return devResult.value.coachMessage
+  const coach = devResult.value.insights?.find(i => i.kind === 'coach')
+  return coach?.body || ''
 })
 
 const displayNextAction = computed(() => {
-  if (!devResult.value?.insights) return '늦은 간식 대신 단백질 요거트를 미리 준비해보세요.'
-  const action = devResult.value.insights.find(i => i.kind === 'action')
-  return action?.body || '늦은 간식 대신 단백질 요거트를 미리 준비해보세요.'
+  if (!devResult.value) return ''
+  if (devResult.value?.nextAction) return devResult.value.nextAction
+  const action = devResult.value.insights?.find(i => i.kind === 'action')
+  return action?.body || ''
 })
 
 // good, warn, keep만 필터링
 const displayInsights = computed(() => {
-  if (!devResult.value?.insights) {
-    return [
-      { kind: 'good', title: '잘하고 있어요', body: '단백질 섭취가 대부분의 날에서 목표에 가까웠어요.' },
-      { kind: 'warn', title: '조금 아쉬워요', body: '야식이 늦은 시간에 몰린 날이 몇 번 있었어요.' },
-      { kind: 'keep', title: '이건 유지해요', body: '점심 식단 균형이 좋아서 전체 컨디션에 도움이 됐어요.' }
-    ]
-  }
+  if (!devResult.value?.insights) return []
   return devResult.value.insights.filter(i => 
     i.kind === 'good' || i.kind === 'warn' || i.kind === 'keep'
   )
@@ -327,7 +372,10 @@ async function createAndAnalyze() {
       const res = await api.post('/reports/daily', { date: selectedDate.value })
       devResult.value = res.data
     } else {
-      const res = await api.post('/reports/weekly', { weekStart: selectedWeekStart.value })
+      // backend createWeekly expects fromDate/toDate in body
+      const start = new Date(selectedWeekStart.value + 'T00:00:00')
+      const end = new Date(start); end.setDate(start.getDate()+6)
+      const res = await api.post('/reports/weekly', { fromDate: selectedWeekStart.value, toDate: isoDate(end) })
       devResult.value = res.data
     }
   } catch (e) {

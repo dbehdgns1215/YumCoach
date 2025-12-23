@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class ReportInsightDto {
     private Integer id;
     private Integer reportId;
-    private String kind; // good | warn | keep
+    private String kind; // good | warn | keep | coach | action
     private String title;
     private String body;
 }
