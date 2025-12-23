@@ -262,7 +262,7 @@ public class CommunityController {
      */
     private Integer getUserIdFromToken(HttpServletRequest request) {
         try {
-            String token = getTokenFromCookie(request, "accessToken");
+            String token = getTokenFromHeaderOrCookie(request);
             if (token == null || !jwtUtil.validateToken(token)) {
                 return null;
             }
@@ -285,5 +285,16 @@ public class CommunityController {
             }
         }
         return null;
+    }
+
+    /**
+     * Authorization 헤더(Bearer) 우선, 없으면 accessToken 쿠키 사용
+     */
+    private String getTokenFromHeaderOrCookie(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return getTokenFromCookie(request, "accessToken");
     }
 }
