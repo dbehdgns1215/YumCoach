@@ -1,5 +1,8 @@
 package com.ssafy.yumcoach.meal.todo.model.service;
 
+import com.ssafy.yumcoach.food.model.FoodDetailDto;
+import com.ssafy.yumcoach.food.model.NutritionFactsPrimaryDto;
+import com.ssafy.yumcoach.food.model.service.FoodService;
 import com.ssafy.yumcoach.meal.enums.MealType;
 import com.ssafy.yumcoach.meal.model.MealItemDto;
 import com.ssafy.yumcoach.meal.model.MealLogDto;
@@ -19,6 +22,7 @@ public class MealTodoServiceImpl implements MealTodoService {
 
     private final MealTodoMapper mealTodoMapper;
     private final MealService mealService;
+    private final FoodService foodService;
 
     @Override
     public List<MealTodoDto> getTodos(Integer userId) {
@@ -37,8 +41,7 @@ public class MealTodoServiceImpl implements MealTodoService {
             MealType mealType,
             String foodCode,
             String foodName,
-            Integer defaultGrams
-    ) {
+            Integer defaultGrams) {
         MealTodoDto todo = new MealTodoDto();
         todo.setUserId(userId);
         todo.setMealType(mealType);
@@ -59,10 +62,44 @@ public class MealTodoServiceImpl implements MealTodoService {
 
         Integer intUserId = Math.toIntExact(userId);
 
+        // 영양정보 조회 및 계산
+        Double kcal = null;
+        Double protein = null;
+        Double carbs = null;
+        Double fat = null;
+
+        try {
+            FoodDetailDto foodDetail = foodService.getFoodDetail(todo.getFoodCode());
+            if (foodDetail != null && foodDetail.getNutrition() != null) {
+                NutritionFactsPrimaryDto nutrition = foodDetail.getNutrition();
+                double factor = todo.getDefaultGrams() / 100.0;
+
+                // 100g 기준 영양정보를 실제 섭취량(grams)에 맞게 계산
+                kcal = nutrition.getEnergyKcal() != null ? nutrition.getEnergyKcal() * factor : 0.0;
+                protein = nutrition.getProteinG() != null ? nutrition.getProteinG() * factor : 0.0;
+                carbs = nutrition.getCarbohydrateG() != null ? nutrition.getCarbohydrateG() * factor : 0.0;
+                fat = nutrition.getFatG() != null ? nutrition.getFatG() * factor : 0.0;
+
+                // 소수점 둘째자리까지 반올림
+                kcal = Math.round(kcal * 100.0) / 100.0;
+                protein = Math.round(protein * 100.0) / 100.0;
+                carbs = Math.round(carbs * 100.0) / 100.0;
+                fat = Math.round(fat * 100.0) / 100.0;
+            }
+        } catch (Exception e) {
+            // 영양정보 조회 실패 시 로그만 남기고 계속 진행
+            System.err.println("Failed to fetch nutrition info for foodCode: " + todo.getFoodCode());
+            e.printStackTrace();
+        }
+
         MealItemDto item = MealItemDto.builder()
                 .mealCode(todo.getFoodCode())
                 .mealName(todo.getFoodName())
                 .amount(todo.getDefaultGrams())
+                .kcal(kcal)
+                .protein(protein)
+                .carbs(carbs)
+                .fat(fat)
                 .build();
 
         MealLogDto mealLog = MealLogDto.builder()
@@ -81,6 +118,5 @@ public class MealTodoServiceImpl implements MealTodoService {
     public void deleteTodo(Integer userId, Long todoId) {
         mealTodoMapper.deleteById(todoId, userId);
     }
-
 
 }

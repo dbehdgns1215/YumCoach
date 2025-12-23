@@ -3,7 +3,7 @@
  */
 
 // UI에서 사용할 식사 종류 키
-export const MEAL_KEYS = ["breakfast", "lunch", "dinner", "snack", "latenight"];
+export const MEAL_KEYS = ["breakfast", "lunch", "dinner", "snack", "midnight"];
 
 // 한글 라벨
 export const MEAL_LABELS = {
@@ -11,7 +11,7 @@ export const MEAL_LABELS = {
   lunch: "점심",
   dinner: "저녁",
   snack: "간식",
-  latenight: "야식",
+  midnight: "야식",
 };
 
 // API 응답의 mealType -> 로컬 키로 변환
@@ -20,7 +20,7 @@ export const MEAL_TYPE_TO_KEY = {
   LUNCH: "lunch",
   DINNER: "dinner",
   SNACK: "snack",
-  LATE_NIGHT: "latenight",
+  MIDNIGHT: "midnight",
 };
 
 // 로컬 키 -> API mealType으로 변환
@@ -29,5 +29,5 @@ export const KEY_TO_MEAL_TYPE = {
   lunch: "LUNCH",
   dinner: "DINNER",
   snack: "SNACK",
-  latenight: "LATE_NIGHT",
+  midnight: "MIDNIGHT",
 };

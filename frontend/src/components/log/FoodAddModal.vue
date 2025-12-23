@@ -101,6 +101,12 @@
                         취소
                     </button>
 
+                    <!-- 단일 검색 모드일 때만 TODO에 추가 버튼 표시 -->
+                    <button v-if="!imageAnalysis.showAnalyzedList.value && singleAdd.canAdd.value" class="btn secondary"
+                        @click="addToTodos">
+                        📝 TODO에 추가
+                    </button>
+
                     <button v-if="imageAnalysis.showAnalyzedList.value" class="btn primary"
                         :disabled="Object.keys(selection.selectedFoods.value).length === 0" @click="addAllSelected">
                         {{ Object.keys(selection.selectedFoods.value).length }}개 추가
@@ -151,7 +157,7 @@ const props = defineProps({
     open: { type: Boolean, default: false },
     mealTitle: { type: String, default: '' },
 })
-const emit = defineEmits(['close', 'add'])
+const emit = defineEmits(['close', 'add', 'add-to-todos'])
 
 // Template ref
 const fileInputElement = ref(null)
@@ -192,6 +198,22 @@ function add()
 {
     if (!singleAdd.canAdd.value) return
     emit('add', {
+        foodId: search.selected.value.id,
+        name: search.selected.value.name,
+        grams: Number(singleAdd.grams.value),
+        per100g: search.selected.value.per100g,
+        calc: singleAdd.calc.value,
+    })
+    resetModal()
+}
+
+/**
+ * TODO에 추가
+ */
+function addToTodos()
+{
+    if (!singleAdd.canAdd.value) return
+    emit('add-to-todos', {
         foodId: search.selected.value.id,
         name: search.selected.value.name,
         grams: Number(singleAdd.grams.value),
