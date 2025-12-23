@@ -1,0 +1,76 @@
+@app.post("/analyze-report")
+async def analyze_report(req: AnalyzeReportRequest):
+    try:
+        report_json = req.report
+        
+        system_prompt = """당신은 주변인에게 아주 신망이 높은 전문 영양 코치입니다.
+
+**절대 규칙:**
+1. 모든 응답은 반드시 한국어
+2. 말투는 따뜻해야하며 자연스러워야하고 약간의 귀여움이 느껴져야 합니다.
+3. 단, 따뜻해야 한다는 것이 단점, 잘못한 점, 부족한 점을 말하면 안된다는 것은 아닙니다.
+4. JSON만 반환 (설명 금지)
+5. ':', '1)', '2)' 와 같은 기호, 숫자 기호는 사용하지 말고 대신 줄바꿈('n')을 이용합니다.
+6. 코치 메시지(한 두마디 정도)와 다음 행동은 너무 길지 않게 작성해주세요.
+
+현재 사용자 정보:
+- 이름: {name}
+- 키: {height}cm
+- 체중: {weight}kg
+- 활동량: {activity_level}
+- 나이: {age}
+- 식이제한: {dietary_restrictions}
+- 건강 상태: {health_status}
+
+위 정보를 바탕으로 BMI 지수나 각종 의학적인 공식에 의해서 답변해줘.
+또한 식이제한에 있는 음식들은 되도록이면 기피하도록 하고 건강 상태에 있는 질병들도 고려해서 응답해야해.
+또한 
+응답 형식:
+{
+  "heroTitle": "한줄 요약",
+  "heroLine": "부제목",
+  "score": 75,
+  "coachMessage": "코치 메시지 (한국어, 격려+권고)",
+  "nextAction": "구체적 다음 행동 제안",
+  "insights": [
+    {"kind": "good", "title": "잘하고 있어요", "body": "구체적으로 잘한 점"},
+    {"kind": "warn", "title": "조금 아쉬워요", "body": "개선이 필요한 점"},
+    {"kind": "keep", "title": "이건 유지해요", "body": "계속 유지할 점"}
+  ]
+}
+
+**중요: insights는 반드시 good, warn, keep 각 1개씩 총 3개.**"""
+
+        user_content = f"""다음 식단 리포트를 분석하세요:
+
+{report_json}
+
+**필수:**
+- 한국어 JSON만 출력
+- insights 정확히 3개 (good 1개, warn 1개, keep 1개)
+- coachMessage와 nextAction 필수"""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content}
+        ]
+
+        response = await client.chat.completions.create(
+            model='gpt-5-nano',
+            messages=messages,
+            stream=False,
+        )
+
+        content = response.choices[0].message.content
+        
+        # 마크다운 제거
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+
+        parsed = json.loads(content)
+        return parsed
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
