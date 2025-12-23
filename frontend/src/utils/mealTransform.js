@@ -22,15 +22,16 @@ export function transformMealsToUI(meals) {
   meals.forEach((meal) => {
     const mealKey = MEAL_TYPE_TO_KEY[meal.mealType] || "snack";
     meal.items.forEach((item) => {
-      // DB에 저장된 영양정보가 있으면 사용, 없으면 기본값 사용
-      const calc = item.kcal
-        ? {
-            kcal: item.kcal || 0,
-            protein: item.protein || 0,
-            carbs: item.carbs || 0,
-            fat: item.fat || 0,
-          }
-        : null;
+      // DB에 저장된 영양정보가 있으면 사용 (0도 유효한 값으로 간주)
+      const calc =
+        item.kcal !== undefined && item.kcal !== null
+          ? {
+              kcal: item.kcal || 0,
+              protein: item.protein || 0,
+              carbs: item.carbs || 0,
+              fat: item.fat || 0,
+            }
+          : null;
 
       result[mealKey].push({
         id: item.id,

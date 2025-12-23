@@ -401,6 +401,16 @@
     border: 1px solid var(--border);
 }
 
+.secondary {
+    background: #fff;
+    color: var(--brand);
+    border: 1px solid var(--brand);
+}
+
+.secondary:hover:not(:disabled) {
+    background: var(--brand-soft);
+}
+
 .btn:disabled {
     opacity: .55;
     cursor: not-allowed;
