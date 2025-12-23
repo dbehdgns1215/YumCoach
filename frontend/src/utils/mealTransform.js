@@ -14,13 +14,19 @@ export function transformMealsToUI(meals) {
     lunch: [],
     dinner: [],
     snack: [],
-    latenight: [],
+    midnight: [],
   };
 
   if (!meals || !Array.isArray(meals)) return result;
 
   meals.forEach((meal) => {
     const mealKey = MEAL_TYPE_TO_KEY[meal.mealType] || "snack";
+
+    // items가 없거나 배열이 아니면 건너뛰기
+    if (!meal.items || !Array.isArray(meal.items)) {
+      return;
+    }
+
     meal.items.forEach((item) => {
       // DB에 저장된 영양정보가 있으면 사용 (0도 유효한 값으로 간주)
       const calc =

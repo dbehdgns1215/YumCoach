@@ -193,7 +193,10 @@ const loadNutritionForItems = async (mealsUI) =>
     const foodIds = []
     MEAL_KEYS.forEach(mealKey =>
     {
-        mealsUI[mealKey].forEach(item =>
+        const items = mealsUI[mealKey]
+        if (!items || !Array.isArray(items)) return
+
+        items.forEach(item =>
         {
             // calc가 null이거나 undefined면 영양정보 조회 필요
             if (item.calc === null || item.calc === undefined) {
@@ -214,7 +217,10 @@ const loadNutritionForItems = async (mealsUI) =>
     // 모든 아이템에 영양정보 적용
     MEAL_KEYS.forEach(mealKey =>
     {
-        mealsUI[mealKey].forEach(item =>
+        const items = mealsUI[mealKey]
+        if (!items || !Array.isArray(items)) return
+
+        items.forEach(item =>
         {
             // calc가 있으면 (DB에서 저장된 값) per100g만 역계산
             if (item.calc !== null && item.calc !== undefined) {
