@@ -45,14 +45,14 @@ import DaySummaryCard from '@/components/log/DaySummaryCard.vue'
 import { startOfWeek, formatDate, formatDateDot, addDays, today as getToday } from '@/utils/date'
 import { sumNutrition } from '@/utils/nutrition'
 import { transformMealsToUI, updateItemNutrition } from '@/utils/mealTransform'
-import { fetchFoodDetail } from '@/api/foods.js'
+import { useNutritionCache } from '@/composables/useNutritionCache.js'
 import { MEAL_KEYS, MEAL_LABELS, KEY_TO_MEAL_TYPE } from '@/constants/mealTypes'
 
 const mealKeys = MEAL_KEYS
 const mealLabels = MEAL_LABELS
 
-// 영양정보 캐시 (foodId -> nutrition)
-const nutritionCache = reactive({})
+// 영양정보 캐시 사용
+const { getBatchNutrition, nutritionCache } = useNutritionCache()
 
 // ---- 날짜/주간
 const today = getToday()
@@ -109,63 +109,64 @@ const dayLog = computed(() =>
 })
 
 // API에서 식사 데이터 로드 (날짜 변경 시)
-const loadMealsForDate = (date) =>
+const loadMealsForDate = async (date) =>
 {
     const key = formatDate(date)
-    getMealsByDate(key)
-        .then(async meals =>
-        {
-            if (!meals || !meals.length) {
-                logsByDate[key] = emptyDay()
-                return
-            }
 
-            const mealsUI = transformMealsToUI(meals)
-            logsByDate[key] = { meals: mealsUI }
+    try {
+        const meals = await getMealsByDate(key)
 
-            // 각 아이템의 영양정보 로드 (완료 대기)
-            await loadNutritionForItems(mealsUI)
-        })
-        .catch(e =>
-        {
-            console.error('식사 데이터 로드 실패:', e)
+        if (!meals || !meals.length) {
             logsByDate[key] = emptyDay()
-        })
+            return
+        }
+
+        const mealsUI = transformMealsToUI(meals)
+
+        // 1단계: 즉시 UI에 표시 (영양정보 없이)
+        logsByDate[key] = { meals: mealsUI }
+
+        // 2단계: 백그라운드에서 영양정보 로드 (병렬 처리)
+        loadNutritionForItems(mealsUI)
+    } catch (e) {
+        console.error('식사 데이터 로드 실패:', e)
+        logsByDate[key] = emptyDay()
+    }
 }
 
-// 아이템들의 영양정보를 API에서 조회해서 업데이트 (캐시 활용)
+// 아이템들의 영양정보를 병렬로 조회해서 업데이트 (최적화)
 const loadNutritionForItems = async (mealsUI) =>
 {
-    const promises = []
-
+    // 모든 foodId 수집
+    const foodIds = []
     MEAL_KEYS.forEach(mealKey =>
     {
-        const items = mealsUI[mealKey]
-        items.forEach(item =>
+        mealsUI[mealKey].forEach(item =>
         {
-            // 캐시에서 먼저 확인
-            if (nutritionCache[item.foodId]) {
-                updateItemNutrition(item, nutritionCache[item.foodId])
-            } else {
-                // 캐시 없으면 API에서 조회
-                const promise = fetchFoodDetail(item.foodId)
-                    .then(nutrition =>
-                    {
-                        // 캐시에 저장
-                        nutritionCache[item.foodId] = nutrition
-                        updateItemNutrition(item, nutrition)
-                    })
-                    .catch(e =>
-                    {
-                        console.warn(`음식 ${item.foodId} 영양정보 로드 실패:`, e)
-                    })
-                promises.push(promise)
-            }
+            foodIds.push(item.foodId)
         })
     })
 
-    // 모든 영양정보 로드 완료 대기
-    await Promise.all(promises)
+    // 중복 제거 및 캐시 없는 항목만 필터링
+    const uniqueIds = [...new Set(foodIds)]
+    const uncachedIds = uniqueIds.filter(id => !nutritionCache[id])
+
+    // 캐시되지 않은 항목들을 한 번에 조회
+    if (uncachedIds.length > 0) {
+        await getBatchNutrition(uncachedIds)
+    }
+
+    // 모든 아이템에 영양정보 적용
+    MEAL_KEYS.forEach(mealKey =>
+    {
+        mealsUI[mealKey].forEach(item =>
+        {
+            const nutrition = nutritionCache[item.foodId]
+            if (nutrition) {
+                updateItemNutrition(item, nutrition)
+            }
+        })
+    })
 }
 
 // ---- 영양 합산
