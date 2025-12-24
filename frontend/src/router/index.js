@@ -12,6 +12,8 @@ import CommunityPage from "@/pages/CommunityPage.vue";
 import CommunityPostDetail from "@/components/community/CommunityPostDetail.vue";
 import CommunityWrite from "@/components/community/CommunityWrite.vue";
 import ChallengePage from "@/pages/ChallengePage.vue";
+import PaymentSuccessPage from "@/pages/PaymentSuccessPage.vue";
+import PaymentFailPage from "@/pages/PaymentFailPage.vue";
 
 const navItems = [
   { key: "home", path: "/home", label: "오늘" },
@@ -73,6 +75,16 @@ const routes = [
   {
     path: "/challenge",
     component: ChallengePage,
+  },
+  {
+    path: "/payment/success",
+    name: "PaymentSuccess",
+    component: PaymentSuccessPage,
+  },
+  {
+    path: "/payment/fail",
+    name: "PaymentFail",
+    component: PaymentFailPage,
   },
 ];
 

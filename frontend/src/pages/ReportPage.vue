@@ -8,10 +8,12 @@
             <ReportTabs :mode="mode" @update:mode="updateMode" />
             <div style="flex:1"></div>
             <!-- create button moved to header (right) -->
-            <BaseButton :disabled="selectionState !== 'today'" variant="primary" @click="openCreateModal = true" style="margin-right:8px; width: 76%; align-items: center;">리포트 생성</BaseButton>
+            <BaseButton :disabled="selectionState !== 'today'" variant="primary" @click="openCreateModal = true"
+              style="margin-right:8px; width: 76%; align-items: center;">리포트 생성</BaseButton>
             <!-- locate button: go to default (yesterday / last week) -->
             <button class="locateBtn" @click="goToDefault" title="초기 위치로 이동" aria-label="초기 위치로 이동">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"> 
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true">
                 <circle cx="12" cy="12" r="7" stroke="currentColor" stroke-width="1.5" />
                 <circle cx="12" cy="12" r="2" fill="currentColor" />
               </svg>
@@ -21,7 +23,9 @@
           <!-- Horizontal date / week selector -->
           <div class="pickerStrip">
             <div class="stripInner" ref="stripRef">
-              <button v-for="d in pickerItems" :key="d.key" class="stripItem" :class="['stripItem', { active: d.key===currentKey, week: mode==='weekly' } ]" @click="onSelectItem(d)">
+              <button v-for="d in pickerItems" :key="d.key" class="stripItem"
+                :class="['stripItem', { active: d.key === currentKey, week: mode === 'weekly' }]"
+                @click="onSelectItem(d)">
                 <div class="itemTop">{{ d.labelTop }}</div>
                 <div class="itemBottom">{{ d.labelBottom }}</div>
                 <!-- small contextual boxes for yesterday/tomorrow or prev/next week -->
@@ -36,17 +40,13 @@
           </div>
         </div>
         <!-- 상단으로 이동: 생성 버튼 제거(중복) 및 결과 초기화 버튼 제거 -->
-        <ReportHero :score="score" :period-label="periodLabel" :summary-title="displayHeroTitle" :summary-line="displayHeroLine" />
+        <ReportHero :score="score" :period-label="periodLabel" :summary-title="displayHeroTitle"
+          :summary-line="displayHeroLine" />
 
         <div style="margin-top:12px;">
           <div v-if="devResult && displayInsights.length > 0" class="insights">
-            <InsightCard 
-              v-for="(ins, idx) in displayInsights" 
-              :key="idx" 
-              :kind="ins.kind" 
-              :title="ins.title" 
-              :body="ins.body" 
-            />
+            <InsightCard v-for="(ins, idx) in displayInsights" :key="idx" :kind="ins.kind" :title="ins.title"
+              :body="ins.body" />
           </div>
           <!-- When there's no devResult, hero displays the empty-state (title/score) so no extra placeholder here -->
         </div>
@@ -67,16 +67,9 @@
     </div>
 
     <PaywallModal :open="openPaywall" @close="openPaywall = false" @upgrade="onUpgrade" />
-    <CreateReportModal
-      :open="openCreateModal"
-      :mode="mode"
-      :date="selectedDate"
-      :weekStart="selectedWeekStart"
-      :selectionState="selectionState"
-      @close="handleModalClose"
-      @created="handleModalCreated"
-      @error="handleModalError"
-    />
+    <CreateReportModal :open="openCreateModal" :mode="mode" :date="selectedDate" :weekStart="selectedWeekStart"
+      :selectionState="selectionState" @close="handleModalClose" @created="handleModalCreated"
+      @error="handleModalError" />
     <ToastContainer />
   </AppShell>
 </template>
@@ -107,24 +100,25 @@ import BaseCard from '@/components/base/BaseCard.vue'
 const router = useRouter()
 
 // period label shows currently selected date or week range
-function fmtKoreanDate(iso){ const d=new Date(iso+'T00:00:00'); return `${d.getMonth()+1}월 ${d.getDate()}일` }
-const periodLabel = computed(()=>{
-  if(mode.value === 'daily') return fmtKoreanDate(selectedDate.value)
+function fmtKoreanDate(iso) { const d = new Date(iso + 'T00:00:00'); return `${d.getMonth() + 1}월 ${d.getDate()}일` }
+const periodLabel = computed(() =>
+{
+  if (mode.value === 'daily') return fmtKoreanDate(selectedDate.value)
   const start = new Date(selectedWeekStart.value + 'T00:00:00')
-  const end = new Date(start); end.setDate(start.getDate()+6)
-  return `${start.getMonth()+1}월 ${start.getDate()}일 – ${end.getMonth()+1}월 ${end.getDate()}일`
+  const end = new Date(start); end.setDate(start.getDate() + 6)
+  return `${start.getMonth() + 1}월 ${start.getDate()}일 – ${end.getMonth() + 1}월 ${end.getDate()}일`
 })
 const mode = ref('daily')
 
 // selectedDate: ISO YYYY-MM-DD (local, avoid toISOString timezone shifts)
-function isoDate(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}` }
+function isoDate(d) { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return `${y}-${m}-${day}` }
 const today = new Date()
-const yesterday = new Date(today); yesterday.setDate(today.getDate()-1)
+const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
 const selectedDate = ref(isoDate(yesterday))
 
 // selectedWeekStart: ISO date for week-start (use Monday)
-function startOfWeek(d){ const dd = new Date(d); const day = dd.getDay(); const diff = (day===0? -6 : 1 - day); dd.setDate(dd.getDate()+diff); dd.setHours(0,0,0,0); return dd }
-const lastWeekStart = startOfWeek(new Date()); lastWeekStart.setDate(lastWeekStart.getDate()-7)
+function startOfWeek(d) { const dd = new Date(d); const day = dd.getDay(); const diff = (day === 0 ? -6 : 1 - day); dd.setDate(dd.getDate() + diff); dd.setHours(0, 0, 0, 0); return dd }
+const lastWeekStart = startOfWeek(new Date()); lastWeekStart.setDate(lastWeekStart.getDate() - 7)
 const selectedWeekStart = ref(isoDate(lastWeekStart))
 
 import { onMounted } from 'vue'
@@ -138,19 +132,20 @@ const stripRef = localRef(null)
 const currentKey = computed(() => mode.value === 'daily' ? selectedDate.value : selectedWeekStart.value)
 
 // generate picker items depending on mode
-const pickerItems = computed(() => {
+const pickerItems = computed(() =>
+{
   if (mode.value === 'daily') {
     const list = []
     const center = new Date(selectedDate.value + 'T00:00:00')
     const todayIsoLocal = isoDate(new Date())
-    const y = new Date(); y.setDate(y.getDate()-1); const yesterdayIsoLocal = isoDate(y)
-    const t = new Date(); t.setDate(t.getDate()+1); const tomorrowIsoLocal = isoDate(t)
+    const y = new Date(); y.setDate(y.getDate() - 1); const yesterdayIsoLocal = isoDate(y)
+    const t = new Date(); t.setDate(t.getDate() + 1); const tomorrowIsoLocal = isoDate(t)
     for (let i = -3; i <= 3; i++) {
       const d = new Date(center)
       d.setDate(center.getDate() + i)
       const key = isoDate(d)
-      const dow = ['일','월','화','수','목','금','토'][d.getDay()]
-      list.push({ key, labelTop: dow, labelBottom: `${d.getMonth()+1}/${d.getDate()}`, date: key, isToday: key === todayIsoLocal, isYesterday: key === yesterdayIsoLocal, isTomorrow: key === tomorrowIsoLocal })
+      const dow = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()]
+      list.push({ key, labelTop: dow, labelBottom: `${d.getMonth() + 1}/${d.getDate()}`, date: key, isToday: key === todayIsoLocal, isYesterday: key === yesterdayIsoLocal, isTomorrow: key === tomorrowIsoLocal })
     }
     return list
   } else {
@@ -158,17 +153,17 @@ const pickerItems = computed(() => {
     const list = []
     const center = new Date(selectedWeekStart.value + 'T00:00:00')
     const thisWeekStartIso = isoDate(startOfWeek(new Date()))
-    const prev = new Date(thisWeekStartIso + 'T00:00:00'); prev.setDate(prev.getDate()-7); const prevWeekStartIso = isoDate(prev)
-    const next = new Date(thisWeekStartIso + 'T00:00:00'); next.setDate(next.getDate()+7); const nextWeekStartIso = isoDate(next)
+    const prev = new Date(thisWeekStartIso + 'T00:00:00'); prev.setDate(prev.getDate() - 7); const prevWeekStartIso = isoDate(prev)
+    const next = new Date(thisWeekStartIso + 'T00:00:00'); next.setDate(next.getDate() + 7); const nextWeekStartIso = isoDate(next)
     for (let i = -3; i <= 3; i++) {
       const start = new Date(center)
-      start.setDate(center.getDate() + i*7)
-      const end = new Date(start); end.setDate(start.getDate()+6)
+      start.setDate(center.getDate() + i * 7)
+      const end = new Date(start); end.setDate(start.getDate() + 6)
       const key = isoDate(start)
       // compute ISO week number for the start date
       const { week } = getISOWeekNumber(key)
-      const startLabel = `${start.getMonth()+1}/${start.getDate()}`
-      const endLabel = `${end.getMonth()+1}/${end.getDate()}`
+      const startLabel = `${start.getMonth() + 1}/${start.getDate()}`
+      const endLabel = `${end.getMonth() + 1}/${end.getDate()}`
       // top: 'xx주차', bottom: 'M/D - M/D'
       list.push({ key, labelTop: `${week}주차`, labelBottom: `${startLabel} - ${endLabel}`, weekStart: key, isThisWeek: key === thisWeekStartIso, isPrevWeek: key === prevWeekStartIso, isNextWeek: key === nextWeekStartIso })
     }
@@ -177,28 +172,31 @@ const pickerItems = computed(() => {
 })
 
 // week number and label helper
-function getISOWeekNumber(dIn){
+function getISOWeekNumber(dIn)
+{
   const d = new Date(dIn + 'T00:00:00')
   // Copy date so don't modify original
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
   // Set to nearest Thursday: current date + 4 - current day number
   const dayNum = date.getUTCDay() || 7
   date.setUTCDate(date.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1))
-  const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1)/7)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7)
   return { year: date.getUTCFullYear(), week: weekNo }
 }
 
-const currentWeekLabel = computed(()=>{
-  if(mode.value !== 'weekly') return ''
+const currentWeekLabel = computed(() =>
+{
+  if (mode.value !== 'weekly') return ''
   const start = new Date(selectedWeekStart.value + 'T00:00:00')
-  const end = new Date(start); end.setDate(start.getDate()+6)
+  const end = new Date(start); end.setDate(start.getDate() + 6)
   const { year, week } = getISOWeekNumber(selectedWeekStart.value)
-  return `${year}년 ${String(week).padStart(2,'0')}주 (${start.getMonth()+1}/${start.getDate()}–${end.getMonth()+1}/${end.getDate()})`
+  return `${year}년 ${String(week).padStart(2, '0')}주 (${start.getMonth() + 1}/${start.getDate()}–${end.getMonth() + 1}/${end.getDate()})`
 })
 
-function onSelectItem(item){
-  if (mode.value === 'daily'){
+function onSelectItem(item)
+{
+  if (mode.value === 'daily') {
     selectedDate.value = item.date
     fetchDaily(selectedDate.value)
   } else {
@@ -207,15 +205,16 @@ function onSelectItem(item){
   }
 }
 
-function goToDefault(){
+function goToDefault()
+{
   // go to yesterday or last week depending on mode
   const now = new Date()
-  const y = new Date(now); y.setDate(now.getDate()-1)
+  const y = new Date(now); y.setDate(now.getDate() - 1)
   const yesterdayIsoLocal = isoDate(y)
-  const lw = startOfWeek(new Date()); lw.setDate(lw.getDate()-7)
+  const lw = startOfWeek(new Date()); lw.setDate(lw.getDate() - 7)
   const lastWeekIso = isoDate(lw)
 
-  if (mode.value === 'daily'){
+  if (mode.value === 'daily') {
     selectedDate.value = yesterdayIsoLocal
     fetchDaily(selectedDate.value)
   } else {
@@ -227,7 +226,8 @@ function goToDefault(){
 }
 
 // center selected element on changes
-async function centerSelected(){
+async function centerSelected()
+{
   await nextTick()
   const strip = stripRef.value
   if (!strip) return
@@ -239,13 +239,14 @@ async function centerSelected(){
 // watch selection to auto-center
 watch(() => currentKey.value, () => { centerSelected() })
 
-async function fetchDaily(date){
+async function fetchDaily(date)
+{
   devError.value = null
   devLoading.value = true
-  try{
+  try {
     const res = await api.get(`/reports/daily?date=${date}`)
     devResult.value = res.data
-  }catch(e){
+  } catch (e) {
     if (e?.response?.status === 404) {
       devResult.value = null
       devError.value = '해당 날짜의 리포트가 없습니다.'
@@ -260,17 +261,18 @@ async function fetchDaily(date){
       heroLine.value = ''
       score.value = 0
     }
-  }finally{ devLoading.value = false }
+  } finally { devLoading.value = false }
 }
 
-async function fetchWeekly(weekStart){
+async function fetchWeekly(weekStart)
+{
   devError.value = null
   devLoading.value = true
-  try{
+  try {
     // backend expects `fromDate` query param (week start YYYY-MM-DD)
     const res = await api.get(`/reports/weekly?fromDate=${weekStart}`)
     devResult.value = res.data
-  }catch(e){
+  } catch (e) {
     if (e?.response?.status === 404) {
       devResult.value = null
       devError.value = '해당 주차의 리포트가 없습니다.'
@@ -283,18 +285,19 @@ async function fetchWeekly(weekStart){
       heroLine.value = ''
       score.value = 0
     }
-  }finally{ devLoading.value = false }
+  } finally { devLoading.value = false }
 }
 
-onMounted(()=>{
+onMounted(() =>
+{
   // 기본: 어제 / 저번 주
   mode.value = 'daily' // ensure default mode is daily
   // ensure selectedDate is yesterday (local) and fetch
   const now = new Date()
-  const y = new Date(now); y.setDate(now.getDate()-1)
+  const y = new Date(now); y.setDate(now.getDate() - 1)
   selectedDate.value = isoDate(y)
   // ensure selected week start is last week as well
-  const lw = startOfWeek(new Date()); lw.setDate(lw.getDate()-7)
+  const lw = startOfWeek(new Date()); lw.setDate(lw.getDate() - 7)
   selectedWeekStart.value = isoDate(lw)
   fetchDaily(selectedDate.value)
   // center selected in strip after initial render; call twice with small delay to cover rendering timing
@@ -302,9 +305,10 @@ onMounted(()=>{
   setTimeout(() => centerSelected(), 80)
 })
 
-function updateMode(v){
+function updateMode(v)
+{
   mode.value = v
-  if(v === 'daily') {
+  if (v === 'daily') {
     fetchDaily(selectedDate.value)
   } else {
     fetchWeekly(selectedWeekStart.value)
@@ -313,8 +317,9 @@ function updateMode(v){
   nextTick(() => setTimeout(() => centerSelected(), 60))
 }
 
-function doFetch(){
-  if(mode.value === 'daily') fetchDaily(selectedDate.value)
+function doFetch()
+{
+  if (mode.value === 'daily') fetchDaily(selectedDate.value)
   else fetchWeekly(selectedWeekStart.value)
 }
 const score = ref(78)
@@ -322,7 +327,8 @@ const heroTitle = ref('이번 주는 꽤 괜찮았어요 🙂')
 const heroLine = ref('전체적으로 괜찮았어요. 간식 타이밍만 조금 아쉬워요.')
 
 // UI용 가공 제목/부제: 모드(일간/주간)에 따라 문구 조정
-const displayHeroTitle = computed(() => {
+const displayHeroTitle = computed(() =>
+{
   const t = (heroTitle.value || '').trim()
   if (!t) return mode.value === 'daily' ? '오늘은 아직 리포트가 없습니다.' : '이번 주는 아직 리포트가 없습니다.'
 
@@ -339,7 +345,8 @@ const displayHeroTitle = computed(() => {
   }
 })
 
-const displayHeroLine = computed(() => {
+const displayHeroLine = computed(() =>
+{
   const l = (heroLine.value || '').trim()
   if (!l) return ''
   return l
@@ -354,7 +361,8 @@ const analyzeLoading = ref(false)
 const analyzeResult = ref(null)
 
 // 업데이트: devResult가 들어오면 top-level 값을 우선 사용하고, 없으면 aiResponse 문자열을 파싱해서 채웁니다.
-watch(devResult, (val) => {
+watch(devResult, (val) =>
+{
   // 값이 있을 때만 처리 (값이 없을 때는 기존 UI 상태 유지)
   if (!val) return
 
@@ -389,7 +397,8 @@ watch(devResult, (val) => {
 
 // insights에서 coach, action 추출
 // determine whether selected period is in the past, today, or future
-const selectionState = computed(() => {
+const selectionState = computed(() =>
+{
   const todayIso = isoDate(new Date())
   if (mode.value === 'daily') {
     const sel = selectedDate.value
@@ -400,7 +409,7 @@ const selectionState = computed(() => {
     // weekly: compare week range to today
     const start = selectedWeekStart.value
     const s = new Date(start + 'T00:00:00')
-    const e = new Date(s); e.setDate(s.getDate()+6)
+    const e = new Date(s); e.setDate(s.getDate() + 6)
     const endIso = isoDate(e)
     if (endIso < todayIso) return 'past'
     if (start > todayIso) return 'future'
@@ -408,14 +417,16 @@ const selectionState = computed(() => {
   }
 })
 
-const displayCoachMessage = computed(() => {
+const displayCoachMessage = computed(() =>
+{
   if (!devResult.value) return ''
   if (devResult.value?.coachMessage) return devResult.value.coachMessage
   const coach = devResult.value.insights?.find(i => i.kind === 'coach')
   return coach?.body || ''
 })
 
-const displayNextAction = computed(() => {
+const displayNextAction = computed(() =>
+{
   if (!devResult.value) return ''
   if (devResult.value?.nextAction) return devResult.value.nextAction
   const action = devResult.value.insights?.find(i => i.kind === 'action')
@@ -423,27 +434,29 @@ const displayNextAction = computed(() => {
 })
 
 // good, warn, keep만 필터링
-const displayInsights = computed(() => {
+const displayInsights = computed(() =>
+{
   if (!devResult.value?.insights) return []
-  return devResult.value.insights.filter(i => 
+  return devResult.value.insights.filter(i =>
     i.kind === 'good' || i.kind === 'warn' || i.kind === 'keep'
   )
 })
 
-async function createAndAnalyze() {
+async function createAndAnalyze()
+{
   devError.value = null
   devResult.value = null
   analyzeResult.value = null
   devLoading.value = true
   analyzeLoading.value = false
   try {
-    if(mode.value === 'daily'){
+    if (mode.value === 'daily') {
       const res = await api.post('/reports/daily', { date: selectedDate.value })
       devResult.value = res.data
     } else {
       // backend createWeekly expects fromDate/toDate in body
       const start = new Date(selectedWeekStart.value + 'T00:00:00')
-      const end = new Date(start); end.setDate(start.getDate()+6)
+      const end = new Date(start); end.setDate(start.getDate() + 6)
       const res = await api.post('/reports/weekly', { fromDate: selectedWeekStart.value, toDate: isoDate(end) })
       devResult.value = res.data
     }
@@ -459,14 +472,16 @@ async function createAndAnalyze() {
 }
 
 // show errors via toast when devError changes
-watch(devError, (v) => {
+watch(devError, (v) =>
+{
   if (v) {
     const msg = typeof v === 'string' ? v : (v?.error || JSON.stringify(v))
     showToast(msg, 'error')
   }
 })
 
-function clearResult() {
+function clearResult()
+{
   devResult.value = null
   devError.value = null
   // clear 버튼은 UI를 초기 상태(리포트 없음)로 되돌림
@@ -475,41 +490,71 @@ function clearResult() {
   score.value = 0
 }
 
-function onAddMeal() {
+function onAddMeal()
+{
   router.push('/log')
 }
 
-function onSavePlan() {
+function onSavePlan()
+{
   console.log('saved tomorrow plan')
 }
 
-function onUpgrade(payload) {
-  openPaywall.value = false
-  console.log('selected plan:', payload?.plan)
-  alert(`${payload?.plan === 'yearly' ? '연간' : '월간'} 플랜 결제는 곧 준비할게요 🙂`)
+function onUpgrade(payload)
+{
+  console.log('upgrade event received, plan:', payload?.plan)
 }
 
-function handleModalClose() {
+function handleModalClose()
+{
   openCreateModal.value = false
 }
 
-function handleModalCreated(payload) {
+function handleModalCreated(payload)
+{
   // payload is the created ReportDto from backend
   devResult.value = payload
   openCreateModal.value = false
 }
 
-function handleModalError(msg) {
+function handleModalError(msg)
+{
   devError.value = msg
 }
 </script>
 
 <style scoped>
-.placeholder { padding: 18px; }
-.ph-grid{ display:flex; gap:12px; align-items:center }
-.ph-icon{ width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:10px; background: linear-gradient(180deg,#fbfdff,#f6f8fb); border:1px solid rgba(16,24,40,0.04) }
-.ph-title{ font-weight:800; margin-bottom:4px }
-.ph-sub{ color:var(--muted); font-size:13px }
+.placeholder {
+  padding: 18px;
+}
+
+.ph-grid {
+  display: flex;
+  gap: 12px;
+  align-items: center
+}
+
+.ph-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fbfdff, #f6f8fb);
+  border: 1px solid rgba(16, 24, 40, 0.04)
+}
+
+.ph-title {
+  font-weight: 800;
+  margin-bottom: 4px
+}
+
+.ph-sub {
+  color: var(--muted);
+  font-size: 13px
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -534,66 +579,135 @@ function handleModalError(msg) {
   gap: var(--space-4);
 }
 
-.pickerStrip{ overflow-x:auto; -webkit-overflow-scrolling:touch; display:flex; justify-content:center; }
-.stripInner{ display:inline-flex; gap:10px; padding:6px 4px; justify-content:center; }
+.pickerStrip {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  justify-content: center;
+}
+
+.stripInner {
+  display: inline-flex;
+  gap: 10px;
+  padding: 6px 4px;
+  justify-content: center;
+}
+
 /* fixed box size for both daily and weekly to avoid layout jumps */
-.stripItem{ width:112px; height:96px; padding:12px 10px; border-radius:12px; border:1px solid var(--border); background:#fff; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; box-sizing: border-box; }
-.stripItem .itemTop{ font-weight:900; color:var(--muted); font-size:12px; line-height:1 }
-.stripItem .itemBottom{ font-weight:900; font-size:14px; line-height:1; white-space:nowrap }
+.stripItem {
+  width: 112px;
+  height: 96px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.stripItem .itemTop {
+  font-weight: 900;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1
+}
+
+.stripItem .itemBottom {
+  font-weight: 900;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap
+}
 
 /* weekly: top shows week number, emphasized color */
 
-.stripItem.week .itemTop{ font-size:12px; font-weight:900; color:var(--muted) }
-.stripItem.week .itemBottom{ font-size:14px; margin-top:2px }
+.stripItem.week .itemTop {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--muted)
+}
+
+.stripItem.week .itemBottom {
+  font-size: 14px;
+  margin-top: 2px
+}
 
 /* active (visual emphasis without changing box size) */
-.stripItem.active{ background:linear-gradient(90deg,#f0f7ff,#eef9ff); border-color:rgba(47,107,255,.18); box-shadow:0 8px 20px rgba(47,107,255,.06) }
-.stripItem.active.week{ box-shadow:0 12px 26px rgba(47,107,255,.10) }
+.stripItem.active {
+  background: linear-gradient(90deg, #f0f7ff, #eef9ff);
+  border-color: rgba(47, 107, 255, .18);
+  box-shadow: 0 8px 20px rgba(47, 107, 255, .06)
+}
+
+.stripItem.active.week {
+  box-shadow: 0 12px 26px rgba(47, 107, 255, .10)
+}
 
 /* daily selected: make bottom (date) larger for emphasis */
-.stripItem:not(.week).active .itemBottom{ font-size:18px; font-weight:1000; color:inherit }
-.stripItem:not(.week).active .itemTop{ font-size:13px; color:var(--muted) }
+.stripItem:not(.week).active .itemBottom {
+  font-size: 18px;
+  font-weight: 1000;
+  color: inherit
+}
+
+.stripItem:not(.week).active .itemTop {
+  font-size: 13px;
+  color: var(--muted)
+}
 
 /* badge for today / this week */
-.stripItem{ position:relative }
-.badge{
-  position:absolute;
-  bottom:5px;
-  left:50%;
-  transform:translateX(-50%);
-  background: rgba(255,255,255,0.98);
-  border: 1px solid rgba(16,24,40,0.06);
+.stripItem {
+  position: relative
+}
+
+.badge {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(16, 24, 40, 0.06);
   padding: 4px 8px;
   border-radius: 999px;
-  font-size:11px;
-  color:var(--muted);
-  box-shadow: 0 6px 14px rgba(16,24,40,0.06);
+  font-size: 11px;
+  color: var(--muted);
+  box-shadow: 0 6px 14px rgba(16, 24, 40, 0.06);
   z-index: 3;
   pointer-events: none;
 }
 
 /* small contextual badge shown above the main badge (어제/내일/저번주/다음주) */
-.subBadge{
-  position:absolute;
-  bottom:5px; /* same vertical placement as main badge */
-  left:50%;
-  transform:translateX(-50%);
-  background: rgba(255,255,255,0.98);
-  border: 1px solid rgba(16,24,40,0.06);
+.subBadge {
+  position: absolute;
+  bottom: 5px;
+  /* same vertical placement as main badge */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(16, 24, 40, 0.06);
   padding: 4px 8px;
   border-radius: 999px;
-  font-size:11px;
-  color:var(--muted);
-  box-shadow: 0 6px 14px rgba(16,24,40,0.06);
+  font-size: 11px;
+  color: var(--muted);
+  box-shadow: 0 6px 14px rgba(16, 24, 40, 0.06);
   z-index: 3;
   pointer-events: none;
 }
 
 /* ensure subBadge and badge stack predictably when both present */
-.stripItem .badge{ z-index:4 }
+.stripItem .badge {
+  z-index: 4
+}
 
 /* ensure badge doesn't overlap when item is active (keep same vertical position) */
-.stripItem.active .badge{ transform: translateX(-50%); }
+.stripItem.active .badge {
+  transform: translateX(-50%);
+}
 
 @media (min-width: 768px) {
   .insights {
@@ -602,13 +716,35 @@ function handleModalError(msg) {
 }
 
 @media (max-width: 767px) {
-  .stripItem{ width:88px; height:80px; padding:10px }
-  .stripInner{ gap:8px }
+  .stripItem {
+    width: 88px;
+    height: 80px;
+    padding: 10px
+  }
+
+  .stripInner {
+    gap: 8px
+  }
 }
 
 /* locate button style */
-.locateBtn{ width:36px; height:36px; border-radius:10px; border:1px solid rgba(16,24,40,0.06); background:#fff; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--muted); }
-.locateBtn:hover{ background: #f6f9ff; color: #2f6bff }
+.locateBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(16, 24, 40, 0.06);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.locateBtn:hover {
+  background: #f6f9ff;
+  color: #2f6bff
+}
 
 @media (min-width: 1200px) {
   .grid {

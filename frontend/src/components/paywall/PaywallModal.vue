@@ -2,18 +2,9 @@
   <teleport to="body">
     <div v-if="open" class="backdrop" @click.self="close">
       <!-- mobile bottom-sheet 느낌 -->
-      <div
-        ref="sheet"
-        class="sheet"
-        :class="{ dragging }"
-        :style="{ transform: `translateY(${translateY}px)` }"
-        role="dialog"
-        aria-modal="true"
-        @pointerdown="onPointerDown"
-        @pointermove="onPointerMove"
-        @pointerup="onPointerUp"
-        @pointercancel="onPointerUp"
-      >
+      <div ref="sheet" class="sheet" :class="{ dragging }" :style="{ transform: `translateY(${translateY}px)` }"
+        role="dialog" aria-modal="true" @pointerdown="onPointerDown" @pointermove="onPointerMove"
+        @pointerup="onPointerUp" @pointercancel="onPointerUp">
         <div class="grabberWrap">
           <div class="grabber" />
         </div>
@@ -37,11 +28,7 @@
 
         <!-- 플랜 2개 -->
         <div class="plans">
-          <button
-            class="plan"
-            :class="{ selected: selectedPlan === 'monthly' }"
-            @click="selectedPlan = 'monthly'"
-          >
+          <button class="plan" :class="{ selected: selectedPlan === 'monthly' }" @click="selectedPlan = 'monthly'">
             <div class="planTop">
               <div class="planName">월간</div>
               <div class="pill">가볍게 시작</div>
@@ -53,11 +40,7 @@
             <div class="planSub">언제든 해지 가능</div>
           </button>
 
-          <button
-            class="plan"
-            :class="{ selected: selectedPlan === 'yearly' }"
-            @click="selectedPlan = 'yearly'"
-          >
+          <button class="plan" :class="{ selected: selectedPlan === 'yearly' }" @click="selectedPlan = 'yearly'">
             <div class="planTop">
               <div class="planName">연간</div>
               <div class="pill strong">추천</div>
@@ -90,11 +73,16 @@
         </div>
       </div>
     </div>
+
+    <!-- 결제 모달 -->
+    <TossPaymentModal :open="showPaymentModal" :plan="selectedPlan" :amount="planPrices[selectedPlan]"
+      @close="handlePaymentClose" @success="handlePaymentSuccess" @fail="handlePaymentFail" />
   </teleport>
 </template>
 
 <script setup>
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import TossPaymentModal from './TossPaymentModal.vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -102,9 +90,17 @@ const props = defineProps({
 const emit = defineEmits(['close', 'upgrade'])
 
 const selectedPlan = ref('yearly')
+const showPaymentModal = ref(false)
+
+// 플랜별 금액 설정
+const planPrices = {
+  monthly: 4900,
+  yearly: 39000
+}
 
 /** Esc 닫기 */
-function onKeydown(e) {
+function onKeydown(e)
+{
   if (e.key === 'Escape' && props.open) close()
 }
 onMounted(() => window.addEventListener('keydown', onKeydown))
@@ -120,31 +116,58 @@ let pointerId = null
 const DRAG_CLOSE_THRESHOLD = 140 // 이 이상 내려가면 닫기
 const DRAG_MAX = 320 // 시각적으로 너무 내려가지 않게
 
-function close() {
+function close()
+{
   translateY.value = 0
   dragging.value = false
+  showPaymentModal.value = false
   emit('close')
 }
 
-function upgrade() {
-  emit('upgrade', { plan: selectedPlan.value })
+function upgrade()
+{
+  // 결제 모달 열기
+  showPaymentModal.value = true
 }
 
-function isInteractiveTarget(el) {
+function handlePaymentClose()
+{
+  showPaymentModal.value = false
+}
+
+function handlePaymentSuccess(data)
+{
+  console.log('결제 성공:', data)
+  showPaymentModal.value = false
+  emit('upgrade', { plan: selectedPlan.value, success: true })
+  close()
+}
+
+function handlePaymentFail(error)
+{
+  console.error('결제 실패:', error)
+  showPaymentModal.value = false
+  alert('결제에 실패했습니다. 다시 시도해주세요.')
+}
+
+function isInteractiveTarget(el)
+{
   // 버튼/링크/인풋 위에서 드래그 시작하면 스크롤/클릭이 우선되게
   return !!el.closest('button,a,input,textarea,select')
 }
 
-function onPointerDown(e) {
+function onPointerDown(e)
+{
   // 모바일/데스크탑 모두 pointer로 처리
   if (isInteractiveTarget(e.target)) return
   pointerId = e.pointerId
   startY = e.clientY
   dragging.value = true
-  try { e.currentTarget.setPointerCapture(pointerId) } catch {}
+  try { e.currentTarget.setPointerCapture(pointerId) } catch { }
 }
 
-function onPointerMove(e) {
+function onPointerMove(e)
+{
   if (!dragging.value || e.pointerId !== pointerId) return
   const dy = e.clientY - startY
   if (dy <= 0) {
@@ -154,7 +177,8 @@ function onPointerMove(e) {
   translateY.value = Math.min(DRAG_MAX, dy)
 }
 
-function onPointerUp(e) {
+function onPointerUp(e)
+{
   if (!dragging.value || e.pointerId !== pointerId) return
   dragging.value = false
 
@@ -169,7 +193,8 @@ function onPointerUp(e) {
 /** 모달 열릴 때 약간의 등장 감 */
 watch(
   () => props.open,
-  async (v) => {
+  async (v) =>
+  {
     if (v) {
       await nextTick()
       translateY.value = 0
@@ -179,18 +204,20 @@ watch(
 </script>
 
 <style scoped>
-.backdrop{
-  position:fixed; inset:0;
-  background: rgba(16,24,40,.45);
-  display:flex;
-  align-items:flex-end;  /* bottom sheet */
-  justify-content:center;
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, .45);
+  display: flex;
+  align-items: flex-end;
+  /* bottom sheet */
+  justify-content: center;
   padding: 12px;
   z-index: 9999;
 }
 
 /* bottom sheet 기본: 모바일은 아래에서, 데스크탑은 가운데에 가까운 느낌 */
-.sheet{
+.sheet {
   width: min(560px, 100%);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -202,28 +229,60 @@ watch(
   max-height: min(86vh, 820px);
   overflow: auto;
 }
-.dragging{ transition: none; }
 
-.grabberWrap{ display:flex; justify-content:center; padding: 6px 0 8px; }
-.grabber{
-  width: 44px; height: 5px;
-  border-radius: 999px;
-  background: rgba(16,24,40,.12);
+.dragging {
+  transition: none;
 }
 
-.top{ display:flex; align-items:center; justify-content:space-between; gap: 12px; }
-.title{ font-weight: 900; font-size: 16px; }
-.x{
+.grabberWrap {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 8px;
+}
+
+.grabber {
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(16, 24, 40, .12);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.x {
   border: 1px solid var(--border);
   background: transparent;
   border-radius: 12px;
-  width: 36px; height: 36px;
-  cursor:pointer;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
 }
-.sub{ margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 
-.benefits{ margin-top: 14px; display:flex; flex-direction:column; gap: 10px; }
-.benefit{
+.sub {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.benefits {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.benefit {
   border: 1px solid var(--border);
   background: #fff;
   border-radius: 14px;
@@ -232,28 +291,41 @@ watch(
   font-size: 13px;
 }
 
-.plans{
+.plans {
   margin-top: 14px;
-  display:grid;
+  display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
 }
-.plan{
-  text-align:left;
+
+.plan {
+  text-align: left;
   width: 100%;
   border: 1px solid var(--border);
   background: #fff;
   border-radius: 16px;
   padding: 12px;
-  cursor:pointer;
+  cursor: pointer;
 }
-.plan.selected{
-  border-color: rgba(47,107,255,.55);
-  box-shadow: 0 12px 26px rgba(47,107,255,.10);
+
+.plan.selected {
+  border-color: rgba(47, 107, 255, .55);
+  box-shadow: 0 12px 26px rgba(47, 107, 255, .10);
 }
-.planTop{ display:flex; justify-content:space-between; align-items:center; gap: 10px; }
-.planName{ font-weight: 900; font-size: 14px; }
-.pill{
+
+.planTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.planName {
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.pill {
   padding: 6px 10px;
   border-radius: 999px;
   background: var(--primary-soft);
@@ -261,30 +333,57 @@ watch(
   font-weight: 900;
   font-size: 12px;
 }
-.pill.strong{ background: var(--primary); color:#fff; }
-.priceRow{ display:flex; align-items:baseline; gap: 6px; margin-top: 8px; }
-.price{ font-weight: 1000; font-size: 20px; }
-.per{ color: var(--muted); font-weight: 900; font-size: 12px; }
-.planSub{ margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 800; }
 
-.sample{
+.pill.strong {
+  background: var(--primary);
+  color: #fff;
+}
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.price {
+  font-weight: 1000;
+  font-size: 20px;
+}
+
+.per {
+  color: var(--muted);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.planSub {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sample {
   margin-top: 14px;
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px;
   background: linear-gradient(180deg, #fff, #f4f6ff);
-  display:grid;
+  display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
-.tile{
+
+.tile {
   height: 56px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: rgba(255,255,255,.8);
+  background: rgba(255, 255, 255, .8);
   filter: blur(1px);
 }
-.hint{
+
+.hint {
   grid-column: 1 / -1;
   margin-top: 2px;
   color: var(--muted);
@@ -292,28 +391,49 @@ watch(
   font-weight: 800;
 }
 
-.actions{
+.actions {
   margin-top: 14px;
-  display:flex;
+  display: flex;
   gap: 10px;
 }
-.btn{
-  flex:1;
-  border:0;
+
+.btn {
+  flex: 1;
+  border: 0;
   border-radius: 14px;
   padding: 12px 14px;
   font-weight: 1000;
-  cursor:pointer;
+  cursor: pointer;
 }
-.primary{ background: var(--primary); color:#fff; }
-.secondary{ background: var(--primary-soft); color: var(--primary); }
 
-.fineprint{ margin-top: 10px; color: var(--muted); font-size: 11px; }
+.primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.secondary {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.fineprint {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
 
 /* 데스크탑에서는 중앙에 더 가깝게(대화형 모달 느낌) */
-@media (min-width: 900px){
-  .backdrop{ align-items:center; }
-  .sheet{ max-height: min(78vh, 820px); }
-  .plans{ grid-template-columns: 1fr 1fr; }
+@media (min-width: 900px) {
+  .backdrop {
+    align-items: center;
+  }
+
+  .sheet {
+    max-height: min(78vh, 820px);
+  }
+
+  .plans {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 </style>
