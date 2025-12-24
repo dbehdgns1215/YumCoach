@@ -50,6 +50,11 @@ public interface ChallengeService {
     void toggleChallengeItem(Long itemId, Integer userId, Boolean done);
 
     /**
+     * 아이템 id로 챌린지 id 조회 (도움 메서드)
+     */
+    Long selectChallengeIdByItemId(Long itemId);
+
+    /**
      * 일일 로그 기록 (리포트에서 자동 호출)
      */
     void recordDailyLog(Long challengeId, LocalDate logDate, Map<String, Object> reportData);

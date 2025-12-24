@@ -96,3 +96,11 @@ CREATE TABLE IF NOT EXISTS challenge_items (
   INDEX idx_target_date (challenge_id, target_date),
   FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- challenges 테이블 수정
+ALTER TABLE challenges 
+    -- success_rate를 achievement_rate로 이름 변경
+    CHANGE COLUMN success_rate achievement_rate DECIMAL(5,2) DEFAULT 0 COMMENT '달성률 (성공 리포트 / 전체 리포트)',
+    -- progress_rate 컬럼 추가
+    ADD COLUMN progress_rate DECIMAL(5,2) DEFAULT 0 COMMENT '진행도 (경과일 / 전체 기간)' AFTER achievement_rate;

@@ -21,6 +21,8 @@ public interface ChallengeMapper {
 
     List<Challenge> selectActiveChallengesByUserId(@Param("userId") Integer userId);
 
+    ChallengeItem selectItemById(@Param("id") Long id);
+
     void updateChallenge(Challenge challenge);
 
     void updateChallengeProgress(@Param("id") Long id,

@@ -18,11 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.ArrayList;
-import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
@@ -203,13 +200,23 @@ public class ChallengeServiceImpl implements ChallengeService {
 
         log.info("[ChallengeService] Challenge deleted challengeId={}", challengeId);
     }
-
     @Override
     @Transactional
     public void toggleChallengeItem(Long itemId, Integer userId, Boolean done) {
         log.info("[ChallengeService] toggleChallengeItem itemId={}, done={}", itemId, done);
 
-        // TODO: userId로 권한 체크 (item -> challenge -> userId)
+        // 🔥 권한 체크 추가
+        ChallengeItem existingItem = challengeMapper.selectItemById(itemId);
+        if (existingItem == null) {
+            throw new IllegalArgumentException("항목을 찾을 수 없습니다.");
+        }
+
+        Challenge challenge = challengeMapper.selectChallengeById(existingItem.getChallengeId());
+        if (challenge == null || !challenge.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("권한이 없습니다.");
+        }
+
+        // 아이템 업데이트
         ChallengeItem item = ChallengeItem.builder()
                 .id(itemId)
                 .done(done)
@@ -217,6 +224,20 @@ public class ChallengeServiceImpl implements ChallengeService {
                 .build();
 
         challengeMapper.updateChallengeItem(item);
+
+        // 🔥 실시간 진행도 업데이트
+        // 오늘 날짜로 DailyLog 재계산
+        LocalDate today = LocalDate.now();
+        recordDailyLog(challenge.getId(), today, new HashMap<>());
+
+        log.info("[ChallengeService] Item toggled and progress updated - itemId={}, challengeId={}",
+                itemId, challenge.getId());
+    }
+
+    @Override
+    public Long selectChallengeIdByItemId(Long itemId) {
+        ChallengeItem item = challengeMapper.selectItemById(itemId);
+        return item != null ? item.getChallengeId() : null;
     }
 
     @Override
@@ -241,9 +262,29 @@ public class ChallengeServiceImpl implements ChallengeService {
 
         // 목표 타입별 달성 여부 계산
         String targetValue = extractTargetValue(challenge.getGoalType(), goalDetails);
-        String actualValue = extractActualValue(challenge.getGoalType(), reportData);
-        boolean isAchieved = checkAchievement(challenge.getGoalType(), goalDetails, reportData);
-        BigDecimal achievementRate = calculateAchievementRate(challenge.getGoalType(), goalDetails, reportData);
+        String actualValue;
+        boolean isAchieved;
+        BigDecimal achievementRate;
+
+        // 수동 체크 타입 (EXERCISE, HABIT)
+        if (isManualCheckType(challenge.getGoalType())) {
+            // 체크리스트 항목 완료 여부로 판단
+            List<ChallengeItem> items = challengeMapper.selectItemsByChallengeId(challengeId);
+            int totalItems = items.size();
+            int doneItems = (int) items.stream().filter(ChallengeItem::getDone).count();
+
+            actualValue = doneItems + "/" + totalItems + " 완료";
+            isAchieved = totalItems > 0 && doneItems == totalItems; // 모두 체크해야 달성
+            achievementRate = totalItems > 0
+                    ? BigDecimal.valueOf((doneItems * 100.0) / totalItems).setScale(2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+        }
+        // 자동 추적 타입 (PROTEIN, CALORIE, CARBS, FAT)
+        else {
+            actualValue = extractActualValue(challenge.getGoalType(), reportData);
+            isAchieved = checkAchievement(challenge.getGoalType(), goalDetails, reportData);
+            achievementRate = calculateAchievementRate(challenge.getGoalType(), goalDetails, reportData);
+        }
 
         // 기존 로그 확인
         ChallengeDailyLog existingLog = challengeMapper.selectDailyLog(challengeId, logDate);
@@ -278,6 +319,10 @@ public class ChallengeServiceImpl implements ChallengeService {
 
         // 챌린지 진척도 업데이트
         updateChallengeProgress(challengeId);
+    }
+
+    private boolean isManualCheckType(String goalType) {
+        return "EXERCISE".equals(goalType) || "HABIT".equals(goalType);
     }
 
     @Override

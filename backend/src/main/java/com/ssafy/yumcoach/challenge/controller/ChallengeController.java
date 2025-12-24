@@ -33,20 +33,13 @@ public class ChallengeController {
             HttpServletRequest httpRequest,
             @RequestBody ChallengeCreateRequest request
     ) {
-        Integer userId = null;
-        try {
-            String token = extractToken(httpRequest);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                log.warn("[ChallengeController] createChallenge: missing/invalid token");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponse.error("인증이 필요합니다."));
-            }
-            userId = jwtUtil.getUserId(token);
-        } catch (Exception e) {
-            log.warn("[ChallengeController] createChallenge: failed to extract userId", e);
+        // 🔥 헬퍼 메서드 사용
+        Integer userId = extractUserId(httpRequest);
+        if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("인증이 필요합니다."));
         }
+        
         log.info("[ChallengeController] createChallenge userId={}, request={}", userId, request);
 
         try {
@@ -69,18 +62,14 @@ public class ChallengeController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<ChallengeDto>>> getChallenges(HttpServletRequest httpRequest) {
-        Integer userId = null;
-        try {
-            String token = extractToken(httpRequest);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
-            }
-            userId = jwtUtil.getUserId(token);
-        } catch (Exception e) {
-            log.warn("[ChallengeController] getChallenges: failed to extract userId", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
+        Integer userId = extractUserId(httpRequest);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("인증이 필요합니다."));
         }
+        
         log.debug("[ChallengeController] getChallenges userId={}", userId);
+        
         try {
             List<ChallengeDto> challenges = challengeService.getChallengesByUserId(userId);
             return ResponseEntity.ok(ApiResponse.success(challenges));
@@ -96,18 +85,14 @@ public class ChallengeController {
      */
     @GetMapping("/active")
     public ResponseEntity<ApiResponse<List<ChallengeDto>>> getActiveChallenges(HttpServletRequest httpRequest) {
-        Integer userId = null;
-        try {
-            String token = extractToken(httpRequest);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
-            }
-            userId = jwtUtil.getUserId(token);
-        } catch (Exception e) {
-            log.warn("[ChallengeController] getActiveChallenges: failed to extract userId", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
+        Integer userId = extractUserId(httpRequest);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("인증이 필요합니다."));
         }
+        
         log.debug("[ChallengeController] getActiveChallenges userId={}", userId);
+        
         try {
             List<ChallengeDto> challenges = challengeService.getActiveChallenges(userId);
             return ResponseEntity.ok(ApiResponse.success(challenges));
@@ -122,20 +107,18 @@ public class ChallengeController {
      * 챌린지 상세 조회
      */
     @GetMapping("/{challengeId}")
-    public ResponseEntity<ApiResponse<ChallengeDto>> getChallengeById(HttpServletRequest httpRequest,
-            @PathVariable Long challengeId) {
-        Integer userId = null;
-        try {
-            String token = extractToken(httpRequest);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
-            }
-            userId = jwtUtil.getUserId(token);
-        } catch (Exception e) {
-            log.warn("[ChallengeController] getChallengeById: failed to extract userId", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
+    public ResponseEntity<ApiResponse<ChallengeDto>> getChallengeById(
+            HttpServletRequest httpRequest,
+            @PathVariable Long challengeId
+    ) {
+        Integer userId = extractUserId(httpRequest);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("인증이 필요합니다."));
         }
+        
         log.debug("[ChallengeController] getChallengeById challengeId={}, userId={}", challengeId, userId);
+        
         try {
             ChallengeDto challenge = challengeService.getChallengeById(challengeId, userId);
             return ResponseEntity.ok(ApiResponse.success(challenge));
@@ -153,21 +136,19 @@ public class ChallengeController {
      * 챌린지 수정
      */
     @PutMapping("/{challengeId}")
-    public ResponseEntity<ApiResponse<Void>> updateChallenge(HttpServletRequest httpRequest,
+    public ResponseEntity<ApiResponse<Void>> updateChallenge(
+            HttpServletRequest httpRequest,
             @PathVariable Long challengeId,
-            @RequestBody ChallengeCreateRequest request) {
-        Integer userId = null;
-        try {
-            String token = extractToken(httpRequest);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
-            }
-            userId = jwtUtil.getUserId(token);
-        } catch (Exception e) {
-            log.warn("[ChallengeController] updateChallenge: failed to extract userId", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
+            @RequestBody ChallengeCreateRequest request
+    ) {
+        Integer userId = extractUserId(httpRequest);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("인증이 필요합니다."));
         }
+        
         log.info("[ChallengeController] updateChallenge challengeId={}, userId={}", challengeId, userId);
+        
         try {
             challengeService.updateChallenge(challengeId, userId, request);
             return ResponseEntity.ok(ApiResponse.success(null));
@@ -185,20 +166,18 @@ public class ChallengeController {
      * 챌린지 완료 처리
      */
     @PatchMapping("/{challengeId}/complete")
-    public ResponseEntity<ApiResponse<Void>> completeChallenge(HttpServletRequest httpRequest,
-            @PathVariable Long challengeId) {
-        Integer userId = null;
-        try {
-            String token = extractToken(httpRequest);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
-            }
-            userId = jwtUtil.getUserId(token);
-        } catch (Exception e) {
-            log.warn("[ChallengeController] completeChallenge: failed to extract userId", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
+    public ResponseEntity<ApiResponse<Void>> completeChallenge(
+            HttpServletRequest httpRequest,
+            @PathVariable Long challengeId
+    ) {
+        Integer userId = extractUserId(httpRequest);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("인증이 필요합니다."));
         }
+        
         log.info("[ChallengeController] completeChallenge challengeId={}, userId={}", challengeId, userId);
+        
         try {
             challengeService.completeChallenge(challengeId, userId);
             return ResponseEntity.ok(ApiResponse.success(null));
@@ -216,20 +195,18 @@ public class ChallengeController {
      * 챌린지 삭제
      */
     @DeleteMapping("/{challengeId}")
-    public ResponseEntity<ApiResponse<Void>> deleteChallenge(HttpServletRequest httpRequest,
-            @PathVariable Long challengeId) {
-        Integer userId = null;
-        try {
-            String token = extractToken(httpRequest);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
-            }
-            userId = jwtUtil.getUserId(token);
-        } catch (Exception e) {
-            log.warn("[ChallengeController] deleteChallenge: failed to extract userId", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
+    public ResponseEntity<ApiResponse<Void>> deleteChallenge(
+            HttpServletRequest httpRequest,
+            @PathVariable Long challengeId
+    ) {
+        Integer userId = extractUserId(httpRequest);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("인증이 필요합니다."));
         }
+        
         log.info("[ChallengeController] deleteChallenge challengeId={}, userId={}", challengeId, userId);
+        
         try {
             challengeService.deleteChallenge(challengeId, userId);
             return ResponseEntity.ok(ApiResponse.success(null));
@@ -247,27 +224,30 @@ public class ChallengeController {
      * 챌린지 아이템 토글
      */
     @PatchMapping("/items/{itemId}")
-    public ResponseEntity<ApiResponse<Void>> toggleChallengeItem(
+    public ResponseEntity<ApiResponse<ChallengeDto>> toggleChallengeItem(
             HttpServletRequest httpRequest,
             @PathVariable Long itemId,
             @RequestBody Map<String, Boolean> payload
     ) {
-        Integer userId = null;
-        try {
-            String token = extractToken(httpRequest);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
-            }
-            userId = jwtUtil.getUserId(token);
-        } catch (Exception e) {
-            log.warn("[ChallengeController] toggleChallengeItem: failed to extract userId", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("인증이 필요합니다."));
+        Integer userId = extractUserId(httpRequest);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("인증이 필요합니다."));
         }
-        log.info("[ChallengeController] toggleChallengeItem itemId={}, userId={}, done={}", itemId, userId, payload.get("done"));
+
+        log.info("[ChallengeController] toggleChallengeItem itemId={}, userId={}, done={}",
+                itemId, userId, payload.get("done"));
+
         try {
             Boolean done = payload.get("done");
             challengeService.toggleChallengeItem(itemId, userId, done);
-            return ResponseEntity.ok(ApiResponse.success(null));
+
+            // 반환: 변경된 챌린지 상태(진척도 포함)를 바로 내려줘서 프론트가 갱신할 수 있게 함
+            ChallengeDto updated = challengeService.getChallengeById(challengeService.selectChallengeIdByItemId(itemId), userId);
+            return ResponseEntity.ok(ApiResponse.success(updated));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404)
+                    .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             log.error("[ChallengeController] toggleChallengeItem failed", e);
             return ResponseEntity.internalServerError()
@@ -275,7 +255,28 @@ public class ChallengeController {
         }
     }
 
-    // 재사용: 요청에서 토큰 추출 (Authorization 우선, 없으면 accessToken 쿠키)
+    // ===== Private Helper Methods =====
+
+    /**
+     * 🔥 요청에서 userId 추출 (Authorization 헤더 또는 쿠키에서 토큰 추출)
+     */
+    private Integer extractUserId(HttpServletRequest request) {
+        try {
+            String token = extractToken(request);
+            if (token == null || !jwtUtil.validateToken(token)) {
+                log.warn("[ChallengeController] extractUserId: missing or invalid token");
+                return null;
+            }
+            return jwtUtil.getUserId(token);
+        } catch (Exception e) {
+            log.warn("[ChallengeController] extractUserId: failed to extract userId", e);
+            return null;
+        }
+    }
+
+    /**
+     * 요청에서 JWT 토큰 추출 (Authorization 우선, 없으면 accessToken 쿠키)
+     */
     private String extractToken(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -283,7 +284,9 @@ public class ChallengeController {
         }
         if (request.getCookies() != null) {
             for (var c : request.getCookies()) {
-                if ("accessToken".equals(c.getName())) return c.getValue();
+                if ("accessToken".equals(c.getName())) {
+                    return c.getValue();
+                }
             }
         }
         return null;

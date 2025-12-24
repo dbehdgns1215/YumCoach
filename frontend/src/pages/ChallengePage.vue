@@ -83,9 +83,40 @@ function closeCreate() {
     initialData.value = null
 }
 
-function onUpdate(updated) {
+async function onUpdate(updated) {
     const idx = challenges.value.findIndex(c => c.id === updated.id)
-    if (idx >= 0) challenges.value[idx] = updated
+    if (idx < 0) return
+
+    const original = JSON.parse(JSON.stringify(challenges.value[idx]))
+
+    // 변경된 아이템 탐지
+    const changedItem = updated.items.find(it => {
+        const orig = original.items.find(o => o.id === it.id)
+        return orig && orig.done !== it.done
+    })
+
+    // 변경된 항목이 없으면 로컬만 갱신
+    if (!changedItem) {
+        challenges.value[idx] = updated
+        return
+    }
+
+    // 서버에 토글 요청을 보내고, 서버가 반환한 최신 챌린지로 대체
+    try {
+        const res = await api.patch(`/challenges/items/${changedItem.id}`, { done: changedItem.done })
+        const serverData = res.data && res.data.data
+        if (serverData) {
+            challenges.value[idx] = serverData
+            showToast('항목이 업데이트되었습니다', 'success', 1200)
+        } else {
+            challenges.value[idx] = updated
+        }
+    } catch (e) {
+        console.error('[ChallengePage] item update failed', e)
+        showToast('항목 업데이트 실패', 'error')
+        // 실패하면 로컬 변경 롤백
+        challenges.value[idx] = original
+    }
 }
 
 async function createFromModal(payload) {
