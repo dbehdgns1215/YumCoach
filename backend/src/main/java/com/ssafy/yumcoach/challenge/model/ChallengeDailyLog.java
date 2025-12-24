@@ -1,4 +1,4 @@
-package com.ssafy.yumcoach.challenge.entity;
+package com.ssafy.yumcoach.challenge.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
