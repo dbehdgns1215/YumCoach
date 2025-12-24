@@ -40,7 +40,7 @@ public class SecurityConfig {
                         // 공개 엔드포인트
                         .requestMatchers("/", "/health", "/error").permitAll()
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/api/user/signin", "/api/user/signup").permitAll()
+                        .requestMatchers("/api/user/signin", "/api/user/signup", "/api/user/refresh").permitAll()
                         .requestMatchers("/api/community").permitAll()
 
                         // Swagger/Springdoc

@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yumcoach.challenge.mapper.ChallengeMapper">
+
+    <!-- ResultMap: Challenge -->
+    <resultMap id="ChallengeResultMap" type="com.ssafy.yumcoach.challenge.entity.Challenge">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="goalType" column="goal_type"/>
+        <result property="goalDetails" column="goal_details"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="durationDays" column="duration_days"/>
+        <result property="status" column="status"/>
+        <result property="currentStreak" column="current_streak"/>
+        <result property="maxStreak" column="max_streak"/>
+        <result property="totalSuccessDays" column="total_success_days"/>
+        <result property="successRate" column="success_rate"/>
+        <result property="source" column="source"/>
+        <result property="sourceId" column="source_id"/>
+        <result property="sourceData" column="source_data"/>
+        <result property="aiGenerated" column="ai_generated"/>
+        <result property="aiPrompt" column="ai_prompt"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="completedAt" column="completed_at"/>
+    </resultMap>
+
+    <!-- ResultMap: ChallengeItem -->
+    <resultMap id="ChallengeItemResultMap" type="com.ssafy.yumcoach.challenge.entity.ChallengeItem">
+        <id property="id" column="id"/>
+        <result property="challengeId" column="challenge_id"/>
+        <result property="itemText" column="item_text"/>
+        <result property="itemType" column="item_type"/>
+        <result property="targetDate" column="target_date"/>
+        <result property="orderIdx" column="order_idx"/>
+        <result property="done" column="done"/>
+        <result property="doneAt" column="done_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- ResultMap: ChallengeDailyLog -->
+    <resultMap id="DailyLogResultMap" type="com.ssafy.yumcoach.challenge.entity.ChallengeDailyLog">
+        <id property="id" column="id"/>
+        <result property="challengeId" column="challenge_id"/>
+        <result property="logDate" column="log_date"/>
+        <result property="targetValue" column="target_value"/>
+        <result property="actualValue" column="actual_value"/>
+        <result property="isAchieved" column="is_achieved"/>
+        <result property="achievementRate" column="achievement_rate"/>
+        <result property="fromReportId" column="from_report_id"/>
+        <result property="reportData" column="report_data"/>
+        <result property="aiFeedback" column="ai_feedback"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- ========== Challenge ========== -->
+
+    <insert id="insertChallenge" parameterType="com.ssafy.yumcoach.challenge.entity.Challenge"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO challenges (
+            user_id, title, description, goal_type, goal_details,
+            start_date, end_date, status, current_streak, max_streak,
+            total_success_days, success_rate, source, source_id, source_data,
+            ai_generated, ai_prompt, created_at, updated_at
+        ) VALUES (
+                     #{userId}, #{title}, #{description}, #{goalType}, #{goalDetails},
+                     #{startDate}, #{endDate}, #{status}, #{currentStreak}, #{maxStreak},
+                     #{totalSuccessDays}, #{successRate}, #{source}, #{sourceId}, #{sourceData},
+                     #{aiGenerated}, #{aiPrompt}, NOW(), NOW()
+                 )
+    </insert>
+
+    <select id="selectChallengeById" resultMap="ChallengeResultMap">
+        SELECT * FROM challenges WHERE id = #{id}
+    </select>
+
+    <select id="selectChallengesByUserId" resultMap="ChallengeResultMap">
+        SELECT * FROM challenges
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectActiveChallengesByUserId" resultMap="ChallengeResultMap">
+        SELECT * FROM challenges
+        WHERE user_id = #{userId} AND status = 'ACTIVE'
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateChallenge">
+        UPDATE challenges SET
+                              title = #{title},
+                              description = #{description},
+                              goal_type = #{goalType},
+                              goal_details = #{goalDetails},
+                              start_date = #{startDate},
+                              end_date = #{endDate},
+                              status = #{status},
+                              updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateChallengeProgress">
+        UPDATE challenges SET
+                              current_streak = #{currentStreak},
+                              max_streak = #{maxStreak},
+                              total_success_days = #{totalSuccessDays},
+                              success_rate = #{successRate},
+                              updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateChallengeStatus">
+        UPDATE challenges SET
+                              status = #{status},
+                              updated_at = NOW(),
+                              completed_at = CASE WHEN #{status} IN ('COMPLETED', 'FAILED', 'ABANDONED') THEN NOW() ELSE completed_at END
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteChallenge">
+        DELETE FROM challenges WHERE id = #{id}
+    </delete>
+
+    <!-- ========== ChallengeItem ========== -->
+
+    <insert id="insertChallengeItem" parameterType="com.ssafy.yumcoach.challenge.entity.ChallengeItem"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO challenge_items (
+            challenge_id, item_text, item_type, target_date, order_idx, done, created_at, updated_at
+        ) VALUES (
+                     #{challengeId}, #{itemText}, #{itemType}, #{targetDate}, #{orderIdx}, #{done}, NOW(), NOW()
+                 )
+    </insert>
+
+    <select id="selectItemsByChallengeId" resultMap="ChallengeItemResultMap">
+        SELECT * FROM challenge_items
+        WHERE challenge_id = #{challengeId}
+        ORDER BY order_idx ASC
+    </select>
+
+    <update id="updateChallengeItem">
+        UPDATE challenge_items SET
+                                   item_text = #{itemText},
+                                   done = #{done},
+                                   done_at = #{doneAt},
+                                   updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteChallengeItemsByChallengeId">
+        DELETE FROM challenge_items WHERE challenge_id = #{challengeId}
+    </delete>
+
+    <!-- ========== ChallengeDailyLog ========== -->
+
+    <insert id="insertDailyLog" parameterType="com.ssafy.yumcoach.challenge.entity.ChallengeDailyLog"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO challenge_daily_logs (
+            challenge_id, log_date, target_value, actual_value, is_achieved, achievement_rate,
+            from_report_id, report_data, ai_feedback, created_at, updated_at
+        ) VALUES (
+                     #{challengeId}, #{logDate}, #{targetValue}, #{actualValue}, #{isAchieved}, #{achievementRate},
+                     #{fromReportId}, #{reportData}, #{aiFeedback}, NOW(), NOW()
+                 )
+    </insert>
+
+    <select id="selectDailyLog" resultMap="DailyLogResultMap">
+        SELECT * FROM challenge_daily_logs
+        WHERE challenge_id = #{challengeId} AND log_date = #{logDate}
+    </select>
+
+    <select id="selectRecentLogs" resultMap="DailyLogResultMap">
+        SELECT * FROM challenge_daily_logs
+        WHERE challenge_id = #{challengeId}
+        ORDER BY log_date DESC
+            LIMIT #{days}
+    </select>
+
+    <update id="updateDailyLog">
+        UPDATE challenge_daily_logs SET
+                                        target_value = #{targetValue},
+                                        actual_value = #{actualValue},
+                                        is_achieved = #{isAchieved},
+                                        achievement_rate = #{achievementRate},
+                                        report_data = #{reportData},
+                                        ai_feedback = #{aiFeedback},
+                                        updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteDailyLogsByChallengeId">
+        DELETE FROM challenge_daily_logs WHERE challenge_id = #{challengeId}
+    </delete>
+
+</mapper>
