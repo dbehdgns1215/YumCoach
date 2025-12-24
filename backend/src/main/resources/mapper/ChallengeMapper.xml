@@ -5,7 +5,7 @@
 <mapper namespace="com.ssafy.yumcoach.challenge.model.mapper.ChallengeMapper">
 
     <!-- ResultMap: Challenge -->
-    <resultMap id="ChallengeResultMap" type="com.ssafy.yumcoach.challenge.entity.Challenge">
+    <resultMap id="ChallengeResultMap" type="com.ssafy.yumcoach.challenge.model.Challenge">
         <id property="id" column="id"/>
         <result property="userId" column="user_id"/>
         <result property="title" column="title"/>
@@ -31,7 +31,7 @@
     </resultMap>
 
     <!-- ResultMap: ChallengeItem -->
-    <resultMap id="ChallengeItemResultMap" type="com.ssafy.yumcoach.challenge.entity.ChallengeItem">
+    <resultMap id="ChallengeItemResultMap" type="com.ssafy.yumcoach.challenge.model.ChallengeItem">
         <id property="id" column="id"/>
         <result property="challengeId" column="challenge_id"/>
         <result property="itemText" column="item_text"/>
@@ -45,7 +45,7 @@
     </resultMap>
 
     <!-- ResultMap: ChallengeDailyLog -->
-    <resultMap id="DailyLogResultMap" type="com.ssafy.yumcoach.challenge.entity.ChallengeDailyLog">
+    <resultMap id="DailyLogResultMap" type="com.ssafy.yumcoach.challenge.model.ChallengeDailyLog">
         <id property="id" column="id"/>
         <result property="challengeId" column="challenge_id"/>
         <result property="logDate" column="log_date"/>
@@ -62,7 +62,7 @@
 
     <!-- ========== Challenge ========== -->
 
-    <insert id="insertChallenge" parameterType="com.ssafy.yumcoach.challenge.entity.Challenge"
+    <insert id="insertChallenge" parameterType="com.ssafy.yumcoach.challenge.model.Challenge"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO challenges (
             user_id, title, description, goal_type, goal_details,
@@ -130,7 +130,7 @@
 
     <!-- ========== ChallengeItem ========== -->
 
-    <insert id="insertChallengeItem" parameterType="com.ssafy.yumcoach.challenge.entity.ChallengeItem"
+    <insert id="insertChallengeItem" parameterType="com.ssafy.yumcoach.challenge.model.ChallengeItem"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO challenge_items (
             challenge_id, item_text, item_type, target_date, order_idx, done, created_at, updated_at
@@ -160,7 +160,7 @@
 
     <!-- ========== ChallengeDailyLog ========== -->
 
-    <insert id="insertDailyLog" parameterType="com.ssafy.yumcoach.challenge.entity.ChallengeDailyLog"
+    <insert id="insertDailyLog" parameterType="com.ssafy.yumcoach.challenge.model.ChallengeDailyLog"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO challenge_daily_logs (
             challenge_id, log_date, target_value, actual_value, is_achieved, achievement_rate,

@@ -1,8 +1,8 @@
 package com.ssafy.yumcoach.challenge.model.mapper;
 
-import com.ssafy.yumcoach.challenge.entity.Challenge;
-import com.ssafy.yumcoach.challenge.entity.ChallengeDailyLog;
-import com.ssafy.yumcoach.challenge.entity.ChallengeItem;
+import com.ssafy.yumcoach.challenge.model.Challenge;
+import com.ssafy.yumcoach.challenge.model.ChallengeDailyLog;
+import com.ssafy.yumcoach.challenge.model.ChallengeItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

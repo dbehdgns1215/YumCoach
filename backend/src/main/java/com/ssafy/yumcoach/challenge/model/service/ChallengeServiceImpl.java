@@ -2,9 +2,9 @@ package com.ssafy.yumcoach.challenge.model.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafy.yumcoach.challenge.entity.Challenge;
-import com.ssafy.yumcoach.challenge.entity.ChallengeDailyLog;
-import com.ssafy.yumcoach.challenge.entity.ChallengeItem;
+import com.ssafy.yumcoach.challenge.model.Challenge;
+import com.ssafy.yumcoach.challenge.model.ChallengeDailyLog;
+import com.ssafy.yumcoach.challenge.model.ChallengeItem;
 import com.ssafy.yumcoach.challenge.model.mapper.ChallengeMapper;
 import com.ssafy.yumcoach.challenge.model.ChallengeCreateRequest;
 import com.ssafy.yumcoach.challenge.model.ChallengeDailyLogDto;
