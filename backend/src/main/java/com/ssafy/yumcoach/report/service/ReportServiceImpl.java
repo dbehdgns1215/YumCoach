@@ -278,6 +278,27 @@ public class ReportServiceImpl implements ReportService {
         try {
             if (report.getUserId() != null) {
                 var activeCh = challengeService.getActiveChallenges(report.getUserId());
+                // If there are active challenges, record today's progress (persist daily logs)
+                if (activeCh != null && !activeCh.isEmpty()) {
+                    // build reportData map for challenge evaluation
+                    Map<String, Object> reportData = new HashMap<>();
+                    reportData.put("totalCalories", report.getTotalCalories());
+                    reportData.put("totalProtein", report.getProteinG());
+                    reportData.put("totalCarbs", report.getCarbG());
+                    reportData.put("totalFat", report.getFatG());
+                    reportData.put("mealCount", report.getMealCount());
+                    // record daily log for each active challenge so DB and recentLogs are updated
+                    LocalDate logDate = report.getDate() != null ? report.getDate() : LocalDate.now();
+                    for (var ch : activeCh) {
+                        try {
+                            challengeService.recordDailyLog(ch.getId(), logDate, reportData);
+                        } catch (Exception ex) {
+                            log.warn("analyzeReport: failed to recordDailyLog for challengeId={} reportId={} error={}", ch.getId(), reportId, ex.toString());
+                        }
+                    }
+                    // re-load active challenges so DTOs include updated recentLogs/progress
+                    activeCh = challengeService.getActiveChallenges(report.getUserId());
+                }
                 report.setActiveChallenges(activeCh);
                 log.debug("analyzeReport: attached {} activeChallenges for reportId={}", activeCh == null ? 0 : activeCh.size(), reportId);
             }
