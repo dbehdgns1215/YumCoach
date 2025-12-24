@@ -1,7 +1,9 @@
 <template>
-    <div class="container">
-        <div class="card" v-if="!loading">
-            <div v-if="isSuccess" class="success">
+    <div class="overlay">
+        <div v-if="!loading" class="modal">
+            <button class="close-btn" @click="goHome" aria-label="닫기">✕</button>
+
+            <div v-if="isSuccess" class="content success">
                 <div class="icon">✓</div>
                 <h1>결제가 완료되었습니다!</h1>
                 <p class="message">YumCoach Advanced 구독을 시작합니다.</p>
@@ -21,12 +23,12 @@
                     </div>
                 </div>
 
-                <button class="btn primary" @click="goHome">
-                    홈으로 돌아가기
-                </button>
+                <div class="actions">
+                    <button class="btn primary" @click="goHome">홈으로 돌아가기</button>
+                </div>
             </div>
 
-            <div v-else class="error">
+            <div v-else class="content error">
                 <div class="icon">✕</div>
                 <h1>결제 승인 실패</h1>
                 <p class="message">{{ errorMessage }}</p>
@@ -38,7 +40,7 @@
             </div>
         </div>
 
-        <div v-else class="loading">
+        <div v-else class="modal loading">
             <div class="spinner"></div>
             <p>결제를 승인하는 중입니다...</p>
         </div>
@@ -132,28 +134,61 @@ function retry()
 </script>
 
 <style scoped>
-.container {
-    min-height: 100vh;
+.overlay {
+    position: fixed;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 24px;
+    background: radial-gradient(circle at 20% 20%, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.1)),
+        linear-gradient(135deg, rgba(102, 126, 234, 0.55) 0%, rgba(118, 75, 162, 0.55) 100%);
+    backdrop-filter: blur(6px);
+    z-index: 1000;
 }
 
-.card {
-    width: min(500px, 100%);
+.modal {
+    position: relative;
+    width: min(520px, 100%);
     background: #ffffff;
-    border-radius: 24px;
-    padding: 48px 32px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    padding: 40px 32px;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
     text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    border: none;
+    background: #f3f4f6;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: #e5e7eb;
+    transform: translateY(-1px);
 }
 
 .success .icon {
     width: 80px;
     height: 80px;
-    margin: 0 auto 24px;
+    margin: 0 auto;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #ffffff;
     border-radius: 50%;
@@ -168,7 +203,7 @@ function retry()
 .error .icon {
     width: 80px;
     height: 80px;
-    margin: 0 auto 24px;
+    margin: 0 auto;
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     color: #ffffff;
     border-radius: 50%;
@@ -181,32 +216,33 @@ function retry()
 }
 
 h1 {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 900;
-    margin: 0 0 12px 0;
-    color: #1f2937;
+    margin: 10px 0 0 0;
+    color: #111827;
 }
 
 .message {
-    font-size: 16px;
-    color: #6b7280;
-    margin: 0 0 32px 0;
+    font-size: 15px;
+    color: #4b5563;
+    margin: 0 0 14px 0;
     line-height: 1.6;
 }
 
 .details {
     background: #f9fafb;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 32px;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-top: 6px;
     text-align: left;
+    border: 1px solid #e5e7eb;
 }
 
 .detail-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 0;
+    padding: 10px 0;
     border-bottom: 1px solid #e5e7eb;
 }
 
@@ -215,30 +251,30 @@ h1 {
 }
 
 .label {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
     color: #6b7280;
 }
 
 .value {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 900;
-    color: #1f2937;
+    color: #111827;
 }
 
 .actions {
     display: flex;
-    gap: 12px;
-    margin-top: 24px;
+    gap: 10px;
+    margin-top: 8px;
 }
 
 .btn {
     flex: 1;
-    padding: 16px;
+    padding: 14px;
     border: none;
-    border-radius: 14px;
-    font-size: 16px;
-    font-weight: 900;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 800;
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -246,11 +282,12 @@ h1 {
 .btn.primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #ffffff;
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.35);
 }
 
 .btn.primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(102, 126, 234, 0.4);
 }
 
 .btn.secondary {
@@ -263,23 +300,25 @@ h1 {
 }
 
 .loading {
-    text-align: center;
-    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: #1f2937;
 }
 
 .spinner {
     width: 60px;
     height: 60px;
-    margin: 0 auto 24px;
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #ffffff;
+    border: 5px solid rgba(102, 126, 234, 0.25);
+    border-top-color: #667eea;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
 
 .loading p {
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
     margin: 0;
 }
 
@@ -325,18 +364,18 @@ h1 {
 }
 
 @media (max-width: 640px) {
-    .card {
+    .modal {
         padding: 32px 24px;
     }
 
     h1 {
-        font-size: 24px;
+        font-size: 22px;
     }
 
     .icon {
         width: 64px !important;
         height: 64px !important;
-        font-size: 36px !important;
+        font-size: 34px !important;
     }
 }
 </style>

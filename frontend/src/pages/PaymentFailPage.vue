@@ -1,6 +1,8 @@
 <template>
-    <div class="container">
-        <div class="card">
+    <div class="overlay">
+        <div class="modal">
+            <button class="close-btn" @click="goHome" aria-label="닫기">✕</button>
+
             <div class="icon">✕</div>
             <h1>결제 실패</h1>
             <p class="message">{{ errorMessage }}</p>
@@ -55,28 +57,55 @@ function retry()
 </script>
 
 <style scoped>
-.container {
-    min-height: 100vh;
+.overlay {
+    position: fixed;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    padding: 24px;
+    background: radial-gradient(circle at 15% 20%, rgba(240, 147, 251, 0.25), rgba(245, 87, 108, 0.15)),
+        linear-gradient(135deg, rgba(240, 147, 251, 0.6) 0%, rgba(245, 87, 108, 0.6) 100%);
+    backdrop-filter: blur(6px);
+    z-index: 1000;
 }
 
-.card {
-    width: min(500px, 100%);
+.modal {
+    position: relative;
+    width: min(480px, 100%);
     background: #ffffff;
-    border-radius: 24px;
-    padding: 48px 32px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    padding: 40px 32px;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
     text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    border: none;
+    background: #f3f4f6;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: #e5e7eb;
+    transform: translateY(-1px);
 }
 
 .icon {
     width: 80px;
     height: 80px;
-    margin: 0 auto 24px;
+    margin: 0 auto 16px;
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     color: #ffffff;
     border-radius: 50%;
@@ -89,16 +118,16 @@ function retry()
 }
 
 h1 {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 900;
-    margin: 0 0 12px 0;
-    color: #1f2937;
+    margin: 0 0 8px 0;
+    color: #111827;
 }
 
 .message {
-    font-size: 16px;
-    color: #6b7280;
-    margin: 0 0 20px 0;
+    font-size: 15px;
+    color: #4b5563;
+    margin: 0 0 12px 0;
     line-height: 1.6;
 }
 
@@ -107,24 +136,25 @@ h1 {
     border: 1px solid #fecaca;
     border-radius: 12px;
     padding: 12px 16px;
-    margin-bottom: 32px;
+    margin: 8px 0 24px 0;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     color: #dc2626;
 }
 
 .actions {
     display: flex;
-    gap: 12px;
+    gap: 10px;
+    margin-top: 10px;
 }
 
 .btn {
     flex: 1;
-    padding: 16px;
+    padding: 14px;
     border: none;
-    border-radius: 14px;
-    font-size: 16px;
-    font-weight: 900;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 800;
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -132,11 +162,12 @@ h1 {
 .btn.primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #ffffff;
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.35);
 }
 
 .btn.primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(102, 126, 234, 0.4);
 }
 
 .btn.secondary {
@@ -172,18 +203,18 @@ h1 {
 }
 
 @media (max-width: 640px) {
-    .card {
+    .modal {
         padding: 32px 24px;
     }
 
     h1 {
-        font-size: 24px;
+        font-size: 22px;
     }
 
     .icon {
         width: 64px;
         height: 64px;
-        font-size: 36px;
+        font-size: 34px;
     }
 }
 </style>
