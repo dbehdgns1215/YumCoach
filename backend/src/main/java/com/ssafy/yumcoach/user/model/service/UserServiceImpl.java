@@ -15,10 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-    
+
     private final UserMapper userMapper;
     private final UserDietRestrictionMapper restrictionMapper;
-    
+
     @Override
     @Transactional
     public void signup(User user) {
@@ -27,16 +27,16 @@ public class UserServiceImpl implements UserService {
         if (existingUser != null) {
             throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
         }
-        
+
         // 회원 등록
         userMapper.insertUser(user);
-        
+
         // 건강정보 초기화
         userMapper.insertUserHealth(user.getId());
-        
+
         log.info("User registered: {}", user.getEmail());
     }
-    
+
     @Override
     public User signin(String email, String password) {
         User user = userMapper.findByEmailAndPassword(email, password);
@@ -46,12 +46,12 @@ public class UserServiceImpl implements UserService {
         log.info("User logged in: {}", email);
         return user;
     }
-    
+
     @Override
     public User findByEmail(String email) {
         return userMapper.findByEmail(email);
     }
-    
+
     @Override
     public User findById(Integer id) {
         return userMapper.findById(id);
@@ -82,7 +82,7 @@ public class UserServiceImpl implements UserService {
         }
         log.info("UserDietRestrictions updated for userId={}", userId);
     }
-    
+
     @Override
     public UserHealth findUserHealthByUserId(Integer userId) {
         UserHealth userHealth = userMapper.findUserHealthByUserId(userId);
@@ -91,11 +91,18 @@ public class UserServiceImpl implements UserService {
         }
         return userHealth;
     }
-    
+
     @Override
     @Transactional
     public void updateUserHealth(UserHealth userHealth) {
         userMapper.updateUserHealth(userHealth);
         log.info("UserHealth updated for userId: {}", userHealth.getUserId());
+    }
+
+    @Override
+    @Transactional
+    public void updateUserRole(Integer id, String role) {
+        userMapper.updateUserRole(id, role);
+        log.info("User role updated: id={}, role={}", id, role);
     }
 }

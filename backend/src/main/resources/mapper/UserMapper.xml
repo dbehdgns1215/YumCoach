@@ -73,4 +73,11 @@
         WHERE user_id = #{userId}
     </update>
 
+    <!-- 역할 변경 -->
+    <update id="updateUserRole">
+        UPDATE user
+        SET role = #{role}
+        WHERE id = #{id}
+    </update>
+
 </mapper>

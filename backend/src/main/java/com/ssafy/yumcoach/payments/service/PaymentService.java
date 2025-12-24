@@ -13,6 +13,7 @@ import com.ssafy.yumcoach.payments.model.Payment;
 import com.ssafy.yumcoach.payments.model.Subscription;
 import com.ssafy.yumcoach.payments.model.mapper.PaymentMapper;
 import com.ssafy.yumcoach.payments.model.mapper.SubscriptionMapper;
+import com.ssafy.yumcoach.user.model.service.UserService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class PaymentService {
     private final PaymentMapper paymentMapper;
     private final SubscriptionMapper subscriptionMapper;
     private final ObjectMapper objectMapper;
+    private final UserService userService;
 
     /** 결제 성공 시 DB 저장 및 구독 갱신 */
     public void recordPaymentAndSubscription(Map<String, Object> paymentData, Integer userId, String planType) {
@@ -50,6 +52,15 @@ public class PaymentService {
                 subscriptionMapper.upsertSubscription(subscription);
             } catch (Exception e) {
                 log.error("Failed to upsert subscription for userId={}: {}", userId, e.getMessage(), e);
+                throw e;
+            }
+
+            // 구독 활성화 시 역할을 ADVANCED로 승격
+            try {
+                userService.updateUserRole(userId, "ADVANCED");
+                log.info("User role upgraded to ADVANCED. userId={}", userId);
+            } catch (Exception e) {
+                log.error("Failed to update user role to ADVANCED for userId={}: {}", userId, e.getMessage(), e);
                 throw e;
             }
         } else {
