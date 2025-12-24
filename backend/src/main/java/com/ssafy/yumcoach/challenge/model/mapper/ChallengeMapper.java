@@ -27,7 +27,8 @@ public interface ChallengeMapper {
                                  @Param("currentStreak") Integer currentStreak,
                                  @Param("maxStreak") Integer maxStreak,
                                  @Param("totalSuccessDays") Integer totalSuccessDays,
-                                 @Param("successRate") Double successRate);
+                                 @Param("achievementRate") Double achievementRate,
+                                 @Param("progressRate") Double progressRate);
 
     void updateChallengeStatus(@Param("id") Long id, @Param("status") String status);
 

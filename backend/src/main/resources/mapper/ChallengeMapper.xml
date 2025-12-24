@@ -67,12 +67,12 @@
         INSERT INTO challenges (
             user_id, title, description, goal_type, goal_details,
             start_date, end_date, status, current_streak, max_streak,
-            total_success_days, success_rate, source, source_id, source_data,
+            total_success_days, achievement_rate, progress_rate, source, source_id, source_data,
             ai_generated, ai_prompt, created_at, updated_at
         ) VALUES (
                      #{userId}, #{title}, #{description}, #{goalType}, #{goalDetails},
                      #{startDate}, #{endDate}, #{status}, #{currentStreak}, #{maxStreak},
-                     #{totalSuccessDays}, #{successRate}, #{source}, #{sourceId}, #{sourceData},
+                     #{totalSuccessDays}, #{achievementRate}, #{progressRate}, #{source}, #{sourceId}, #{sourceData},
                      #{aiGenerated}, #{aiPrompt}, NOW(), NOW()
                  )
     </insert>
@@ -111,7 +111,8 @@
                               current_streak = #{currentStreak},
                               max_streak = #{maxStreak},
                               total_success_days = #{totalSuccessDays},
-                              success_rate = #{successRate},
+                              achievement_rate = #{achievementRate},
+                              progress_rate = #{progressRate},
                               updated_at = NOW()
         WHERE id = #{id}
     </update>

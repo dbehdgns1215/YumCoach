@@ -260,13 +260,16 @@ public class ReportServiceImpl implements ReportService {
     public void analyzeReport(int reportId) throws Exception {
         ReportDto report = reportMapper.selectReportById(reportId);
         if (report == null) return;
-        // Ensure meals and insights are loaded so AI receives full report context
+
+        // meals 로드
         try {
             var meals = reportMapper.selectReportMeals(reportId);
             report.setMeals(meals);
         } catch (Exception ex) {
             log.warn("analyzeReport: failed to load meals for reportId={} error={}", reportId, ex.toString());
         }
+
+        // 기존 insights 로드
         try {
             var existingInsights = reportMapper.selectReportInsights(reportId);
             report.setInsights(existingInsights);
@@ -274,40 +277,21 @@ public class ReportServiceImpl implements ReportService {
             log.warn("analyzeReport: failed to load insights for reportId={} error={}", reportId, ex.toString());
         }
 
-        // Load active challenges for this user so AI gets challenge context
+        // 활성 챌린지 로드
+        List<ChallengeDto> activeChallenges = null;
         try {
             if (report.getUserId() != null) {
-                var activeCh = challengeService.getActiveChallenges(report.getUserId());
-                // If there are active challenges, record today's progress (persist daily logs)
-                if (activeCh != null && !activeCh.isEmpty()) {
-                    // build reportData map for challenge evaluation
-                    Map<String, Object> reportData = new HashMap<>();
-                    reportData.put("totalCalories", report.getTotalCalories());
-                    reportData.put("totalProtein", report.getProteinG());
-                    reportData.put("totalCarbs", report.getCarbG());
-                    reportData.put("totalFat", report.getFatG());
-                    reportData.put("mealCount", report.getMealCount());
-                    // record daily log for each active challenge so DB and recentLogs are updated
-                    LocalDate logDate = report.getDate() != null ? report.getDate() : LocalDate.now();
-                    for (var ch : activeCh) {
-                        try {
-                            challengeService.recordDailyLog(ch.getId(), logDate, reportData);
-                        } catch (Exception ex) {
-                            log.warn("analyzeReport: failed to recordDailyLog for challengeId={} reportId={} error={}", ch.getId(), reportId, ex.toString());
-                        }
-                    }
-                    // re-load active challenges so DTOs include updated recentLogs/progress
-                    activeCh = challengeService.getActiveChallenges(report.getUserId());
-                }
-                report.setActiveChallenges(activeCh);
-                log.debug("analyzeReport: attached {} activeChallenges for reportId={}", activeCh == null ? 0 : activeCh.size(), reportId);
+                activeChallenges = challengeService.getActiveChallenges(report.getUserId());
+                report.setActiveChallenges(activeChallenges);
+                log.debug("analyzeReport: attached {} activeChallenges for reportId={}",
+                        activeChallenges == null ? 0 : activeChallenges.size(), reportId);
             }
         } catch (Exception ex) {
             log.warn("analyzeReport: failed to load active challenges for reportId={} error={}", reportId, ex.toString());
         }
 
+        // AI 분석 호출
         AiResult ai = openAiService.analyze(report);
-        // save raw AI response (for debugging / audit)
         reportMapper.updateReportAiResponse(reportId, ai.rawJson());
 
         if (ai.parsed() == null) {
@@ -316,61 +300,106 @@ public class ReportServiceImpl implements ReportService {
         }
 
         ReportAnalysisResult r = ai.parsed();
-        // Log parsed fields to diagnose mapping issues
-        log.debug("analyzeReport parsed: reportId={}, heroTitle={}, heroLine={}, score={}, coachMessagePresent={}, nextActionPresent={}, insightsCount={}",
-                reportId,
-                r.getHeroTitle(),
-                r.getHeroLine(),
-                r.getScore(),
-                r.getCoachMessage() != null,
-                r.getNextAction() != null,
-                r.getInsights() == null ? 0 : r.getInsights().size()
-        );
 
-        // persist parsed fields (may be null individually)
+        // 기본 필드 업데이트
         reportMapper.updateReportCoachMessage(reportId, r.getCoachMessage());
         reportMapper.updateReportNextAction(reportId, r.getNextAction());
         reportMapper.updateReportScore(reportId, r.getScore());
         reportMapper.updateReportHero(reportId, r.getHeroTitle(), r.getHeroLine());
 
+        // Insights 저장
         reportMapper.deleteInsightsByReportId(reportId);
-
         if (r.getInsights() != null) {
-            int inserted = 0;
             for (ReportAnalysisResult.Insight i : r.getInsights()) {
                 try {
-                    log.debug("inserting insight for reportId={} kind={} title={}", reportId, i.getKind(), i.getTitle());
-                    int res = reportMapper.insertReportInsight(reportId, i.getKind(), i.getTitle(), i.getBody());
-                    log.debug("insertReportInsight returned {} for reportId={} kind={}", res, reportId, i.getKind());
-                    if (res > 0) inserted++;
+                    reportMapper.insertReportInsight(reportId, i.getKind(), i.getTitle(), i.getBody());
                 } catch (Exception ex) {
-                    log.error("failed to insert insight for reportId={} kind={} title={} error={}", reportId, i.getKind(), i.getTitle(), ex.toString());
+                    log.error("failed to insert insight for reportId={} kind={} error={}",
+                            reportId, i.getKind(), ex.toString());
                 }
             }
-            log.debug("analyzeReport: inserted {} insights for reportId={}", inserted, reportId);
-            // Also persist coachMessage and nextAction as separate insight rows (so frontend can fallback to insights)
-            int extraInserted = 0;
-            try {
-                if (r.getCoachMessage() != null && !r.getCoachMessage().isBlank()) {
-                    int res = reportMapper.insertReportInsight(reportId, "coach", "코치 한마디", r.getCoachMessage());
-                    log.debug("insertReportInsight (coach) returned {} for reportId={}", res, reportId);
-                    if (res > 0) extraInserted++;
-                }
-            } catch (Exception ex) {
-                log.error("failed to insert coach insight for reportId={} error={}", reportId, ex.toString());
+
+            // coach/action도 insights로 저장
+            if (r.getCoachMessage() != null && !r.getCoachMessage().isBlank()) {
+                reportMapper.insertReportInsight(reportId, "coach", "코치 한마디", r.getCoachMessage());
             }
-            try {
-                if (r.getNextAction() != null && !r.getNextAction().isBlank()) {
-                    int res = reportMapper.insertReportInsight(reportId, "action", "권장 행동", r.getNextAction());
-                    log.debug("insertReportInsight (action) returned {} for reportId={}", res, reportId);
-                    if (res > 0) extraInserted++;
-                }
-            } catch (Exception ex) {
-                log.error("failed to insert action insight for reportId={} error={}", reportId, ex.toString());
+            if (r.getNextAction() != null && !r.getNextAction().isBlank()) {
+                reportMapper.insertReportInsight(reportId, "action", "권장 행동", r.getNextAction());
             }
-            if (extraInserted > 0) log.debug("analyzeReport: inserted {} extra insights (coach/action) for reportId={}", extraInserted, reportId);
-        } else {
-            log.debug("analyzeReport: no insights to insert for reportId={}", reportId);
+        }
+
+        // ✨ AI 응답의 challengeProgress 처리
+        processChallengeProgress(report, ai, activeChallenges);
+    }
+    /**
+     * AI 응답에서 챌린지 진행도를 추출하여 DB에 반영
+     */
+    private void processChallengeProgress(ReportDto report, AiResult aiResult, List<ChallengeDto> activeChallenges) {
+        try {
+            if (aiResult.rawJson() == null || aiResult.rawJson().isBlank()) {
+                log.debug("[ReportService] AI 응답이 없어 챌린지 업데이트 스킵");
+                return;
+            }
+
+            if (activeChallenges == null || activeChallenges.isEmpty()) {
+                log.debug("[ReportService] 활성 챌린지가 없어 챌린지 업데이트 스킵");
+                return;
+            }
+
+            // AI 응답 파싱
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode aiResponse = mapper.readTree(aiResult.rawJson());
+            JsonNode challengeProgressNode = aiResponse.get("challengeProgress");
+
+            if (challengeProgressNode == null || !challengeProgressNode.isArray()) {
+                log.debug("[ReportService] challengeProgress 없음 - AI가 생성하지 않았거나 파싱 실패");
+                return;
+            }
+
+            // 리포트 날짜 결정
+            LocalDate logDate = report.getDate() != null ? report.getDate() :
+                    report.getToDate() != null ? report.getToDate() : LocalDate.now();
+
+            // reportData 구성 (recordDailyLog에서 사용)
+            Map<String, Object> reportData = new HashMap<>();
+            reportData.put("totalCalories", report.getTotalCalories());
+            reportData.put("totalProtein", report.getProteinG());
+            reportData.put("totalCarbs", report.getCarbG());
+            reportData.put("totalFat", report.getFatG());
+            reportData.put("mealCount", report.getMealCount());
+
+            // 각 챌린지별로 dailyLog 기록
+            for (JsonNode progress : challengeProgressNode) {
+                try {
+                    Long challengeId = progress.get("challengeId").asLong();
+
+                    // 해당 챌린지가 실제로 활성화되어 있는지 확인
+                    boolean isActiveChallenge = activeChallenges.stream()
+                            .anyMatch(ch -> ch.getId().equals(challengeId));
+
+                    if (!isActiveChallenge) {
+                        log.warn("[ReportService] challengeId={} not in active challenges, skipping", challengeId);
+                        continue;
+                    }
+
+                    // recordDailyLog 호출 (내부에서 달성 여부 재계산)
+                    challengeService.recordDailyLog(challengeId, logDate, reportData);
+
+                    log.info("[ReportService] 챌린지 업데이트 완료 - challengeId={}, date={}, " +
+                                    "isAchieved={}, rate={}%",
+                            challengeId,
+                            logDate,
+                            progress.get("isAchieved").asBoolean(),
+                            progress.get("achievementRate").asDouble());
+
+                } catch (Exception e) {
+                    log.error("[ReportService] 챌린지 진행도 업데이트 실패 - challengeId from AI response", e);
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("[ReportService] 챌린지 진행도 처리 전체 실패", e);
+            // 실패해도 리포트 생성은 성공으로 처리
         }
     }
 }

@@ -23,14 +23,15 @@
               <div class="desc">{{ c.description }}</div>
             </div>
             
+            <!-- 🔥 수정: 통계 섹션 -->
             <div class="stats-section">
               <div class="stat">
                 <span class="stat-label">연속 달성</span>
                 <span class="stat-value">{{ c.currentStreak || 0 }}일 🔥</span>
               </div>
               <div class="stat">
-                <span class="stat-label">성공률</span>
-                <span class="stat-value">{{ (c.successRate || 0).toFixed(1) }}%</span>
+                <span class="stat-label">목표 달성률</span>
+                <span class="stat-value">{{ formatRate(c.achievementRate) }}%</span>
               </div>
             </div>
           </div>
@@ -41,16 +42,20 @@
           <strong>목표:</strong> {{ formatGoal(c.goalType, c.goalDetails) }}
         </div>
 
-        <!-- 진행 바 -->
+        <!-- 🔥 수정: 진행도 바 -->
         <div class="progress-section">
+          <div class="progress-label">
+            <span>전체 진행도</span>
+            <span>{{ formatRate(c.progressRate) }}%</span>
+          </div>
           <div class="progress-bar">
             <div 
               class="progress-fill" 
-              :style="{ width: progressPercentage(c) + '%' }"
+              :style="{ width: formatRate(c.progressRate) + '%' }"
             />
           </div>
           <div class="progress-text">
-            {{ c.totalSuccessDays || 0 }} / {{ c.durationDays || 30 }}일 완료
+            {{ c.totalSuccessDays || 0 }}일 성공 / {{ elapsedDays(c) }}일 경과 (전체 {{ c.durationDays || 30 }}일)
           </div>
         </div>
 
@@ -121,15 +126,34 @@ function formatGoal(type, details) {
         'WATER': () => `물 ${parsed.water} 매일 마시기`,
         'EXERCISE': () => `${parsed.exercise} 매일 실천`,
         'HABIT': () => `${parsed.habit} 습관 만들기`,
-        'COMBINED': () => Object.entries(parsed).map(([k, v]) => `${k}: ${v}`).join(', ')
+        'CARBS': () => `탄수화물 ${parsed.carbs} 목표`,
+        'FAT': () => `지방 ${parsed.fat} 목표`,
+        'COMBINED': () => Object.entries(parsed)
+            .filter(([k]) => k !== 'frequency')
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(', ')
     }
     
     return formats[type]?.() || JSON.stringify(parsed)
 }
 
-function progressPercentage(challenge) {
-    if (!challenge.durationDays) return 0
-    return Math.min(100, ((challenge.totalSuccessDays || 0) / challenge.durationDays) * 100)
+// 🔥 추가: BigDecimal을 소수점 1자리로 포맷
+function formatRate(rate) {
+    if (!rate) return 0
+    return typeof rate === 'number' ? rate.toFixed(1) : parseFloat(rate).toFixed(1)
+}
+
+// 🔥 추가: 경과일 계산
+function elapsedDays(challenge) {
+    const today = new Date()
+    const start = new Date(challenge.startDate)
+    const end = new Date(challenge.endDate)
+    
+    if (today < start) return 0
+    if (today > end) return challenge.durationDays
+    
+    const elapsed = Math.floor((today - start) / (1000 * 60 * 60 * 24)) + 1
+    return Math.min(elapsed, challenge.durationDays)
 }
 
 function onItemUpdate(challenge, updatedItem) {
@@ -211,6 +235,17 @@ function onItemUpdate(challenge, updatedItem) {
 }
 .progress-section {
     margin: 16px 0;
+}
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+.progress-label span:last-child {
+    font-weight: 700;
+    color: var(--primary);
 }
 .progress-bar {
     width: 100%;

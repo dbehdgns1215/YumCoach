@@ -7,78 +7,123 @@
 
       <!-- 제목 -->
       <label>제목
-        <input v-model="title" placeholder="예: 단백질 200g 먹기" />
+        <input v-model="title" placeholder="예: 30일 단백질 챌린지" />
       </label>
 
       <!-- 설명 -->
       <label>설명 (선택)
-        <textarea v-model="description" rows="2" placeholder="이 챌린지에 대한 설명을 입력하세요" />
+        <textarea v-model="description" rows="2" placeholder="이 챌린지에 대한 설명" />
       </label>
 
-      <!-- 목표 타입 -->
-      <label>목표 타입
-        <select v-model="goalType">
-          <option value="PROTEIN">단백질</option>
-          <option value="CALORIE">칼로리</option>
-          <option value="WEIGHT">체중</option>
-          <option value="WATER">물 섭취</option>
-          <option value="EXERCISE">운동</option>
-          <option value="HABIT">습관</option>
-          <option value="COMBINED">복합 목표</option>
-        </select>
-      </label>
-
-      <!-- 목표 상세 (타입별로 다르게) -->
-      <div class="goal-details">
-        <!-- 단백질 -->
-        <div v-if="goalType === 'PROTEIN'">
-          <label>목표 단백질 (g/일)
-            <input type="number" v-model.number="goalProtein" placeholder="200" />
+      <!-- 🔥 목표 직접 입력 섹션 -->
+      <div class="goals-section">
+        <h4>목표 설정 <small>(원하는 항목만 입력하세요)</small></h4>
+        
+        <div class="goal-grid">
+          <!-- 칼로리 -->
+          <label class="goal-item">
+            <div class="goal-header">
+              <input type="checkbox" v-model="goals.calories.enabled" />
+              <span class="goal-label">칼로리</span>
+            </div>
+            <input 
+              type="number" 
+              v-model.number="goals.calories.value" 
+              :disabled="!goals.calories.enabled"
+              placeholder="1500"
+            />
+            <span class="unit">kcal / 일</span>
           </label>
-        </div>
 
-        <!-- 칼로리 -->
-        <div v-else-if="goalType === 'CALORIE'">
-          <label>목표 칼로리 (kcal/일)
-            <input type="number" v-model.number="goalCalories" placeholder="1500" />
+          <!-- 단백질 -->
+          <label class="goal-item">
+            <div class="goal-header">
+              <input type="checkbox" v-model="goals.protein.enabled" />
+              <span class="goal-label">단백질</span>
+            </div>
+            <input 
+              type="number" 
+              v-model.number="goals.protein.value" 
+              :disabled="!goals.protein.enabled"
+              placeholder="200"
+            />
+            <span class="unit">g / 일</span>
           </label>
-        </div>
 
-        <!-- 체중 -->
-        <div v-else-if="goalType === 'WEIGHT'">
-          <label>목표 체중 변화 (kg)
-            <input type="number" v-model.number="goalWeightChange" placeholder="-5" />
+          <!-- 탄수화물 -->
+          <label class="goal-item">
+            <div class="goal-header">
+              <input type="checkbox" v-model="goals.carbs.enabled" />
+              <span class="goal-label">탄수화물</span>
+            </div>
+            <input 
+              type="number" 
+              v-model.number="goals.carbs.value" 
+              :disabled="!goals.carbs.enabled"
+              placeholder="250"
+            />
+            <span class="unit">g / 일</span>
           </label>
-          <small style="color:var(--muted)">감량은 음수(-), 증량은 양수(+)로 입력</small>
-        </div>
 
-        <!-- 물 -->
-        <div v-else-if="goalType === 'WATER'">
-          <label>목표 물 섭취량 (L/일)
-            <input type="number" step="0.1" v-model.number="goalWater" placeholder="2.0" />
+          <!-- 지방 -->
+          <label class="goal-item">
+            <div class="goal-header">
+              <input type="checkbox" v-model="goals.fat.enabled" />
+              <span class="goal-label">지방</span>
+            </div>
+            <input 
+              type="number" 
+              v-model.number="goals.fat.value" 
+              :disabled="!goals.fat.enabled"
+              placeholder="60"
+            />
+            <span class="unit">g / 일</span>
+          </label>
+
+          <!-- 체중 -->
+          <label class="goal-item">
+            <div class="goal-header">
+              <input type="checkbox" v-model="goals.weight.enabled" />
+              <span class="goal-label">체중 변화</span>
+            </div>
+            <input 
+              type="number" 
+              step="0.1"
+              v-model.number="goals.weight.value" 
+              :disabled="!goals.weight.enabled"
+              placeholder="-5"
+            />
+            <span class="unit">kg (전체 기간)</span>
           </label>
         </div>
 
         <!-- 운동 -->
-        <div v-else-if="goalType === 'EXERCISE'">
-          <label>운동 목표
-            <input v-model="goalExercise" placeholder="예: 30분 걷기" />
-          </label>
-        </div>
+        <label class="goal-item-full">
+          <div class="goal-header">
+            <input type="checkbox" v-model="goals.exercise.enabled" />
+            <span class="goal-label">운동</span>
+          </div>
+          <input 
+            type="text"
+            v-model="goals.exercise.value" 
+            :disabled="!goals.exercise.enabled"
+            placeholder="예: 30분 걷기, 근력 운동 3세트"
+          />
+        </label>
 
         <!-- 습관 -->
-        <div v-else-if="goalType === 'HABIT'">
-          <label>습관 설명
-            <input v-model="goalHabit" placeholder="예: 야식 안 먹기" />
-          </label>
-        </div>
-
-        <!-- 복합 -->
-        <div v-else-if="goalType === 'COMBINED'">
-          <label>복합 목표 (JSON)
-            <textarea v-model="goalCombined" rows="3" placeholder='{"protein": "200g", "calories": "1500kcal"}' />
-          </label>
-        </div>
+        <label class="goal-item-full">
+          <div class="goal-header">
+            <input type="checkbox" v-model="goals.habit.enabled" />
+            <span class="goal-label">습관</span>
+          </div>
+          <input 
+            type="text"
+            v-model="goals.habit.value" 
+            :disabled="!goals.habit.enabled"
+            placeholder="예: 야식 안 먹기, 아침 거르지 않기"
+          />
+        </label>
       </div>
 
       <!-- 기간 -->
@@ -86,20 +131,25 @@
         <label>시작일
           <input type="date" v-model="startDate" />
         </label>
-        <label>기간 (일)
+        <label>기간
           <input type="number" v-model.number="durationDays" placeholder="30" />
+          <span class="unit">일</span>
         </label>
       </div>
 
       <!-- 체크리스트 항목 (선택) -->
-      <label>실천 항목 (한 줄에 하나씩, 선택사항)
-        <textarea v-model="itemsText" rows="4" placeholder="아침에 계란 3개 먹기&#10;점심에 닭가슴살 200g 먹기" />
+      <label>실천 항목 (선택사항)
+        <textarea 
+          v-model="itemsText" 
+          rows="4" 
+          placeholder="한 줄에 하나씩 입력하세요&#10;예:&#10;아침에 계란 3개 먹기&#10;점심에 닭가슴살 200g 먹기&#10; 저녁마다 신첵 20분하기" 
+        />
       </label>
 
       <template #footer>
         <div class="actions">
           <BaseButton variant="secondary" @click="onCancel">취소</BaseButton>
-          <BaseButton variant="primary" @click="onCreate">생성</BaseButton>
+          <BaseButton variant="primary" @click="onCreate" :disabled="!hasAnyGoal">생성</BaseButton>
         </div>
       </template>
     </BaseCard>
@@ -119,40 +169,124 @@ const emit = defineEmits(['close', 'create'])
 
 const title = ref('')
 const description = ref('')
-const goalType = ref('PROTEIN')
-
-// 목표별 세부 값
-const goalProtein = ref(200)
-const goalCalories = ref(1500)
-const goalWeightChange = ref(-5)
-const goalWater = ref(2.0)
-const goalExercise = ref('')
-const goalHabit = ref('')
-const goalCombined = ref('')
-
 const startDate = ref(new Date().toISOString().slice(0, 10))
 const durationDays = ref(30)
 const itemsText = ref('')
 
-// initialData로 폼 채우기 (챗봇/리포트에서 넘어온 경우)
+// 🔥 목표별 체크박스 + 값
+const goals = ref({
+  calories: { enabled: false, value: null },
+  protein: { enabled: false, value: null },
+  carbs: { enabled: false, value: null },
+  fat: { enabled: false, value: null },
+  weight: { enabled: false, value: null },
+  exercise: { enabled: false, value: '' },
+  habit: { enabled: false, value: '' }
+})
+
+// 최소 하나의 목표는 선택해야 함
+const hasAnyGoal = computed(() => {
+  return Object.values(goals.value).some(g => g.enabled)
+})
+
+// goalType 자동 결정
+const computedGoalType = computed(() => {
+  const enabled = Object.entries(goals.value)
+    .filter(([_, g]) => g.enabled)
+    .map(([key, _]) => key)
+  
+  if (enabled.length === 0) return null
+  if (enabled.length === 1) {
+    const single = enabled[0]
+    const typeMap = {
+      calories: 'CALORIE',
+      protein: 'PROTEIN',
+      carbs: 'CARBS',
+      fat: 'FAT',
+      weight: 'WEIGHT',
+      exercise: 'EXERCISE',
+      habit: 'HABIT'
+    }
+    return typeMap[single]
+  }
+  return 'COMBINED'
+})
+
+// goalDetails 자동 생성
+const computedGoalDetails = computed(() => {
+  const details = {}
+  
+  if (goals.value.calories.enabled && goals.value.calories.value) {
+    details.calories = `${goals.value.calories.value}kcal`
+  }
+  if (goals.value.protein.enabled && goals.value.protein.value) {
+    details.protein = `${goals.value.protein.value}g`
+  }
+  if (goals.value.carbs.enabled && goals.value.carbs.value) {
+    details.carbs = `${goals.value.carbs.value}g`
+  }
+  if (goals.value.fat.enabled && goals.value.fat.value) {
+    details.fat = `${goals.value.fat.value}g`
+  }
+  if (goals.value.weight.enabled && goals.value.weight.value) {
+    details.weight = `${goals.value.weight.value}kg`
+  }
+  if (goals.value.exercise.enabled && goals.value.exercise.value) {
+    details.exercise = goals.value.exercise.value
+  }
+  if (goals.value.habit.enabled && goals.value.habit.value) {
+    details.habit = goals.value.habit.value
+  }
+  
+  // 복합 목표는 frequency 추가
+  if (Object.keys(details).length > 1 || 
+      (Object.keys(details).length === 1 && !['weight'].includes(Object.keys(details)[0]))) {
+    details.frequency = 'daily'
+  }
+  
+  return details
+})
+
+// initialData로 폼 채우기
 watch(() => props.initialData, (data) => {
     if (!data) return
     
     title.value = data.title || ''
     description.value = data.description || ''
-    goalType.value = data.goalType || 'PROTEIN'
     
     if (data.goalDetails) {
         const details = typeof data.goalDetails === 'string' 
             ? JSON.parse(data.goalDetails) 
             : data.goalDetails
         
-        if (details.protein) goalProtein.value = parseInt(details.protein)
-        if (details.calories) goalCalories.value = parseInt(details.calories)
-        if (details.weight) goalWeightChange.value = parseFloat(details.weight)
-        if (details.water) goalWater.value = parseFloat(details.water)
-        if (details.exercise) goalExercise.value = details.exercise
-        if (details.habit) goalHabit.value = details.habit
+        if (details.calories) {
+          goals.value.calories.enabled = true
+          goals.value.calories.value = parseInt(details.calories)
+        }
+        if (details.protein) {
+          goals.value.protein.enabled = true
+          goals.value.protein.value = parseInt(details.protein)
+        }
+        if (details.carbs) {
+          goals.value.carbs.enabled = true
+          goals.value.carbs.value = parseInt(details.carbs)
+        }
+        if (details.fat) {
+          goals.value.fat.enabled = true
+          goals.value.fat.value = parseInt(details.fat)
+        }
+        if (details.weight) {
+          goals.value.weight.enabled = true
+          goals.value.weight.value = parseFloat(details.weight)
+        }
+        if (details.exercise) {
+          goals.value.exercise.enabled = true
+          goals.value.exercise.value = details.exercise
+        }
+        if (details.habit) {
+          goals.value.habit.enabled = true
+          goals.value.habit.value = details.habit
+        }
     }
     
     if (data.items) {
@@ -160,46 +294,25 @@ watch(() => props.initialData, (data) => {
     }
 }, { immediate: true })
 
-// goalDetails 계산
-const computedGoalDetails = computed(() => {
-    switch (goalType.value) {
-        case 'PROTEIN':
-            return { protein: `${goalProtein.value}g`, frequency: 'daily' }
-        case 'CALORIE':
-            return { calories: `${goalCalories.value}kcal`, frequency: 'daily' }
-        case 'WEIGHT':
-            return { weight: `${goalWeightChange.value}kg`, duration: `${durationDays.value}days` }
-        case 'WATER':
-            return { water: `${goalWater.value}L`, frequency: 'daily' }
-        case 'EXERCISE':
-            return { exercise: goalExercise.value, frequency: 'daily' }
-        case 'HABIT':
-            return { habit: goalHabit.value, frequency: 'daily' }
-        case 'COMBINED':
-            try {
-                return JSON.parse(goalCombined.value)
-            } catch {
-                return {}
-            }
-        default:
-            return {}
-    }
-})
-
 function onCancel() { 
     emit('close') 
 }
 
 function onCreate() {
+    if (!hasAnyGoal.value) {
+      alert('최소 하나의 목표를 선택하세요')
+      return
+    }
+    
     const items = itemsText.value
         .split(/\r?\n/)
-        .map((t, i) => ({ id: Date.now() + i, text: t.trim() }))
+        .map((t, i) => ({ text: t.trim(), order: i + 1 }))
         .filter(x => x.text)
     
     const payload = {
         title: title.value || '새 챌린지',
         description: description.value,
-        goalType: goalType.value,
+        goalType: computedGoalType.value,
         goalDetails: computedGoalDetails.value,
         startDate: startDate.value,
         durationDays: durationDays.value,
@@ -229,12 +342,13 @@ function onCreate() {
     padding: 24px;
     border-radius: var(--r-card);
     width: 100%;
-    max-width: 560px;
+    max-width: 640px;
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     border: 1px solid var(--border);
 }
+
 label {
     display: block;
     margin-top: 16px;
@@ -245,7 +359,8 @@ label {
 label:first-of-type {
     margin-top: 0;
 }
-input, textarea, select {
+
+input:not([type="checkbox"]), textarea, select {
     width: 100%;
     padding: 10px 12px;
     margin-top: 6px;
@@ -255,22 +370,102 @@ input, textarea, select {
     color: var(--text);
     font-size: 14px;
 }
+
+input:disabled {
+    background: var(--surface-dim);
+    color: var(--muted);
+    cursor: not-allowed;
+}
+
 .date-range {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
-.goal-details {
-    margin-top: 12px;
-    padding: 16px;
+
+/* 🔥 목표 섹션 스타일 */
+.goals-section {
+    margin: 20px 0;
+    padding: 20px;
     background: var(--surface-dim);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.goals-section h4 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.goals-section h4 small {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.goal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.goal-item, .goal-item-full {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    background: var(--surface);
     border-radius: 8px;
     border: 1px solid var(--border);
 }
+
+.goal-item-full {
+    grid-column: 1 / -1;
+}
+
+.goal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.goal-header input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.goal-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.goal-item input:not([type="checkbox"]),
+.goal-item-full input:not([type="checkbox"]) {
+    margin: 0;
+    padding: 8px 10px;
+}
+
+.unit {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+}
+
 .actions {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
     margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .goal-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

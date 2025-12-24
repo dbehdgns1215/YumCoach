@@ -61,7 +61,8 @@ public class ChallengeServiceImpl implements ChallengeService {
                 .currentStreak(0)
                 .maxStreak(0)
                 .totalSuccessDays(0)
-                .successRate(BigDecimal.ZERO)
+                .achievementRate(BigDecimal.ZERO)
+                .progressRate(BigDecimal.ZERO)
                 .source(request.getSource() != null ? request.getSource() : "MANUAL")
                 .sourceId(request.getSourceId())
                 .aiGenerated(false)
@@ -290,7 +291,7 @@ public class ChallengeServiceImpl implements ChallengeService {
             return;
         }
 
-        // 전체 로그 조회 (시작일부터 현재까지)
+        // 전체 로그 조회
         List<ChallengeDailyLog> allLogs = challengeMapper.selectRecentLogs(challengeId, 365);
 
         // 연속 달성 계산
@@ -302,41 +303,47 @@ public class ChallengeServiceImpl implements ChallengeService {
                 .filter(ChallengeDailyLog::getIsAchieved)
                 .count();
 
-        // 🔥 성공률 계산 개선
-        double successRate = 0.0;
+        // 🔥 개선: 2가지 지표 계산
+        
+        // 1. 달성률 (Achievement Rate): 작성한 리포트 중 성공 비율
+        double achievementRate = 0.0;
+        int totalReports = allLogs.size();
+        if (totalReports > 0) {
+            achievementRate = (totalSuccessDays * 100.0) / totalReports;
+        }
+
+        // 2. 진행도 (Progress Rate): 전체 기간 중 경과 비율
+        double progressRate = 0.0;
         LocalDate today = LocalDate.now();
         LocalDate startDate = challenge.getStartDate();
-
-        // 경과 일수 계산 (시작일부터 오늘까지)
-        long elapsedDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, today) + 1;
-
-        // 아직 시작 전이면 경과일 = 0
-        if (today.isBefore(startDate)) {
-            elapsedDays = 0;
-        }
-
-        // 종료일 지났으면 전체 기간으로 계산
-        if (today.isAfter(challenge.getEndDate())) {
-            elapsedDays = challenge.getDurationDays();
-        }
-
-        // 성공률 = (성공한 일수 / 경과한 일수) * 100
-        if (elapsedDays > 0) {
-            successRate = (totalSuccessDays * 100.0) / elapsedDays;
+        LocalDate endDate = challenge.getEndDate();
+        
+        if (!today.isBefore(startDate)) {
+            long elapsedDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, today) + 1;
+            long totalDays = challenge.getDurationDays();
+            
+            // 종료일 지났으면 100%
+            if (today.isAfter(endDate)) {
+                progressRate = 100.0;
+            } else {
+                progressRate = Math.min(100.0, (elapsedDays * 100.0) / totalDays);
+            }
         }
 
         log.info("[ChallengeService] Progress calculated - challengeId={}, " +
-                        "elapsedDays={}, successDays={}, successRate={:.2f}%, " +
-                        "currentStreak={}, maxStreak={}",
-                challengeId, elapsedDays, totalSuccessDays, successRate,
-                currentStreak, maxStreak);
+                        "reports={}, successDays={}, achievementRate={:.1f}%, " +
+                        "progressRate={:.1f}%, currentStreak={}, maxStreak={}",
+                challengeId, totalReports, totalSuccessDays, achievementRate,
+                progressRate, currentStreak, maxStreak);
 
+        // 🔥 수정: progressRate 파라미터 추가
         challengeMapper.updateChallengeProgress(
                 challengeId,
                 currentStreak,
                 maxStreak,
                 totalSuccessDays,
-                successRate
+                achievementRate,
+                progressRate
         );
     }
 
@@ -387,7 +394,8 @@ public class ChallengeServiceImpl implements ChallengeService {
                 .currentStreak(challenge.getCurrentStreak())
                 .maxStreak(challenge.getMaxStreak())
                 .totalSuccessDays(challenge.getTotalSuccessDays())
-                .successRate(challenge.getSuccessRate())
+                .achievementRate(challenge.getAchievementRate())
+                .progressRate(challenge.getProgressRate())
                 .source(challenge.getSource())
                 .sourceId(challenge.getSourceId())
                 .aiGenerated(challenge.getAiGenerated())
