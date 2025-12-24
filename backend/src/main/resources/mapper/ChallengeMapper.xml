@@ -146,12 +146,18 @@
         ORDER BY order_idx ASC
     </select>
 
+    <select id="selectItemById" resultMap="ChallengeItemResultMap">
+        SELECT * FROM challenge_items WHERE id = #{id}
+    </select>
+
     <update id="updateChallengeItem">
-        UPDATE challenge_items SET
-                                   item_text = #{itemText},
-                                   done = #{done},
-                                   done_at = #{doneAt},
-                                   updated_at = NOW()
+        UPDATE challenge_items
+        <set>
+            <if test="itemText != null">item_text = #{itemText},</if>
+            <if test="done != null">done = #{done},</if>
+            <if test="doneAt != null">done_at = #{doneAt},</if>
+            updated_at = NOW()
+        </set>
         WHERE id = #{id}
     </update>
 

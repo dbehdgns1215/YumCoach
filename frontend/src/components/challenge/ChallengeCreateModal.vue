@@ -12,7 +12,7 @@
 
       <!-- 설명 -->
       <label>설명 (선택)
-        <textarea v-model="description" rows="2" placeholder="이 챌린지에 대한 설명" />
+        <textarea v-model="description" rows="2" placeholder="이 챌린지에 대한 설명"></textarea>
       </label>
 
       <!-- 🔥 목표 직접 입력 섹션 -->
@@ -26,13 +26,16 @@
               <input type="checkbox" v-model="goals.calories.enabled" />
               <span class="goal-label">칼로리</span>
             </div>
-            <input 
-              type="number" 
-              v-model.number="goals.calories.value" 
-              :disabled="!goals.calories.enabled"
-              placeholder="1500"
-            />
-            <span class="unit">kcal / 일</span>
+            <div class="input-row">
+              <input
+                class="value-input"
+                type="number"
+                v-model.number="goals.calories.value"
+                :disabled="!goals.calories.enabled"
+                placeholder="1500"
+              />
+              <span class="unit">kcal / 일</span>
+            </div>
           </label>
 
           <!-- 단백질 -->
@@ -41,13 +44,16 @@
               <input type="checkbox" v-model="goals.protein.enabled" />
               <span class="goal-label">단백질</span>
             </div>
-            <input 
-              type="number" 
-              v-model.number="goals.protein.value" 
-              :disabled="!goals.protein.enabled"
-              placeholder="200"
-            />
-            <span class="unit">g / 일</span>
+            <div class="input-row">
+              <input
+                class="value-input"
+                type="number"
+                v-model.number="goals.protein.value"
+                :disabled="!goals.protein.enabled"
+                placeholder="200"
+              />
+              <span class="unit">g / 일</span>
+            </div>
           </label>
 
           <!-- 탄수화물 -->
@@ -56,13 +62,16 @@
               <input type="checkbox" v-model="goals.carbs.enabled" />
               <span class="goal-label">탄수화물</span>
             </div>
-            <input 
-              type="number" 
-              v-model.number="goals.carbs.value" 
-              :disabled="!goals.carbs.enabled"
-              placeholder="250"
-            />
-            <span class="unit">g / 일</span>
+            <div class="input-row">
+              <input
+                class="value-input"
+                type="number"
+                v-model.number="goals.carbs.value"
+                :disabled="!goals.carbs.enabled"
+                placeholder="250"
+              />
+              <span class="unit">g / 일</span>
+            </div>
           </label>
 
           <!-- 지방 -->
@@ -71,13 +80,16 @@
               <input type="checkbox" v-model="goals.fat.enabled" />
               <span class="goal-label">지방</span>
             </div>
-            <input 
-              type="number" 
-              v-model.number="goals.fat.value" 
-              :disabled="!goals.fat.enabled"
-              placeholder="60"
-            />
-            <span class="unit">g / 일</span>
+            <div class="input-row">
+              <input
+                class="value-input"
+                type="number"
+                v-model.number="goals.fat.value"
+                :disabled="!goals.fat.enabled"
+                placeholder="60"
+              />
+              <span class="unit">g / 일</span>
+            </div>
           </label>
 
           <!-- 체중 -->
@@ -86,14 +98,17 @@
               <input type="checkbox" v-model="goals.weight.enabled" />
               <span class="goal-label">체중 변화</span>
             </div>
-            <input 
-              type="number" 
-              step="0.1"
-              v-model.number="goals.weight.value" 
-              :disabled="!goals.weight.enabled"
-              placeholder="-5"
-            />
-            <span class="unit">kg (전체 기간)</span>
+            <div class="input-row">
+              <input
+                class="value-input"
+                type="number"
+                step="0.1"
+                v-model.number="goals.weight.value"
+                :disabled="!goals.weight.enabled"
+                placeholder="-5"
+              />
+              <span class="unit">kg (전체 기간)</span>
+            </div>
           </label>
         </div>
 
@@ -128,13 +143,18 @@
 
       <!-- 기간 -->
       <div class="date-range">
-        <label>시작일
-          <input type="date" v-model="startDate" />
-        </label>
-        <label>기간
-          <input type="number" v-model.number="durationDays" placeholder="30" />
-          <span class="unit">일</span>
-        </label>
+          <label>시작일
+            <div class="input-row">
+              <input class="value-input" type="date" v-model="startDate" />
+              <span class="unit"></span>
+            </div>
+          </label>
+          <label>기간
+            <div class="input-row">
+              <input class="value-input" type="number" v-model.number="durationDays" placeholder="30" />
+              <span class="unit">일</span>
+            </div>
+          </label>
       </div>
 
       <!-- 체크리스트 항목 (선택) -->
@@ -142,8 +162,8 @@
         <textarea 
           v-model="itemsText" 
           rows="4" 
-          placeholder="한 줄에 하나씩 입력하세요&#10;예:&#10;아침에 계란 3개 먹기&#10;점심에 닭가슴살 200g 먹기&#10; 저녁마다 신첵 20분하기" 
-        />
+          placeholder="한 줄에 하나씩 입력하세요&#10;예:&#10;아침에 계란 3개 먹기&#10;점심에 닭가슴살 200g 먹기&#10; 저녁마다 신첵 20분하기">
+        </textarea>
       </label>
 
       <template #footer>
@@ -337,27 +357,37 @@ function onCreate() {
     padding: 16px;
     z-index: 9999;
 }
-.modal {
+  .modal {
     background: var(--surface);
-    padding: 24px;
+    /* add right padding so scrollbar doesn't sit on rounded corner */
+    padding: 28px 48px 28px 28px;
     border-radius: var(--r-card);
     width: 100%;
-    max-width: 640px;
-    max-height: 90vh;
+    max-width: 900px; /* enlarged modal */
+    max-height: 92vh;
     overflow-y: auto;
+    /* reserve space for scrollbar to avoid overlapping rounded corner */
+    scrollbar-gutter: stable;
     box-shadow: var(--shadow-lg);
     border: 1px solid var(--border);
-}
+ }
 
 label {
-    display: block;
-    margin-top: 16px;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text);
+  display: block;
+  /* reduce default top margin to avoid excessive spacing causing layout shifts */
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
 }
-label:first-of-type {
+/* only apply zero-margin to the very first top-level label (제목) */
+.modal > label:first-of-type {
     margin-top: 0;
+}
+
+/* ensure each goal-item inside grid has a small top margin so 칼로리 isn't flush */
+.goal-grid .goal-item {
+  margin-top: 8px;
 }
 
 input:not([type="checkbox"]), textarea, select {
@@ -383,7 +413,6 @@ input:disabled {
     gap: 12px;
 }
 
-/* 🔥 목표 섹션 스타일 */
 .goals-section {
     margin: 20px 0;
     padding: 20px;
@@ -405,24 +434,31 @@ input:disabled {
 }
 
 .goal-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .goal-item, .goal-item-full {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 12px;
-    background: var(--surface);
-    border-radius: 8px;
-    border: 1px solid var(--border);
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  /* make all goal boxes equal height and stretch */
+  justify-content: space-between;
+  min-height: 80px;
 }
 
 .goal-item-full {
     grid-column: 1 / -1;
+  /* add spacing between full-width goal boxes (운동/습관) */
+  margin-top: 8px;
+  padding: 8px; /* smaller padding for compact appearance */
+  gap: 3px;
 }
 
 .goal-header {
@@ -444,10 +480,67 @@ input:disabled {
     color: var(--text);
 }
 
+/* reduce font-size for goal-labels inside full-width boxes */
+.goal-item-full .goal-label {
+  font-size: 13px;
+}
+
+/* smaller input styling for full-width boxes (운동/습관) */
+.goal-item-full input:not([type="checkbox"]) {
+  padding: 6px 8px;
+  font-size: 13px;
+  height: 36px;
+}
+
 .goal-item input:not([type="checkbox"]),
 .goal-item-full input:not([type="checkbox"]) {
     margin: 0;
     padding: 8px 10px;
+}
+
+/* 입력과 단위(unit)를 가로로 정렬하고 단위 폭을 고정하여 크기 일치 */
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.value-input {
+  flex: 1 1 auto;
+  width: auto; /* override global width */
+  box-sizing: border-box;
+  min-width: 0; /* allow flex children to shrink properly inside grid */
+  height: 40px; /* enforce consistent control height */
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.goal-item .unit {
+  display: inline-block;
+  width: 96px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 40px; /* match input height for vertical centering */
+    white-space: nowrap;
+}
+
+/* 날짜/기간 영역에서도 같은 행 정렬 적용 */
+.date-range .input-row {
+  width: 100%;
+}
+
+/* 반응형: 작은 화면일 때 단위 폭 축소 */
+@media (max-width: 480px) {
+  .goal-item .unit {
+  width: 72px;
+  font-size: 11px;
+    line-height: 36px;
+  }
+}
+/* ensure date/number inputs same visual height */
+.date-range .value-input {
+  height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
 }
 
 .unit {
