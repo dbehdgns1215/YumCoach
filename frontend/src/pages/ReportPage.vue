@@ -364,14 +364,15 @@ const devLoading = ref(false)
 const analyzeLoading = ref(false)
 const analyzeResult = ref(null)
 
-async function handleCreateChallenge(payload) {
+async function handleCreateChallenge(payload)
+{
   try {
     console.debug('[ReportPage] handleCreateChallenge payload', payload)
     const body = {
       title: payload.title,
       startDate: isoDate(new Date()),
       durationDays: 30,
-      items: payload.items.map((it, idx) => ({ order: idx+1, text: it.text }))
+      items: payload.items.map((it, idx) => ({ order: idx + 1, text: it.text }))
     }
     // API 호출 (api 인스턴스의 baseURL이 이미 '/api'일 수 있음)
     const res = await api.post('/challenges', body)
@@ -528,14 +529,18 @@ function onSavePlan()
 function onUpgrade(payload)
 {
   console.log('upgrade event received, plan:', payload?.plan)
-function onRegisterAsChallenge() {
+}
+
+function onRegisterAsChallenge()
+{
   const txt = displayNextAction.value || ''
   const items = parseNumberedList(txt)
   challengeInitialItems.value = items
   showChallengeModal.value = true
 }
 
-function onUpgrade(payload) {
+function onUpgrade(payload)
+{
   openPaywall.value = false
   console.log('selected plan:', payload?.plan)
   alert(`${payload?.plan === 'yearly' ? '연간' : '월간'} 플랜 결제는 곧 준비할게요 🙂`)
