@@ -31,7 +31,7 @@
     VALUES (#{userId}, #{type}, #{date}, #{fromDate}, #{toDate}, #{status}, #{score}, #{totalCalories}, #{proteinG}, #{carbG}, #{fatG}, #{mealCount}, #{createdBy})
   </insert>
 
-  <insert id="insertReportMeal" parameterType="com.ssafy.yumcoach.report.model.ReportMealDto">
+  <insert id="insertReportMeal" parameterType="com.ssafy.yumcoach.report.model.ReportMealDto" useGeneratedKeys="true" keyProperty="id">
     INSERT INTO report_meal (report_id, meal_id, meal_name, meal_time, calories, protein_g, carb_g, fat_g)
     VALUES (#{reportId}, #{mealId}, #{mealName}, #{mealTime}, #{calories}, #{proteinG}, #{carbG}, #{fatG})
   </insert>
@@ -44,12 +44,17 @@
     SELECT id, report_id as reportId, kind, title, body FROM report_insight WHERE report_id = #{reportId} ORDER BY id
   </select>
 
+  <select id="selectReportMeals" resultType="com.ssafy.yumcoach.report.model.ReportMealDto" parameterType="int">
+    SELECT id, report_id as reportId, meal_id as mealId, meal_time as mealTime, calories, protein_g as proteinG, carb_g as carbG, fat_g as fatG, meal_name as mealName
+    FROM report_meal WHERE report_id = #{reportId} ORDER BY id
+  </select>
+
   <select id="selectReportByUserTypeDate" resultMap="ReportResult" parameterType="map">
-    SELECT * FROM report WHERE user_id = #{userId} AND type = #{type} AND date = #{date} LIMIT 1
+    SELECT * FROM report WHERE user_id = #{userId} AND type = #{type} AND date = #{date} ORDER BY created_at DESC LIMIT 1
   </select>
 
   <select id="selectReportByUserAndRange" resultMap="ReportResult" parameterType="map">
-    SELECT * FROM report WHERE user_id = #{userId} AND type = #{type} AND from_date = #{fromDate} AND to_date = #{toDate} LIMIT 1
+    SELECT * FROM report WHERE user_id = #{userId} AND type = #{type} AND from_date = #{fromDate} AND to_date = #{toDate} ORDER BY created_at DESC LIMIT 1
   </select>
 
   <insert id="insertGenerationLog" parameterType="map">
@@ -94,6 +99,10 @@
   <update id="updateReportHero">
     UPDATE report SET hero_title = #{heroTitle}, hero_line = #{heroLine} WHERE id = #{reportId}
   </update>
+
+  <delete id="deleteInsightsByReportId" parameterType="int">
+    DELETE FROM report_insight WHERE report_id = #{reportId}
+  </delete>
 
   <insert id="insertReportInsight" parameterType="map">
     INSERT INTO report_insight (report_id, kind, title, body)

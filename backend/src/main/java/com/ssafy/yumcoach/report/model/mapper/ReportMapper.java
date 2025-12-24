@@ -92,6 +92,9 @@ public interface ReportMapper {
     /** 조회한 리포트의 인사이트 목록을 반환합니다. */
     java.util.List<ReportInsightDto> selectReportInsights(@Param("reportId") Integer reportId);
 
+    /** 리포트에 포함된 meal 목록 조회 */
+    java.util.List<ReportMealDto> selectReportMeals(@Param("reportId") Integer reportId);
+
     /** 리포트 코치 메시지 업데이트 */
     void updateReportCoachMessage(@Param("reportId") int reportId, @Param("coachMessage") String coachMessage);
     
@@ -103,4 +106,6 @@ public interface ReportMapper {
 
     /** 리포트 요약(헤로) 업데이트 */
     void updateReportHero(@Param("reportId") int reportId, @Param("heroTitle") String heroTitle, @Param("heroLine") String heroLine);
+
+    void deleteInsightsByReportId(@Param("reportId") int reportId);
 }
