@@ -1,4 +1,4 @@
-package com.ssafy.yumcoach.challenge.mapper;
+package com.ssafy.yumcoach.challenge.model.mapper;
 
 import com.ssafy.yumcoach.challenge.entity.Challenge;
 import com.ssafy.yumcoach.challenge.entity.ChallengeDailyLog;

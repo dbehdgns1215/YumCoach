@@ -526,21 +526,15 @@ function onSavePlan()
   console.log('saved tomorrow plan')
 }
 
-function onUpgrade(payload)
-{
-  console.log('upgrade event received, plan:', payload?.plan)
-}
-
-function onRegisterAsChallenge()
-{
+function onRegisterAsChallenge() {
   const txt = displayNextAction.value || ''
   const items = parseNumberedList(txt)
   challengeInitialItems.value = items
   showChallengeModal.value = true
 }
 
-function onUpgrade(payload)
-{
+// 중복된 onUpgrade 함수를 하나로 통합
+function onUpgrade(payload) {
   openPaywall.value = false
   console.log('selected plan:', payload?.plan)
   alert(`${payload?.plan === 'yearly' ? '연간' : '월간'} 플랜 결제는 곧 준비할게요 🙂`)

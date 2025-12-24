@@ -66,9 +66,7 @@ onMounted(async () => {
 
 async function loadChallenges() {
     try {
-        const res = await api.get('/challenges', {
-            headers: { 'X-USER-ID': '42' }
-        })
+        const res = await api.get('/challenges')
         challenges.value = res.data.data || []
     } catch (e) {
         console.error('[ChallengePage] load failed', e)
@@ -109,12 +107,9 @@ async function createFromModal(payload) {
             })) || []
         }
 
-        const res = await api.post('/challenges', body, {
-            headers: { 'X-USER-ID': '42' }
-        })
-        
-        const newChallenge = res.data.data
-        challenges.value.unshift(newChallenge)
+        const res = await api.post('/challenges', body)
+        // 서버가 생성된 챌린지 ID만 반환하므로 목록을 갱신합니다.
+        await loadChallenges()
         showToast('챌린지 생성 완료! 🎉', 'success', 3000)
         closeCreate()
         
@@ -130,9 +125,7 @@ async function createFromModal(payload) {
 
 async function completeChallenge(challengeId) {
     try {
-        await api.patch(`/challenges/${challengeId}/complete`, null, {
-            headers: { 'X-USER-ID': '42' }
-        })
+        await api.patch(`/challenges/${challengeId}/complete`)
         
         const idx = challenges.value.findIndex(c => c.id === challengeId)
         if (idx >= 0) {
@@ -151,9 +144,7 @@ async function deleteChallenge(challengeId) {
     if (!confirm('정말 삭제하시겠습니까?')) return
     
     try {
-        await api.delete(`/challenges/${challengeId}`, {
-            headers: { 'X-USER-ID': '42' }
-        })
+        await api.delete(`/challenges/${challengeId}`)
         
         challenges.value = challenges.value.filter(c => c.id !== challengeId)
         showToast('챌린지 삭제 완료', 'success', 2000)

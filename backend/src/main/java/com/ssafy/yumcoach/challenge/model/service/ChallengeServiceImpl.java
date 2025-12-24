@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.yumcoach.challenge.entity.Challenge;
 import com.ssafy.yumcoach.challenge.entity.ChallengeDailyLog;
 import com.ssafy.yumcoach.challenge.entity.ChallengeItem;
-import com.ssafy.yumcoach.challenge.mapper.ChallengeMapper;
+import com.ssafy.yumcoach.challenge.model.mapper.ChallengeMapper;
 import com.ssafy.yumcoach.challenge.model.ChallengeCreateRequest;
 import com.ssafy.yumcoach.challenge.model.ChallengeDailyLogDto;
 import com.ssafy.yumcoach.challenge.model.ChallengeDto;
@@ -21,6 +21,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
@@ -115,6 +117,12 @@ public class ChallengeServiceImpl implements ChallengeService {
         log.debug("[ChallengeService] getActiveChallenges userId={}", userId);
 
         List<Challenge> challenges = challengeMapper.selectActiveChallengesByUserId(userId);
+        if (challenges == null || challenges.isEmpty()) {
+            log.debug("[ChallengeService] selectActiveChallengesByUserId returned empty for userId={}", userId);
+            return Collections.emptyList();
+        }
+        String ids = challenges.stream().map(c -> String.valueOf(c.getId())).collect(Collectors.joining(","));
+        log.debug("[ChallengeService] selectActiveChallengesByUserId returned {} rows for userId={}, ids={}", challenges.size(), userId, ids);
         return challenges.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
