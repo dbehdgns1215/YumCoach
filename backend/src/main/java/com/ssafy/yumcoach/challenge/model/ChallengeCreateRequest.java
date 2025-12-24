@@ -1,4 +1,4 @@
-package com.ssafy.yumcoach.challenge.dto;
+package com.ssafy.yumcoach.challenge.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
