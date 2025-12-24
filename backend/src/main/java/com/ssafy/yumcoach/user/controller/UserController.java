@@ -14,6 +14,7 @@ import com.ssafy.yumcoach.auth.util.JwtUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -44,7 +45,7 @@ public class UserController {
      *         주의: 비밀번호는 평문 저장 (TODO: 암호화 필요)
      */
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
+    public ResponseEntity<?> signup(@RequestBody @Valid SignupRequest request) {
         System.out.println("Signup request: " + request);
         try {
             User user = User.builder()
@@ -82,7 +83,7 @@ public class UserController {
      *         공격 방지
      */
     @PostMapping("/signin")
-    public ResponseEntity<?> signin(@RequestBody SigninRequest request, HttpServletResponse response) {
+    public ResponseEntity<?> signin(@RequestBody @Valid SigninRequest request, HttpServletResponse response) {
         try {
             System.out.println("Signin request: " + request);
             User user = userService.signin(request.getEmail(), request.getPassword());

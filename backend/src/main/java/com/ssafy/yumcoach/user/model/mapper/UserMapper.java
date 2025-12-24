@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Param;
 import com.ssafy.yumcoach.user.model.User;
 import com.ssafy.yumcoach.user.model.UserHealth;
 
+import java.util.List;
+
 @Mapper
 public interface UserMapper {
 
@@ -24,8 +26,7 @@ public interface UserMapper {
     // ID로 유저 조회
     User findById(@Param("id") Integer id);
 
-    /** 모든 사용자 ID를 반환합니다. 배치/관리 API에서 사용됩니다. */
-    java.util.List<Integer> findAllUserIds();
+    List<Integer> findAllUserIds();
 
     // 유저 정보 수정
     void updateUser(User user);
