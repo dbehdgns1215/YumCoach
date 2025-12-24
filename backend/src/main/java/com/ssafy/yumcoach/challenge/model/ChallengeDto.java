@@ -29,10 +29,11 @@ public class ChallengeDto {
     private Integer durationDays;
 
     private String status;
-    private Integer currentStreak;
-    private Integer maxStreak;
-    private Integer totalSuccessDays;
-    private BigDecimal successRate;
+    private Integer currentStreak;      // 현재 연속 달성
+    private Integer maxStreak;          // 최대 연속 달성
+    private Integer totalSuccessDays;   // 총 성공 일수
+    private BigDecimal achievementRate; // 달성률 (성공 리포트 / 전체 리포트)
+    private BigDecimal progressRate;    // 진행도 (경과일 / 전체 기간)
 
     private String source;
     private Long sourceId;
@@ -43,9 +44,6 @@ public class ChallengeDto {
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
 
-    // 🔥 추가: 아이템 리스트
     private List<ChallengeItemDto> items;
-
-    // 🔥 추가: 최근 7일 로그
     private List<ChallengeDailyLogDto> recentLogs;
 }
