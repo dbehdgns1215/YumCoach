@@ -120,4 +120,10 @@
       SET next_action = #{nextAction}
       WHERE id = #{reportId}
   </update>
+
+  <update id="updateReportStatusCreatedBy" parameterType="map">
+    UPDATE report
+    SET status = #{status}, created_by = #{createdBy}, updated_at = NOW()
+    WHERE id = #{reportId}
+  </update>
 </mapper>
