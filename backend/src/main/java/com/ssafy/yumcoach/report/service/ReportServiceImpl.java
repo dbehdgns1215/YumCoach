@@ -106,6 +106,101 @@ public class ReportServiceImpl implements ReportService {
 
         // 기록: 생성 로그 남기기 (생성 횟수 집계에 사용)
         try {
+            String details = analysisPassed ? "ANALYZED_WITH_AI" : "CREATED_NO_AI";
+            int inserted = reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER", analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), details);
+            log.debug("insertGenerationLog returned {} for reportId={} details={}", inserted, dto.getId(), details);
+        } catch (Exception ex) {
+            log.error("insertGenerationLog failed for reportId={} error={}", dto.getId(), ex.toString());
+        }
+
+        // Refresh DTO from DB to populate DB-generated fields (createdAt/updatedAt etc.)
+        ReportDto refreshed = reportMapper.selectReportById(dto.getId());
+        if (refreshed != null) {
+            // attach the meals we've built (they include generated ids)
+            refreshed.setMeals(meals);
+            try {
+                var insights = reportMapper.selectReportInsights(dto.getId());
+                refreshed.setInsights(insights);
+                log.debug("selectReportInsights returned {} rows for reportId={}", insights == null ? 0 : insights.size(), dto.getId());
+            } catch (Exception ex) {
+                log.warn("failed to load insights for reportId={} error={}", dto.getId(), ex.toString());
+            }
+            return refreshed;
+        }
+
+        return dto;
+    }
+
+    public ReportDto createDailyReport(int userId, LocalDate date, String createdBy) {
+        User user = userMapper.findById(userId);
+
+        // 🔥 SCHEDULER로 만든 리포트는 제한 체크 안 함
+        if (!"SCHEDULER".equals(createdBy)) {
+            int limit = user != null && "ADMIN".equalsIgnoreCase(user.getRole()) ? 1000 :
+                    user != null && "ADVANCED".equalsIgnoreCase(user.getRole()) ? 2 : 1;
+
+            var start = date.atStartOfDay();
+            var end = date.plusDays(1).atStartOfDay();
+
+            if (reportMapper.countGenerationLogsInPeriod(userId, "DAILY", start, end, "USER") >= limit) {
+                throw new IllegalStateException("LIMIT_EXCEEDED");
+            }
+        }
+
+        ReportDto dto = new ReportDto();
+        dto.setUserId(userId);
+        dto.setDate(date);
+        dto.setType("DAILY");
+        dto.setStatus("PROGRESS");
+        dto.setCreatedBy("USER");
+
+        reportMapper.insertReport(dto);
+
+        List<MealLogDto> logs = mealMapper.selectMealLogsByUserAndDateRange(userId, date, date);
+
+        int cal = 0, pro = 0, carb = 0, fat = 0, cnt = 0;
+        List<ReportMealDto> meals = new ArrayList<>();
+
+        for (MealLogDto log : logs) {
+            if (log.getItems() == null) continue;
+            for (MealItemDto item : log.getItems()) {
+                if (item.getMealCode() == null || item.getAmount() == null) continue;
+                FoodDetailDto fd = foodMapper.selectFoodDetailById(item.getMealCode());
+                if (fd == null || fd.getNutrition() == null) continue;
+
+                double f = item.getAmount() / 100.0;
+                int k = (int)(fd.getNutrition().getEnergyKcal() * f);
+                int p = (int)(fd.getNutrition().getProteinG() * f);
+                int c = (int)(fd.getNutrition().getCarbohydrateG() * f);
+                int fa = (int)(fd.getNutrition().getFatG() * f);
+
+                cal += k; pro += p; carb += c; fat += fa; cnt++;
+
+                ReportMealDto rm = new ReportMealDto();
+                rm.setReportId(dto.getId());
+                rm.setCalories(k);
+                rm.setProteinG(p);
+                rm.setCarbG(c);
+                rm.setFatG(fa);
+                rm.setMealName(fd.getFood().getFoodName());
+
+                reportMapper.insertReportMeal(rm);
+                meals.add(rm);
+            }
+        }
+
+        if (cnt == 0) throw new IllegalStateException("NO_MEALS");
+
+        reportMapper.updateReportSummary(dto.getId(), cal, pro, carb, fat, cnt);
+
+        // meals objects now have generated ids (mapper configured to useGeneratedKeys)
+        dto.setMeals(meals);
+
+        boolean analysisPassed = false;
+        try { analyzeReport(dto.getId()); analysisPassed = true; } catch (Exception ignored) { log.warn("analyzeReport failed for reportId={}", dto.getId()); }
+
+        // 기록: 생성 로그 남기기 (생성 횟수 집계에 사용)
+        try {
             int inserted = reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER", analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), null);
             log.debug("insertGenerationLog returned {} for reportId={}", inserted, dto.getId());
         } catch (Exception ex) {
@@ -129,6 +224,7 @@ public class ReportServiceImpl implements ReportService {
 
         return dto;
     }
+    
 
     @Override
     public ReportDto getDailyReport(int userId, LocalDate date) {
@@ -195,8 +291,9 @@ public class ReportServiceImpl implements ReportService {
         }
 
         try {
-            int inserted = reportMapper.insertGenerationLog(userId, "WEEKLY", null, from, to, "USER", analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), null);
-            log.debug("insertGenerationLog returned {} for weekly reportId={}", inserted, dto.getId());
+            String details = analysisPassed ? "ANALYZED_WITH_AI" : "CREATED_NO_AI";
+            int inserted = reportMapper.insertGenerationLog(userId, "WEEKLY", null, from, to, "USER", analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), details);
+            log.debug("insertGenerationLog returned {} for weekly reportId={} details={}", inserted, dto.getId(), details);
         } catch (Exception ex) {
             log.error("insertGenerationLog failed for weekly reportId={} error={}", dto.getId(), ex.toString());
         }

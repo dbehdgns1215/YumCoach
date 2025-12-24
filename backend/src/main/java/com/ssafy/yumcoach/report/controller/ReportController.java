@@ -3,8 +3,6 @@ package com.ssafy.yumcoach.report.controller;
 import com.ssafy.yumcoach.report.model.CreateReportRequest;
 import com.ssafy.yumcoach.report.model.ReportDto;
 import com.ssafy.yumcoach.report.service.ReportService;
-import com.ssafy.yumcoach.ai.OpenAiService;
-import com.ssafy.yumcoach.ai.ReportAnalysisResult;
 import com.ssafy.yumcoach.report.model.mapper.ReportMapper;
 import com.ssafy.yumcoach.user.model.User;
 import com.ssafy.yumcoach.user.model.mapper.UserMapper;
@@ -38,45 +36,50 @@ public class ReportController {
     private final Environment env;
 
     /**
-     * 배치/관리 엔드포인트: 모든 유저에 대해 일별/주별 생성 횟수를 계산하여
-     * `user_generation_count` 테이블에 동기화합니다.
-     *
-     * 사용법 (Postman / curl 예시):
-     * - curl:
-     *   curl -X POST "http://localhost:8282/api/reports/admin/sync-generation-counts" -H "Authorization: Bearer <TOKEN>"
-     *
-     * 권한: 관리자 전용(토큰의 유저 role이 ADMIN 이어야 합니다).
-     * 이 엔드포인트는 배치에서 주기적으로 호출하거나 수동 동기화용으로 사용합니다.
-     *
-     * 반환값: { "updated": <number of users updated>, "errors": <number of failures> }
+     * 🔥 헬퍼: userId 추출 (토큰에서만)
      */
-    @PostMapping("/admin/sync-generation-counts")
-    public ResponseEntity<?> syncGenerationCounts(HttpServletRequest request) {
+    private Integer extractUserId(HttpServletRequest request) {
         try {
             String token = extractToken(request);
             if (token == null || !jwtUtil.validateToken(token)) {
-                Map<String,String> err = new HashMap<>();
-                err.put("error","인증이 필요합니다.");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
+                return null;
             }
-            int adminId = jwtUtil.getUserId(token);
-            User admin = userMapper.findById(adminId);
-            if (admin == null || admin.getRole() == null || !"ADMIN".equalsIgnoreCase(admin.getRole())) {
-                Map<String,String> err = new HashMap<>();
-                err.put("error","관리자 권한이 필요합니다.");
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
-            }
+            return jwtUtil.getUserId(token);
+        } catch (Exception e) {
+            log.warn("[ReportController] extractUserId failed", e);
+            return null;
+        }
+    }
 
+    /**
+     * 🔥 배치/관리 엔드포인트: 생성 횟수 동기화 (관리자 전용)
+     */
+    @PostMapping("/admin/sync-generation-counts")
+    public ResponseEntity<?> syncGenerationCounts(HttpServletRequest request) {
+        Integer adminId = extractUserId(request);
+        if (adminId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "인증이 필요합니다."));
+        }
+
+        User admin = userMapper.findById(adminId);
+        if (admin == null || !"ADMIN".equalsIgnoreCase(admin.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "관리자 권한이 필요합니다."));
+        }
+
+        try {
             java.util.List<Integer> userIds = userMapper.findAllUserIds();
-            int updated = 0; int errors = 0;
+            int updated = 0;
+            int errors = 0;
             ZoneId zone = ZoneId.of("Asia/Seoul");
             LocalDate today = LocalDate.now(zone);
             LocalDate weekStart = today.with(java.time.DayOfWeek.MONDAY);
             LocalDate weekEnd = weekStart.plusDays(6);
-            java.time.LocalDateTime dayStart = today.atStartOfDay();
-            java.time.LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
-            java.time.LocalDateTime weekStartDt = weekStart.atStartOfDay();
-            java.time.LocalDateTime weekEndDt = weekEnd.plusDays(1).atStartOfDay();
+            LocalDateTime dayStart = today.atStartOfDay();
+            LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
+            LocalDateTime weekStartDt = weekStart.atStartOfDay();
+            LocalDateTime weekEndDt = weekEnd.plusDays(1).atStartOfDay();
 
             for (Integer uid : userIds) {
                 try {
@@ -90,44 +93,27 @@ public class ReportController {
                 }
             }
 
-            Map<String,Integer> resp = new HashMap<>();
-            resp.put("updated", updated);
-            resp.put("errors", errors);
-            return ResponseEntity.ok(resp);
+            return ResponseEntity.ok(Map.of("updated", updated, "errors", errors));
 
         } catch (Exception e) {
             log.error("syncGenerationCounts error", e);
-            Map<String,String> err = new HashMap<>();
-            err.put("error","동기화 중 오류가 발생했습니다.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "동기화 중 오류가 발생했습니다."));
         }
     }
 
+    /**
+     * 일간 리포트 생성
+     */
     @PostMapping("/daily")
     public ResponseEntity<?> createDaily(HttpServletRequest request, @RequestBody CreateReportRequest body) {
-        try {
-            // Development helper: allow X-USER-ID header to bypass JWT for local testing
-            String xUser = request.getHeader("X-USER-ID");
-            int userId;
-            if (xUser != null && !xUser.isBlank()) {
-                try {
-                    userId = Integer.parseInt(xUser.trim());
-                    log.debug("createDaily - using X-USER-ID bypass: {}", userId);
-                } catch (NumberFormatException nfe) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","Invalid X-USER-ID header");
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
-                }
-            } else {
-                String token = extractToken(request);
-                if (token == null || !jwtUtil.validateToken(token)) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","인증이 필요합니다.");
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
-                }
-                userId = jwtUtil.getUserId(token);
-            }
+        Integer userId = extractUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "인증이 필요합니다."));
+        }
 
+        try {
             ZoneId zone = ZoneId.of("Asia/Seoul");
             String bodyDate = body == null ? null : body.getDate();
             LocalDate date = bodyDate != null ? LocalDate.parse(bodyDate) : LocalDate.now(zone);
@@ -137,81 +123,75 @@ public class ReportController {
             ReportDto dto = reportService.createDailyReport(userId, date);
             return ResponseEntity.status(HttpStatus.CREATED).body(dto);
 
-        } catch (Exception e) {
-            if (e instanceof IllegalStateException) {
-                String msg = e.getMessage() == null ? "" : e.getMessage();
-                if (msg.contains("LIMIT_EXCEEDED")) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","생성 한도를 초과했습니다.");
-                    return ResponseEntity.status(429).body(err);
-                }
-                if (msg.contains("NO_MEALS")) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","해당 날짜에 기록된 식사 데이터가 없습니다.");
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
-                }
+        } catch (IllegalStateException e) {
+            String msg = e.getMessage() == null ? "" : e.getMessage();
+
+            if (msg.contains("LIMIT_EXCEEDED")) {
+                logGenerationAttempt(userId, "DAILY", body, "LIMIT_EXCEEDED", msg);
+                return ResponseEntity.status(429)
+                        .body(Map.of("error", "생성 한도를 초과했습니다."));
             }
+
+            if (msg.contains("NO_MEALS")) {
+                logGenerationAttempt(userId, "DAILY", body, "NO_DATA", msg);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "해당 날짜에 기록된 식사 데이터가 없습니다."));
+            }
+
+            throw e;
+
+        } catch (Exception e) {
             log.error("createDaily error", e);
-            Map<String,String> err = new HashMap<>();
-            err.put("error","리포트 생성 중 오류가 발생했습니다.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+            logGenerationAttempt(userId, "DAILY", body, "FAILED", e.toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "리포트 생성 중 오류가 발생했습니다."));
         }
     }
 
+    /**
+     * 일간 리포트 조회
+     */
     @GetMapping("/daily")
-    public ResponseEntity<?> getDaily(HttpServletRequest request,
-                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        try {
-            // Development helper: allow X-USER-ID header to bypass JWT for local testing
-            String xUser = request.getHeader("X-USER-ID");
-            int userId;
-            if (xUser != null && !xUser.isBlank()) {
-                try {
-                    userId = Integer.parseInt(xUser.trim());
-                    log.debug("getDaily - using X-USER-ID bypass: {}", userId);
-                } catch (NumberFormatException nfe) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","Invalid X-USER-ID header");
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
-                }
-            } else {
-                String token = extractToken(request);
-                if (token == null || !jwtUtil.validateToken(token)) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","인증이 필요합니다.");
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
-                }
-                userId = jwtUtil.getUserId(token);
-            }
-            LocalDate target = date != null ? date : LocalDate.now().minusDays(1);
+    public ResponseEntity<?> getDaily(
+            HttpServletRequest request,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        Integer userId = extractUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "인증이 필요합니다."));
+        }
 
+        try {
+            LocalDate target = date != null ? date : LocalDate.now().minusDays(1);
             ReportDto dto = reportService.getDailyReport(userId, target);
+
             if (dto == null) {
-                Map<String,String> err = new HashMap<>();
-                err.put("error","리포트를 찾을 수 없습니다.");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "리포트를 찾을 수 없습니다."));
             }
+
             return ResponseEntity.ok(dto);
 
         } catch (Exception e) {
             log.error("getDaily error", e);
-            Map<String,String> err = new HashMap<>();
-            err.put("error","리포트 조회 중 오류가 발생했습니다.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "리포트 조회 중 오류가 발생했습니다."));
         }
     }
 
+    /**
+     * 주간 리포트 생성
+     */
     @PostMapping("/weekly")
     public ResponseEntity<?> createWeekly(HttpServletRequest request, @RequestBody CreateReportRequest body) {
-        try {
-            String token = extractToken(request);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                Map<String,String> err = new HashMap<>();
-                err.put("error","인증이 필요합니다.");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
-            }
-            int userId = jwtUtil.getUserId(token);
+        Integer userId = extractUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "인증이 필요합니다."));
+        }
 
+        try {
             ZoneId zone = ZoneId.of("Asia/Seoul");
             LocalDate from = body.getFromDate() != null ? LocalDate.parse(body.getFromDate())
                     : LocalDate.now(zone).with(java.time.DayOfWeek.MONDAY);
@@ -223,130 +203,119 @@ public class ReportController {
             ReportDto dto = reportService.createWeeklyReport(userId, from, to);
             return ResponseEntity.status(HttpStatus.CREATED).body(dto);
 
-        } catch (Exception e) {
-            if (e instanceof IllegalStateException) {
-                String msg = e.getMessage() == null ? "" : e.getMessage();
-                if (msg.contains("LIMIT_EXCEEDED")) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","생성 한도를 초과했습니다.");
-                    return ResponseEntity.status(429).body(err);
-                }
-                if (msg.contains("NO_MEALS")) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","해당 주간에 기록된 식사 데이터가 없습니다.");
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
-                }
+        } catch (IllegalStateException e) {
+            String msg = e.getMessage() == null ? "" : e.getMessage();
+            LocalDate from = body.getFromDate() != null ? LocalDate.parse(body.getFromDate()) : null;
+            LocalDate to = body.getToDate() != null ? LocalDate.parse(body.getToDate()) : null;
+
+            if (msg.contains("LIMIT_EXCEEDED")) {
+                logWeeklyAttempt(userId, from, to, "LIMIT_EXCEEDED", msg);
+                return ResponseEntity.status(429)
+                        .body(Map.of("error", "생성 한도를 초과했습니다."));
             }
+
+            if (msg.contains("NO_MEALS")) {
+                logWeeklyAttempt(userId, from, to, "NO_DATA", msg);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "해당 주간에 기록된 식사 데이터가 없습니다."));
+            }
+
+            throw e;
+
+        } catch (Exception e) {
             log.error("createWeekly error", e);
-            Map<String,String> err = new HashMap<>();
-            err.put("error","주간 리포트 생성 중 오류가 발생했습니다.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+            LocalDate from = body.getFromDate() != null ? LocalDate.parse(body.getFromDate()) : null;
+            LocalDate to = body.getToDate() != null ? LocalDate.parse(body.getToDate()) : null;
+            logWeeklyAttempt(userId, from, to, "FAILED", e.toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "주간 리포트 생성 중 오류가 발생했습니다."));
         }
     }
 
+    /**
+     * 주간 리포트 조회
+     */
     @GetMapping("/weekly")
-    public ResponseEntity<?> getWeekly(HttpServletRequest request,
-                                       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
+    public ResponseEntity<?> getWeekly(
+            HttpServletRequest request,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate
+    ) {
+        Integer userId = extractUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "인증이 필요합니다."));
+        }
+
         try {
-            // Development helper: allow X-USER-ID header to bypass JWT for local testing
-            String xUser = request.getHeader("X-USER-ID");
-            int userId;
-            if (xUser != null && !xUser.isBlank()) {
-                try {
-                    userId = Integer.parseInt(xUser.trim());
-                    log.debug("getWeekly - using X-USER-ID bypass: {}", userId);
-                } catch (NumberFormatException nfe) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","Invalid X-USER-ID header");
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
-                }
-            } else {
-                String token = extractToken(request);
-                if (token == null || !jwtUtil.validateToken(token)) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","인증이 필요합니다.");
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
-                }
-                userId = jwtUtil.getUserId(token);
-            }
             LocalDate from = fromDate != null ? fromDate
                     : LocalDate.now().minusWeeks(1).with(java.time.DayOfWeek.MONDAY);
             LocalDate to = from.plusDays(6);
 
             ReportDto dto = reportService.getWeeklyReport(userId, from, to);
+
             if (dto == null) {
-                Map<String,String> err = new HashMap<>();
-                err.put("error","리포트를 찾을 수 없습니다.");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "리포트를 찾을 수 없습니다."));
             }
+
             return ResponseEntity.ok(dto);
 
         } catch (Exception e) {
             log.error("getWeekly error", e);
-            Map<String,String> err = new HashMap<>();
-            err.put("error","주간 리포트 조회 중 오류가 발생했습니다.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "주간 리포트 조회 중 오류가 발생했습니다."));
         }
     }
 
+    /**
+     * ID로 리포트 조회
+     */
     @GetMapping("/{id}")
     public ResponseEntity<?> getReportById(HttpServletRequest request, @PathVariable int id) {
+        Integer userId = extractUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "인증이 필요합니다."));
+        }
+
         try {
-            // Development helper: allow X-USER-ID header to bypass JWT for local testing
-            String xUser = request.getHeader("X-USER-ID");
-            int userId;
-            if (xUser != null && !xUser.isBlank()) {
-                try {
-                    userId = Integer.parseInt(xUser.trim());
-                    log.debug("getReportById - using X-USER-ID bypass: {}", userId);
-                } catch (NumberFormatException nfe) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","Invalid X-USER-ID header");
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
-                }
-            } else {
-                String token = extractToken(request);
-                if (token == null || !jwtUtil.validateToken(token)) {
-                    Map<String,String> err = new HashMap<>();
-                    err.put("error","인증이 필요합니다.");
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
-                }
-                userId = jwtUtil.getUserId(token);
+            ReportDto dto = reportService.getReportById(userId, id);
+
+            if (dto == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "리포트를 찾을 수 없습니다."));
             }
 
-            ReportDto dto = reportService.getReportById(userId, id);
-            if (dto == null) {
-                Map<String,String> err = new HashMap<>();
-                err.put("error","리포트를 찾을 수 없습니다.");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
-            }
             return ResponseEntity.ok(dto);
 
         } catch (Exception e) {
             log.error("getReportById error", e);
-            Map<String,String> err = new HashMap<>();
-            err.put("error","리포트 조회 중 오류가 발생했습니다.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "리포트 조회 중 오류가 발생했습니다."));
         }
     }
 
+    /**
+     * 생성 할당량 조회
+     */
     @GetMapping("/quota")
-    public ResponseEntity<?> getQuota(HttpServletRequest request,
-                                      @RequestParam(required = false, defaultValue = "DAILY") String type,
-                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
-        try {
-            String token = extractToken(request);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                Map<String,String> err = new HashMap<>();
-                err.put("error","인증이 필요합니다.");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
-            }
-            int userId = jwtUtil.getUserId(token);
+    public ResponseEntity<?> getQuota(
+            HttpServletRequest request,
+            @RequestParam(required = false, defaultValue = "DAILY") String type,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate
+    ) {
+        Integer userId = extractUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "인증이 필요합니다."));
+        }
 
+        try {
             ZoneId zone = ZoneId.of("Asia/Seoul");
             LocalDate startDate;
             LocalDate endDate;
+
             if ("WEEKLY".equalsIgnoreCase(type)) {
                 LocalDate from = fromDate != null ? fromDate : LocalDate.now(zone).with(java.time.DayOfWeek.MONDAY);
                 LocalDate to = from.plusDays(6);
@@ -363,11 +332,12 @@ public class ReportController {
 
             int used = reportMapper.countGenerationLogsInPeriod(userId, type.toUpperCase(), start, end, "USER");
 
-            // Determine limit by user role (fall back to application properties)
+            // 사용자 role에 따른 limit 결정
             int limit = 0;
             try {
                 User user = userMapper.findById(userId);
                 String role = user != null && user.getRole() != null ? user.getRole().toUpperCase() : "";
+
                 if ("ADMIN".equals(role)) {
                     limit = 1000;
                 } else if ("ADVANCED".equals(role) || "AD".equals(role)) {
@@ -376,41 +346,36 @@ public class ReportController {
                     limit = "DAILY".equalsIgnoreCase(type) ? 1 : 5;
                 }
             } catch (Exception ex) {
-                // fallback to application properties when user lookup fails
-                try {
-                    String key = "report.limit." + type.toLowerCase();
-                    limit = Integer.parseInt(env.getProperty(key, "1"));
-                } catch (Exception ex2) {
-                    limit = 1;
-                }
+                // fallback
+                limit = 1;
             }
 
             int remaining = Math.max(0, limit - used);
 
-            Map<String,Object> resp = new HashMap<>();
-            resp.put("used", used);
-            resp.put("limit", limit);
-            resp.put("remaining", remaining);
-            return ResponseEntity.ok(resp);
+            return ResponseEntity.ok(Map.of(
+                    "used", used,
+                    "limit", limit,
+                    "remaining", remaining
+            ));
 
         } catch (Exception e) {
             log.error("getQuota error", e);
-            Map<String,String> err = new HashMap<>();
-            err.put("error","잔여 생성 횟수 조회 중 오류가 발생했습니다.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "잔여 생성 횟수 조회 중 오류가 발생했습니다."));
         }
     }
 
+    /**
+     * 리포트 분석 (AI)
+     */
     @PostMapping("/{id}/analyze")
     public ResponseEntity<?> analyzeReport(HttpServletRequest request, @PathVariable int id) {
+        Integer userId = extractUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         try {
-            String token = extractToken(request);
-            if (token == null || !jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
-
-            int userId = jwtUtil.getUserId(token);
-
             ReportDto dto = reportService.getReportById(userId, id);
             if (dto == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -425,7 +390,47 @@ public class ReportController {
         }
     }
 
+    // ===== Private Helper Methods =====
 
+    /**
+     * 일간 리포트 생성 시도 로그
+     */
+    private void logGenerationAttempt(Integer userId, String type, CreateReportRequest body, String result, String details) {
+        try {
+            LocalDate date = body != null && body.getDate() != null
+                    ? LocalDate.parse(body.getDate())
+                    : LocalDate.now();
+            reportMapper.insertGenerationLog(userId, type, date, null, null, "USER", result, null, details);
+        } catch (Exception ex) {
+            log.warn("Failed to log generation attempt", ex);
+        }
+    }
+
+    /**
+     * 주간 리포트 생성 시도 로그
+     */
+    private void logWeeklyAttempt(Integer userId, LocalDate from, LocalDate to, String result, String details) {
+        try {
+            reportMapper.insertGenerationLog(userId, "WEEKLY", null, from, to, "USER", result, null, details);
+        } catch (Exception ex) {
+            log.warn("Failed to log weekly attempt", ex);
+        }
+    }
+
+    /**
+     * 토큰 추출 (Authorization 헤더 우선, 쿠키 fallback)
+     */
+    private String extractToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return getTokenFromCookie(request, "accessToken");
+    }
+
+    /**
+     * 쿠키에서 토큰 추출
+     */
     private String getTokenFromCookie(HttpServletRequest request, String cookieName) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
@@ -435,13 +440,5 @@ public class ReportController {
             }
         }
         return null;
-    }
-
-    private String extractToken(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
-        return getTokenFromCookie(request, "accessToken");
     }
 }

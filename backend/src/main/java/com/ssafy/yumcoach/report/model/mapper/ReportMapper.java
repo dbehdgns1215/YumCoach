@@ -101,6 +101,9 @@ public interface ReportMapper {
     /** 리포트 다음 행동 업데이트 */
     void updateReportNextAction(@Param("reportId") int reportId, @Param("nextAction") String nextAction);
 
+    /** 스케줄러용: 생성된 리포트의 상태와 생성자(created_by)를 업데이트합니다. */
+    void updateReportStatusCreatedBy(@Param("reportId") Integer reportId, @Param("status") String status, @Param("createdBy") String createdBy);
+
     /** 리포트 점수 업데이트 */
     void updateReportScore(@Param("reportId") int reportId, @Param("score") Integer score);
 
