@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yumcoach.payments.model.mapper.PaymentMapper">
+
+    <resultMap id="PaymentMap" type="com.ssafy.yumcoach.payments.model.Payment">
+        <id property="id" column="id" />
+        <result property="userId" column="user_id" />
+        <result property="orderId" column="order_id" />
+        <result property="paymentKey" column="payment_key" />
+        <result property="planType" column="plan_type" />
+        <result property="amount" column="amount" />
+        <result property="method" column="method" />
+        <result property="status" column="status" />
+        <result property="approvedAt" column="approved_at" />
+        <result property="raw" column="raw" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <insert id="insertPayment" parameterType="com.ssafy.yumcoach.payments.model.Payment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO payments (
+            user_id, order_id, payment_key, plan_type, amount, method, status, approved_at, created_at, updated_at
+        ) VALUES (
+            #{userId}, #{orderId}, #{paymentKey}, #{planType}, #{amount}, #{method}, #{status}, #{approvedAt,jdbcType=TIMESTAMP}, NOW(), NOW()
+        )
+        ON DUPLICATE KEY UPDATE
+            payment_key = VALUES(payment_key),
+            plan_type = VALUES(plan_type),
+            amount = VALUES(amount),
+            method = VALUES(method),
+            status = VALUES(status),
+            approved_at = VALUES(approved_at),
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="findByOrderId" parameterType="string" resultMap="PaymentMap">
+        SELECT * FROM payments WHERE order_id = #{orderId}
+    </select>
+
+    <update id="updatePaymentStatus">
+        UPDATE payments SET status = #{status}, updated_at = CURRENT_TIMESTAMP
+        WHERE order_id = #{orderId}
+    </update>
+</mapper>
