@@ -47,4 +47,6 @@ public interface ReportService {
      * @return ReportDto 또는 null
      */
     ReportDto getReportById(int userId, int reportId);
+
+    void analyzeReport(int reportId) throws Exception;
 }

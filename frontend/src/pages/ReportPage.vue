@@ -57,7 +57,7 @@
       <div class="colRail">
         <template v-if="devResult">
           <CoachCard :message="displayCoachMessage" />
-          <NextActionCard :action-text="displayNextAction" @save="onSavePlan" />
+          <NextActionCard :action-text="displayNextAction" @save="onSavePlan" @register="onRegisterAsChallenge" />
         </template>
         <template v-else>
           <!-- keep rail visually balanced when empty -->
@@ -78,6 +78,7 @@
       @error="handleModalError"
     />
     <ToastContainer />
+    <ChallengeCreateModal :show="showChallengeModal" :initialItems="challengeInitialItems" @close="showChallengeModal=false" @create="handleCreateChallenge" />
   </AppShell>
 </template>
 
@@ -92,6 +93,8 @@ import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 import ReportHero from '@/components/report/ReportHero.vue'
 import InsightCard from '@/components/report/InsightCard.vue'
 import NextActionCard from '@/components/report/NextActionCard.vue'
+import ChallengeCreateModal from '@/components/challenge/ChallengeCreateModal.vue'
+import { parseNumberedList } from '@/utils/parseReportSuggestions'
 import CoachCard from '@/components/report/CoachCard.vue'
 import AdvancedPreview from '@/components/report/AdvancedPreview.vue'
 import PaywallModal from '@/components/paywall/PaywallModal.vue'
@@ -347,11 +350,34 @@ const displayHeroLine = computed(() => {
 
 const openPaywall = ref(false)
 const openCreateModal = ref(false)
+const showChallengeModal = ref(false)
+const challengeInitialItems = ref([])
 const devResult = ref(null)
 const devError = ref(null)
 const devLoading = ref(false)
 const analyzeLoading = ref(false)
 const analyzeResult = ref(null)
+
+async function handleCreateChallenge(payload) {
+  try {
+    console.debug('[ReportPage] handleCreateChallenge payload', payload)
+    const body = {
+      title: payload.title,
+      startDate: isoDate(new Date()),
+      durationDays: 30,
+      items: payload.items.map((it, idx) => ({ order: idx+1, text: it.text }))
+    }
+    // API 호출 (api 인스턴스의 baseURL이 이미 '/api'일 수 있음)
+    const res = await api.post('/challenges', body)
+    const data = res.data
+    showToast('챌린지가 생성되었습니다.')
+    // optionally navigate to challenge page if exists
+    // router.push(`/challenges/${data.userChallengeId}`)
+  } catch (e) {
+    console.error(e)
+    showToast('챌린지 생성에 실패했습니다.')
+  }
+}
 
 // 업데이트: devResult가 들어오면 top-level 값을 우선 사용하고, 없으면 aiResponse 문자열을 파싱해서 채웁니다.
 watch(devResult, (val) => {
@@ -481,6 +507,13 @@ function onAddMeal() {
 
 function onSavePlan() {
   console.log('saved tomorrow plan')
+}
+
+function onRegisterAsChallenge() {
+  const txt = displayNextAction.value || ''
+  const items = parseNumberedList(txt)
+  challengeInitialItems.value = items
+  showChallengeModal.value = true
 }
 
 function onUpgrade(payload) {

@@ -19,6 +19,17 @@ export const useAuthStore = defineStore('auth', {
       // accessToken을 스토어에 설정합니다. PersistedState Plugin이 세션스토리지에 동기화합니다.
       this.accessToken = token
       this.isAuthenticated = !!token
+      // 전역 axios 기본 Authorization 헤더도 설정하여
+      // `api` 인스턴스가 아닌 직접 axios를 쓰는 요청도 인증될 수 있게 합니다.
+      try {
+        if (token) {
+          axios.defaults.headers = axios.defaults.headers || {}
+          axios.defaults.headers.common = axios.defaults.headers.common || {}
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        } else {
+          try { delete axios.defaults.headers.common['Authorization'] } catch(e) {}
+        }
+      } catch (e) {}
       // 디버그: 토큰 설정 시 로그 출력
       try { console.debug('[auth] setAccessToken', { token, isAuthenticated: this.isAuthenticated }) } catch(e) {}
     },
