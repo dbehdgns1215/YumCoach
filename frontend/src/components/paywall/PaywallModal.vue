@@ -22,7 +22,7 @@
         <!-- 혜택 3개 -->
         <div class="benefits">
           <div class="benefit">📅 요일별 패턴: 주말/평일 습관을 한눈에</div>
-          <div class="benefit">⏰ 식사 시간: 야식·간식 타이밍을 교정</div>
+          <div class="benefit">⏰ 카카오톡 알림: 매일 아침마다 분석 리포트를 받아보기</div>
           <div class="benefit">🥗 영양소 추세: 목표 대비 탄단지 흐름</div>
         </div>
 
@@ -49,7 +49,7 @@
               <div class="price">₩39,000</div>
               <div class="per">/년</div>
             </div>
-            <div class="planSub">약 34% 절약 느낌 ✨</div>
+            <div class="planSub">월간 대비 약 34% 절약 ✨</div>
           </button>
         </div>
 
@@ -69,7 +69,13 @@
         </div>
 
         <div class="fineprint">
-          * 가격/혜택은 예시예요. 결제/환불 정책은 실제 구현 시 표시해줘야 해요.
+          <strong>결제 및 환불 안내</strong><br>
+          - 결제 시점부터 Advanced 리포트 서비스가 즉시 제공됩니다.<br>
+          - 구독 해지는 현재 결제주기 종료일 이후 자동 갱신이 중단됩니다. 단, 이미 결제된 기간에 대해서는 환불이 제공되지 않습니다.<br>
+          - 결제일로부터 7일 이내에는 전액 환불을 요청하실 수 있으며, 7일 이후에는 이용 내역과 사유를 토대로 부분 환불 여부를 검토합니다.<br>
+          - 서비스 장애로 정상적인 이용이 불가한 경우 환불 또는 이용기간 연장 등 보상을 제공할 수 있습니다.<br>
+          - 환불/결제 문의는 yumcoach_support@gmail.com으로 접수해 주세요.<br>
+          - 문의 접수 시 주문번호와 계정 정보를 함께 전달해 주시면 빠르게 확인해 드립니다.
         </div>
       </div>
     </div>
@@ -417,9 +423,9 @@ watch(
 }
 
 .fineprint {
-  margin-top: 10px;
+  margin-top: 20px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 /* 데스크탑에서는 중앙에 더 가깝게(대화형 모달 느낌) */

@@ -2,14 +2,14 @@
   <BaseCard class="wrap" clickable @click="$emit('open')">
     <div class="top">
       <div class="title">🔒 더 자세한 분석 보기 (Advanced)</div>
-      <div class="cta">미리보기</div>
+      <!-- <div class="cta">미리보기</div> -->
     </div>
-    <div class="desc">요일별 패턴 · 영양소 추세 · 식사 시간 분석</div>
+    <!-- <div class="desc">요일별 패턴 · 영양소 추세 · 식사 시간 분석</div>ㄴㄴㄴ -->
 
     <div class="preview">
-      <div class="tile" />
-      <div class="tile" />
-      <div class="tile" />
+      <div class="tile" style="height: 50px;" />
+      <div class="tile" style="height: 50px;" />
+      <div class="tile" style="height: 50px;" />
       <div class="overlay">Advanced에서 더 자세히 볼 수 있어요</div>
     </div>
   </BaseCard>

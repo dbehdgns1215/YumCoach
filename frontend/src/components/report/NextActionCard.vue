@@ -7,7 +7,7 @@
     <div class="action">{{ actionText }}</div>
 
     <template #footer>
-      <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
+      <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
         <BaseButton variant="secondary" @click="$emit('save')">{{ buttonLabel }}</BaseButton>
         <BaseButton variant="primary" @click="$emit('register')">챌린지로 등록</BaseButton>
       </div>
