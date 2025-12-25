@@ -9,7 +9,7 @@ import com.ssafy.yumcoach.user.model.UserDietRestriction;
 import com.ssafy.yumcoach.user.model.UserHealth;
 import com.ssafy.yumcoach.user.model.service.UserService;
 import com.ssafy.yumcoach.auth.model.RefreshTokenDto;
-import com.ssafy.yumcoach.auth.model.service.RefreshTokenService;
+import com.ssafy.yumcoach.auth.service.refresh.RefreshTokenService;
 import com.ssafy.yumcoach.auth.util.JwtUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,7 +21,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
