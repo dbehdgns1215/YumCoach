@@ -145,12 +145,6 @@ export const useAuthStore = defineStore("auth", {
               console.debug("[auth] refresh: populated user via /me");
             } catch (e) {}
             return null;
-            const me = await axios.get('/api/user/me', { withCredentials: true })
-            this.user = me.data
-              try { await this.fetchUserHealth() } catch(e) { console.debug('[auth] fetchUserHealth after refresh failed') }
-            this.isAuthenticated = true
-            try { console.debug('[auth] refresh: populated user via /me') } catch(e) {}
-            return null
           } catch (e) {
             throw new Error(
               "refresh did not return accessToken and /me failed"
@@ -230,12 +224,6 @@ export const useAuthStore = defineStore("auth", {
               );
             } catch (e) {}
             return true;
-            const res = await axios.get('/api/user/me', { headers: { Authorization: `Bearer ${this.accessToken}` } })
-            this.user = res.data
-              try { await this.fetchUserHealth() } catch(e) { console.debug('[auth] fetchUserHealth after checkAuth failed') }
-            this.isAuthenticated = true
-            try { console.debug('[auth] checkAuth success (with existing token)', this.user) } catch(e) {}
-            return true
           } catch (err) {
             const status = err?.response?.status;
             if (status === 401) {
