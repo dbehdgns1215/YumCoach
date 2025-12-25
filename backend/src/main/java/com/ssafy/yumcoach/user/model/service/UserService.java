@@ -28,6 +28,16 @@ public interface UserService {
     User findById(Integer id);
 
     /**
+     * 카카오 ID로 유저 조회
+     */
+    User findByKakaoId(Long kakaoId);
+
+    /**
+     * 소셜 로그인 회원가입 (비밀번호 불필요)
+     */
+    void signupSocial(User user);
+
+    /**
      * 유저 건강정보 조회
      */
     UserHealth findUserHealthByUserId(Integer userId);

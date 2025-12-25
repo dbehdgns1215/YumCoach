@@ -43,6 +43,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/community").permitAll()
                                                 // 결제 승인 콜백/연동은 인증 없이 접근 가능해야 함
                                                 .requestMatchers("/api/payments/**").permitAll()
+                                                .requestMatchers("/api/auth/kakao").permitAll()
 
 
                                                 // Swagger/Springdoc
