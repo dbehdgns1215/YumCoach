@@ -1,0 +1,32 @@
+# SMTP / Redis / TTL 설정
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  mail:
+    host: smtp.naver.com
+    port: 465
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_PASSWORD}
+    properties:
+      mail:
+        transport:
+          protocol: smtp
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          socketFactory:
+            class: javax.net.ssl.SSLSocketFactory
+          ssl:
+            trust: smtp.naver.com
+            protocols: TLSv1.2
+
+app:
+  mail:
+    from: ${EMAIL_FROM:${spring.mail.username}}
+  auth:
+    email:
+      ttl-seconds: 180

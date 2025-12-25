@@ -1,4 +1,4 @@
-package com.ssafy.yumcoach.auth.model.service;
+package com.ssafy.yumcoach.auth.service.refresh;
 
 import com.ssafy.yumcoach.auth.model.RefreshTokenDto;
 
