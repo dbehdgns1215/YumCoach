@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -63,7 +64,7 @@ public class ReportServiceImpl implements ReportService {
 
         List<MealLogDto> logs = mealMapper.selectMealLogsByUserAndDateRange(userId, date, date);
 
-        int cal = 0, pro = 0, carb = 0, fat = 0, cnt = 0;
+        int cal = 0, pro = 0, carb = 0, fat = 0;
         List<ReportMealDto> meals = new ArrayList<>();
 
         for (MealLogDto log : logs) {
@@ -79,7 +80,7 @@ public class ReportServiceImpl implements ReportService {
                 int c = (int)(fd.getNutrition().getCarbohydrateG() * f);
                 int fa = (int)(fd.getNutrition().getFatG() * f);
 
-                cal += k; pro += p; carb += c; fat += fa; cnt++;
+                cal += k; pro += p; carb += c; fat += fa;
 
                 ReportMealDto rm = new ReportMealDto();
                 rm.setReportId(dto.getId());
@@ -94,36 +95,41 @@ public class ReportServiceImpl implements ReportService {
             }
         }
 
-        if (cnt == 0) throw new IllegalStateException("NO_MEALS");
+        if (meals.isEmpty()) throw new IllegalStateException("NO_MEALS");
 
-        reportMapper.updateReportSummary(dto.getId(), cal, pro, carb, fat, cnt);
+        // 🔥 식사 횟수 계산: MealHistory의 고유 타입 개수
+        int mealCount = calculateMealCount(userId, date);
 
-        // meals objects now have generated ids (mapper configured to useGeneratedKeys)
+        reportMapper.updateReportSummary(dto.getId(), cal, pro, carb, fat, mealCount);
+
         dto.setMeals(meals);
 
         boolean analysisPassed = false;
-        try { analyzeReport(dto.getId()); analysisPassed = true; } catch (Exception ignored) { log.warn("analyzeReport failed for reportId={}", dto.getId()); }
-
-        // 기록: 생성 로그 남기기 (생성 횟수 집계에 사용)
         try {
-            String details = analysisPassed ? "ANALYZED_WITH_AI" : "CREATED_NO_AI";
-            int inserted = reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER", analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), details);
-            log.debug("insertGenerationLog returned {} for reportId={} details={}", inserted, dto.getId(), details);
-        } catch (Exception ex) {
-            log.error("insertGenerationLog failed for reportId={} error={}", dto.getId(), ex.toString());
+            analyzeReport(dto.getId());
+            analysisPassed = true;
+        } catch (Exception e) {
+            log.warn("analyzeReport failed for reportId={}", dto.getId(), e);
         }
 
-        // Refresh DTO from DB to populate DB-generated fields (createdAt/updatedAt etc.)
+        // 기록: 생성 로그 남기기
+        try {
+            String details = analysisPassed ? "ANALYZED_WITH_AI" : "CREATED_NO_AI";
+            reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER",
+                    analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), details);
+        } catch (Exception ex) {
+            log.error("insertGenerationLog failed for reportId={}", dto.getId(), ex);
+        }
+
+        // Refresh DTO
         ReportDto refreshed = reportMapper.selectReportById(dto.getId());
         if (refreshed != null) {
-            // attach the meals we've built (they include generated ids)
             refreshed.setMeals(meals);
             try {
                 var insights = reportMapper.selectReportInsights(dto.getId());
                 refreshed.setInsights(insights);
-                log.debug("selectReportInsights returned {} rows for reportId={}", insights == null ? 0 : insights.size(), dto.getId());
             } catch (Exception ex) {
-                log.warn("failed to load insights for reportId={} error={}", dto.getId(), ex.toString());
+                log.warn("failed to load insights for reportId={}", dto.getId(), ex);
             }
             return refreshed;
         }
@@ -134,7 +140,6 @@ public class ReportServiceImpl implements ReportService {
     public ReportDto createDailyReport(int userId, LocalDate date, String createdBy) {
         User user = userMapper.findById(userId);
 
-        // 🔥 SCHEDULER로 만든 리포트는 제한 체크 안 함
         if (!"SCHEDULER".equals(createdBy)) {
             int limit = user != null && "ADMIN".equalsIgnoreCase(user.getRole()) ? 1000 :
                     user != null && "ADVANCED".equalsIgnoreCase(user.getRole()) ? 2 : 1;
@@ -152,13 +157,13 @@ public class ReportServiceImpl implements ReportService {
         dto.setDate(date);
         dto.setType("DAILY");
         dto.setStatus("PROGRESS");
-        dto.setCreatedBy("USER");
+        dto.setCreatedBy(createdBy);
 
         reportMapper.insertReport(dto);
 
         List<MealLogDto> logs = mealMapper.selectMealLogsByUserAndDateRange(userId, date, date);
 
-        int cal = 0, pro = 0, carb = 0, fat = 0, cnt = 0;
+        int cal = 0, pro = 0, carb = 0, fat = 0;
         List<ReportMealDto> meals = new ArrayList<>();
 
         for (MealLogDto log : logs) {
@@ -174,7 +179,7 @@ public class ReportServiceImpl implements ReportService {
                 int c = (int)(fd.getNutrition().getCarbohydrateG() * f);
                 int fa = (int)(fd.getNutrition().getFatG() * f);
 
-                cal += k; pro += p; carb += c; fat += fa; cnt++;
+                cal += k; pro += p; carb += c; fat += fa;
 
                 ReportMealDto rm = new ReportMealDto();
                 rm.setReportId(dto.getId());
@@ -189,42 +194,72 @@ public class ReportServiceImpl implements ReportService {
             }
         }
 
-        if (cnt == 0) throw new IllegalStateException("NO_MEALS");
+        if (meals.isEmpty()) throw new IllegalStateException("NO_MEALS");
 
-        reportMapper.updateReportSummary(dto.getId(), cal, pro, carb, fat, cnt);
+        // 🔥 식사 횟수 계산
+        int mealCount = calculateMealCount(userId, date);
 
-        // meals objects now have generated ids (mapper configured to useGeneratedKeys)
+        reportMapper.updateReportSummary(dto.getId(), cal, pro, carb, fat, mealCount);
+
         dto.setMeals(meals);
 
         boolean analysisPassed = false;
-        try { analyzeReport(dto.getId()); analysisPassed = true; } catch (Exception ignored) { log.warn("analyzeReport failed for reportId={}", dto.getId()); }
-
-        // 기록: 생성 로그 남기기 (생성 횟수 집계에 사용)
         try {
-            int inserted = reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, "USER", analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), null);
-            log.debug("insertGenerationLog returned {} for reportId={}", inserted, dto.getId());
-        } catch (Exception ex) {
-            log.error("insertGenerationLog failed for reportId={} error={}", dto.getId(), ex.toString());
+            analyzeReport(dto.getId());
+            analysisPassed = true;
+        } catch (Exception e) {
+            log.warn("analyzeReport failed for reportId={}", dto.getId(), e);
         }
 
-        // Refresh DTO from DB to populate DB-generated fields (createdAt/updatedAt etc.)
+        try {
+            reportMapper.insertGenerationLog(userId, "DAILY", date, null, null, createdBy,
+                    analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), null);
+        } catch (Exception ex) {
+            log.error("insertGenerationLog failed for reportId={}", dto.getId(), ex);
+        }
+
         ReportDto refreshed = reportMapper.selectReportById(dto.getId());
         if (refreshed != null) {
-            // attach the meals we've built (they include generated ids)
             refreshed.setMeals(meals);
             try {
                 var insights = reportMapper.selectReportInsights(dto.getId());
                 refreshed.setInsights(insights);
-                log.debug("selectReportInsights returned {} rows for reportId={}", insights == null ? 0 : insights.size(), dto.getId());
             } catch (Exception ex) {
-                log.warn("failed to load insights for reportId={} error={}", dto.getId(), ex.toString());
+                log.warn("failed to load insights for reportId={}", dto.getId(), ex);
             }
             return refreshed;
         }
 
         return dto;
     }
-    
+
+    /**
+     * 🔥 식사 횟수 계산: MealHistory에서 해당 날짜의 고유 타입 개수를 카운트
+     */
+    private int calculateMealCount(int userId, LocalDate date) {
+        try {
+            // MealMapper에 메서드 추가 필요: selectMealHistoryByUserAndDate
+            List<String> mealTypes = mealMapper.selectMealTypesByUserAndDate(userId, date);
+
+            if (mealTypes == null || mealTypes.isEmpty()) {
+                log.debug("[ReportService] No meal history for userId={}, date={}", userId, date);
+                return 0;
+            }
+
+            // 고유 타입만 카운트 (BREAKFAST, LUNCH, DINNER, SNACK 등)
+            Set<String> uniqueTypes = new HashSet<>(mealTypes);
+
+            log.debug("[ReportService] Meal count for userId={}, date={}: {} types ({})",
+                    userId, date, uniqueTypes.size(), uniqueTypes);
+
+            return uniqueTypes.size();
+
+        } catch (Exception e) {
+            log.error("[ReportService] Failed to calculate meal count for userId={}, date={}",
+                    userId, date, e);
+            return 0;
+        }
+    }
 
     @Override
     public ReportDto getDailyReport(int userId, LocalDate date) {
@@ -234,20 +269,19 @@ public class ReportServiceImpl implements ReportService {
             var insights = reportMapper.selectReportInsights(dto.getId());
             dto.setInsights(insights);
         } catch (Exception ex) {
-            log.warn("failed to load insights for getDailyReport reportId={} error={}", dto.getId(), ex.toString());
+            log.warn("failed to load insights for getDailyReport reportId={}", dto.getId(), ex);
         }
         try {
             var meals = reportMapper.selectReportMeals(dto.getId());
             dto.setMeals(meals);
         } catch (Exception ex) {
-            log.warn("failed to load meals for getDailyReport reportId={} error={}", dto.getId(), ex.toString());
+            log.warn("failed to load meals for getDailyReport reportId={}", dto.getId(), ex);
         }
         return dto;
     }
 
     @Override
     public ReportDto createWeeklyReport(int userId, LocalDate from, LocalDate to) {
-
         ReportDto dto = new ReportDto();
         dto.setUserId(userId);
         dto.setFromDate(from);
@@ -260,7 +294,7 @@ public class ReportServiceImpl implements ReportService {
 
         List<MealLogDto> logs = mealMapper.selectMealLogsByUserAndDateRange(userId, from, to);
 
-        int cal = 0, pro = 0, carb = 0, fat = 0, cnt = 0;
+        int cal = 0, pro = 0, carb = 0, fat = 0;
 
         for (MealLogDto log : logs) {
             if (log.getItems() == null) continue;
@@ -273,41 +307,47 @@ public class ReportServiceImpl implements ReportService {
                 pro += fd.getNutrition().getProteinG() * f;
                 carb += fd.getNutrition().getCarbohydrateG() * f;
                 fat += fd.getNutrition().getFatG() * f;
-                cnt++;
             }
         }
 
-        if (cnt == 0) throw new IllegalStateException("NO_MEALS");
+        if (cal == 0) throw new IllegalStateException("NO_MEALS");
 
-        reportMapper.updateReportSummary(dto.getId(), cal, pro, carb, fat, cnt);
+        // 🔥 주간 식사 횟수: 기간 내 모든 날짜의 평균
+        int totalMealCount = 0;
+        long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1;
 
-        // 분석 시도 및 생성 로그 남기기 (주간 생성도 동일하게 기록)
+        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+            totalMealCount += calculateMealCount(userId, d);
+        }
+
+        int avgMealCount = daysBetween > 0 ? (int) Math.round((double) totalMealCount / daysBetween) : 0;
+
+        reportMapper.updateReportSummary(dto.getId(), cal, pro, carb, fat, avgMealCount);
+
         boolean analysisPassed = false;
         try {
             analyzeReport(dto.getId());
             analysisPassed = true;
-        } catch (Exception ignored) {
-            log.warn("analyzeReport failed for weekly reportId={}", dto.getId());
+        } catch (Exception e) {
+            log.warn("analyzeReport failed for weekly reportId={}", dto.getId(), e);
         }
 
         try {
             String details = analysisPassed ? "ANALYZED_WITH_AI" : "CREATED_NO_AI";
-            int inserted = reportMapper.insertGenerationLog(userId, "WEEKLY", null, from, to, "USER", analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), details);
-            log.debug("insertGenerationLog returned {} for weekly reportId={} details={}", inserted, dto.getId(), details);
+            reportMapper.insertGenerationLog(userId, "WEEKLY", null, from, to, "USER",
+                    analysisPassed ? "CREATED_WITH_AI" : "CREATED", dto.getId(), details);
         } catch (Exception ex) {
-            log.error("insertGenerationLog failed for weekly reportId={} error={}", dto.getId(), ex.toString());
+            log.error("insertGenerationLog failed for weekly reportId={}", dto.getId(), ex);
         }
 
-        // Refresh DTO from DB and attach persisted insights (and empty meals list)
         ReportDto refreshed = reportMapper.selectReportById(dto.getId());
         if (refreshed != null) {
             refreshed.setMeals(new ArrayList<>());
             try {
                 var insights = reportMapper.selectReportInsights(dto.getId());
                 refreshed.setInsights(insights);
-                log.debug("selectReportInsights returned {} rows for weekly reportId={}", insights == null ? 0 : insights.size(), dto.getId());
             } catch (Exception ex) {
-                log.warn("failed to load insights for weekly reportId={} error={}", dto.getId(), ex.toString());
+                log.warn("failed to load insights for weekly reportId={}", dto.getId(), ex);
             }
             return refreshed;
         }
@@ -323,13 +363,13 @@ public class ReportServiceImpl implements ReportService {
             var insights = reportMapper.selectReportInsights(dto.getId());
             dto.setInsights(insights);
         } catch (Exception ex) {
-            log.warn("failed to load insights for getWeeklyReport reportId={} error={}", dto.getId(), ex.toString());
+            log.warn("failed to load insights for getWeeklyReport reportId={}", dto.getId(), ex);
         }
         try {
             var meals = reportMapper.selectReportMeals(dto.getId());
             dto.setMeals(meals);
         } catch (Exception ex) {
-            log.warn("failed to load meals for getWeeklyReport reportId={} error={}", dto.getId(), ex.toString());
+            log.warn("failed to load meals for getWeeklyReport reportId={}", dto.getId(), ex);
         }
         return dto;
     }
@@ -342,13 +382,13 @@ public class ReportServiceImpl implements ReportService {
             var insights = reportMapper.selectReportInsights(report.getId());
             report.setInsights(insights);
         } catch (Exception ex) {
-            log.warn("failed to load insights for getReportById reportId={} error={}", report.getId(), ex.toString());
+            log.warn("failed to load insights for getReportById reportId={}", report.getId(), ex);
         }
         try {
             var meals = reportMapper.selectReportMeals(report.getId());
             report.setMeals(meals);
         } catch (Exception ex) {
-            log.warn("failed to load meals for getReportById reportId={} error={}", report.getId(), ex.toString());
+            log.warn("failed to load meals for getReportById reportId={}", report.getId(), ex);
         }
         return report;
     }
@@ -363,7 +403,7 @@ public class ReportServiceImpl implements ReportService {
             var meals = reportMapper.selectReportMeals(reportId);
             report.setMeals(meals);
         } catch (Exception ex) {
-            log.warn("analyzeReport: failed to load meals for reportId={} error={}", reportId, ex.toString());
+            log.warn("analyzeReport: failed to load meals for reportId={}", reportId, ex);
         }
 
         // 기존 insights 로드
@@ -371,7 +411,7 @@ public class ReportServiceImpl implements ReportService {
             var existingInsights = reportMapper.selectReportInsights(reportId);
             report.setInsights(existingInsights);
         } catch (Exception ex) {
-            log.warn("analyzeReport: failed to load insights for reportId={} error={}", reportId, ex.toString());
+            log.warn("analyzeReport: failed to load insights for reportId={}", reportId, ex);
         }
 
         // 활성 챌린지 로드
@@ -384,8 +424,11 @@ public class ReportServiceImpl implements ReportService {
                         activeChallenges == null ? 0 : activeChallenges.size(), reportId);
             }
         } catch (Exception ex) {
-            log.warn("analyzeReport: failed to load active challenges for reportId={} error={}", reportId, ex.toString());
+            log.warn("analyzeReport: failed to load active challenges for reportId={}", reportId, ex);
         }
+
+        // 챌린지 진행도 업데이트
+        updateChallengesFromReport(report, activeChallenges);
 
         // AI 분석 호출
         AiResult ai = openAiService.analyze(report);
@@ -411,8 +454,7 @@ public class ReportServiceImpl implements ReportService {
                 try {
                     reportMapper.insertReportInsight(reportId, i.getKind(), i.getTitle(), i.getBody());
                 } catch (Exception ex) {
-                    log.error("failed to insert insight for reportId={} kind={} error={}",
-                            reportId, i.getKind(), ex.toString());
+                    log.error("failed to insert insight for reportId={} kind={}", reportId, i.getKind(), ex);
                 }
             }
 
@@ -424,32 +466,15 @@ public class ReportServiceImpl implements ReportService {
                 reportMapper.insertReportInsight(reportId, "action", "권장 행동", r.getNextAction());
             }
         }
-
-        // ✨ AI 응답의 challengeProgress 처리
-        processChallengeProgress(report, ai, activeChallenges);
     }
+
     /**
-     * AI 응답에서 챌린지 진행도를 추출하여 DB에 반영
+     * 리포트 데이터를 기반으로 챌린지 진행도 업데이트
      */
-    private void processChallengeProgress(ReportDto report, AiResult aiResult, List<ChallengeDto> activeChallenges) {
+    private void updateChallengesFromReport(ReportDto report, List<ChallengeDto> activeChallenges) {
         try {
-            if (aiResult.rawJson() == null || aiResult.rawJson().isBlank()) {
-                log.debug("[ReportService] AI 응답이 없어 챌린지 업데이트 스킵");
-                return;
-            }
-
             if (activeChallenges == null || activeChallenges.isEmpty()) {
-                log.debug("[ReportService] 활성 챌린지가 없어 챌린지 업데이트 스킵");
-                return;
-            }
-
-            // AI 응답 파싱
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode aiResponse = mapper.readTree(aiResult.rawJson());
-            JsonNode challengeProgressNode = aiResponse.get("challengeProgress");
-
-            if (challengeProgressNode == null || !challengeProgressNode.isArray()) {
-                log.debug("[ReportService] challengeProgress 없음 - AI가 생성하지 않았거나 파싱 실패");
+                log.debug("[ReportService] No active challenges to update");
                 return;
             }
 
@@ -457,46 +482,33 @@ public class ReportServiceImpl implements ReportService {
             LocalDate logDate = report.getDate() != null ? report.getDate() :
                     report.getToDate() != null ? report.getToDate() : LocalDate.now();
 
-            // reportData 구성 (recordDailyLog에서 사용)
+            // reportData 구성 (챌린지 분석용)
             Map<String, Object> reportData = new HashMap<>();
             reportData.put("totalCalories", report.getTotalCalories());
             reportData.put("totalProtein", report.getProteinG());
-            reportData.put("totalCarbs", report.getCarbG());
+            reportData.put("totalCarb", report.getCarbG());
             reportData.put("totalFat", report.getFatG());
             reportData.put("mealCount", report.getMealCount());
 
+            log.info("[ReportService] Updating {} challenges with reportData: {}",
+                    activeChallenges.size(), reportData);
+
             // 각 챌린지별로 dailyLog 기록
-            for (JsonNode progress : challengeProgressNode) {
+            for (ChallengeDto challenge : activeChallenges) {
                 try {
-                    Long challengeId = progress.get("challengeId").asLong();
+                    challengeService.recordDailyLog(challenge.getId(), logDate, reportData);
 
-                    // 해당 챌린지가 실제로 활성화되어 있는지 확인
-                    boolean isActiveChallenge = activeChallenges.stream()
-                            .anyMatch(ch -> ch.getId().equals(challengeId));
-
-                    if (!isActiveChallenge) {
-                        log.warn("[ReportService] challengeId={} not in active challenges, skipping", challengeId);
-                        continue;
-                    }
-
-                    // recordDailyLog 호출 (내부에서 달성 여부 재계산)
-                    challengeService.recordDailyLog(challengeId, logDate, reportData);
-
-                    log.info("[ReportService] 챌린지 업데이트 완료 - challengeId={}, date={}, " +
-                                    "isAchieved={}, rate={}%",
-                            challengeId,
-                            logDate,
-                            progress.get("isAchieved").asBoolean(),
-                            progress.get("achievementRate").asDouble());
+                    log.info("[ReportService] Challenge updated - id={}, date={}, type={}",
+                            challenge.getId(), logDate, challenge.getGoalType());
 
                 } catch (Exception e) {
-                    log.error("[ReportService] 챌린지 진행도 업데이트 실패 - challengeId from AI response", e);
+                    log.error("[ReportService] Failed to update challenge id={}",
+                            challenge.getId(), e);
                 }
             }
 
         } catch (Exception e) {
-            log.error("[ReportService] 챌린지 진행도 처리 전체 실패", e);
-            // 실패해도 리포트 생성은 성공으로 처리
+            log.error("[ReportService] Failed to update challenges from report", e);
         }
     }
 }

@@ -34,6 +34,17 @@ public class ChallengeServiceImpl implements ChallengeService {
     public Long createChallenge(Integer userId, ChallengeCreateRequest request) {
         log.info("[ChallengeService] createChallenge userId={}, request={}", userId, request);
 
+        // goalDetails 유효성 검증
+        if (request.getGoalDetails() == null || request.getGoalDetails().isEmpty()) {
+            throw new IllegalArgumentException("목표값을 입력해주세요");
+        }
+
+        // frequency만 있는 경우 체크
+        if (request.getGoalDetails().size() == 1 &&
+                request.getGoalDetails().containsKey("frequency")) {
+            throw new IllegalArgumentException("구체적인 목표값을 입력해주세요 (칼로리, 단백질 등)");
+        }
+
         // 1. Challenge 엔티티 생성
         LocalDate startDate = LocalDate.parse(request.getStartDate());
         LocalDate endDate = startDate.plusDays(request.getDurationDays() - 1);
@@ -43,14 +54,46 @@ public class ChallengeServiceImpl implements ChallengeService {
             goalDetailsJson = objectMapper.writeValueAsString(request.getGoalDetails());
         } catch (JsonProcessingException e) {
             log.error("goalDetails JSON 변환 실패", e);
-            goalDetailsJson = "{}";
+            throw new IllegalArgumentException("목표 데이터 형식이 올바르지 않습니다");
+        }
+
+        // goalType이 null이면 자동 결정
+        String goalTypeValue = request.getGoalType();
+        if (goalTypeValue == null) {
+            Map<String, Object> gd = request.getGoalDetails();
+            if (gd != null && !gd.isEmpty()) {
+                List<String> keys = new ArrayList<>();
+                for (String k : gd.keySet()) {
+                    if (k == null) continue;
+                    String kk = k.toLowerCase();
+                    if (Arrays.asList("calories","protein","carbs","fat","weight","exercise","habit").contains(kk)) {
+                        keys.add(kk);
+                    }
+                }
+                if (keys.size() == 1) {
+                    switch (keys.get(0)) {
+                        case "calories": goalTypeValue = "CALORIE"; break;
+                        case "protein": goalTypeValue = "PROTEIN"; break;
+                        case "carbs": goalTypeValue = "CARBS"; break;
+                        case "fat": goalTypeValue = "FAT"; break;
+                        case "weight": goalTypeValue = "WEIGHT"; break;
+                        case "exercise": goalTypeValue = "EXERCISE"; break;
+                        case "habit": goalTypeValue = "HABIT"; break;
+                        default: goalTypeValue = "COMBINED"; break;
+                    }
+                } else {
+                    goalTypeValue = "COMBINED";
+                }
+            } else {
+                goalTypeValue = "COMBINED";
+            }
         }
 
         Challenge challenge = Challenge.builder()
                 .userId(userId)
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .goalType(request.getGoalType())
+                .goalType(goalTypeValue)
                 .goalDetails(goalDetailsJson)
                 .startDate(startDate)
                 .endDate(endDate)
@@ -205,7 +248,7 @@ public class ChallengeServiceImpl implements ChallengeService {
     public void toggleChallengeItem(Long itemId, Integer userId, Boolean done) {
         log.info("[ChallengeService] toggleChallengeItem itemId={}, done={}", itemId, done);
 
-        // 🔥 권한 체크 추가
+        // 권한 체크 추가
         ChallengeItem existingItem = challengeMapper.selectItemById(itemId);
         if (existingItem == null) {
             throw new IllegalArgumentException("항목을 찾을 수 없습니다.");
@@ -216,16 +259,19 @@ public class ChallengeServiceImpl implements ChallengeService {
             throw new IllegalArgumentException("권한이 없습니다.");
         }
 
-        // 아이템 업데이트
+        // 아이템 업데이트: DB의 NOW()로 done_at을 설정하도록 안전한 업데이트 호출
         ChallengeItem item = ChallengeItem.builder()
-                .id(itemId)
-                .done(done)
-                .doneAt(done ? java.time.LocalDateTime.now() : null)
-                .build();
+            .id(itemId)
+            .done(done)
+            .build();
 
-        challengeMapper.updateChallengeItem(item);
+        challengeMapper.updateChallengeItemSetNow(item);
 
-        // 🔥 실시간 진행도 업데이트
+        // 로그용으로 최신 항목 상태 확인 (디버깅/안정성)
+        ChallengeItem after = challengeMapper.selectItemById(itemId);
+        log.debug("[ChallengeService] toggle after update: itemId={}, done={}, doneAt={}", itemId, after.getDone(), after.getDoneAt());
+
+        // 실시간 진행도 업데이트
         // 오늘 날짜로 DailyLog 재계산
         LocalDate today = LocalDate.now();
         recordDailyLog(challenge.getId(), today, new HashMap<>());
@@ -243,7 +289,8 @@ public class ChallengeServiceImpl implements ChallengeService {
     @Override
     @Transactional
     public void recordDailyLog(Long challengeId, LocalDate logDate, Map<String, Object> reportData) {
-        log.info("[ChallengeService] recordDailyLog challengeId={}, logDate={}", challengeId, logDate);
+        log.info("[ChallengeService] recordDailyLog challengeId={}, logDate={}, reportData={}", 
+                challengeId, logDate, reportData);
 
         Challenge challenge = challengeMapper.selectChallengeById(challengeId);
         if (challenge == null) {
@@ -255,36 +302,77 @@ public class ChallengeServiceImpl implements ChallengeService {
         Map<String, Object> goalDetails = null;
         try {
             goalDetails = objectMapper.readValue(challenge.getGoalDetails(), Map.class);
+            log.debug("[ChallengeService] Parsed goalDetails: {}", goalDetails);
         } catch (JsonProcessingException e) {
             log.error("goalDetails 파싱 실패", e);
             return;
         }
 
-        // 목표 타입별 달성 여부 계산
-        String targetValue = extractTargetValue(challenge.getGoalType(), goalDetails);
+        // 빈 goalDetails 체크
+        if (goalDetails == null || goalDetails.isEmpty()) {
+            log.warn("[ChallengeService] Empty goalDetails for challenge {}", challengeId);
+            return;
+        }
         String actualValue;
         boolean isAchieved;
         BigDecimal achievementRate;
 
+        // 먼저: 항목 완료 여부로 빠른 판단 (reportData가 비어있거나 영양 데이터가 없을 때)
+        List<ChallengeItem> items = challengeMapper.selectItemsByChallengeId(challengeId);
+        int totalItems = items.size();
+        // count items completed on the given logDate (use doneAt date where available)
+        int doneItemsOnDate = 0;
+        for (ChallengeItem ci : items) {
+            if (ci.getDone() != null && ci.getDone()) {
+                if (ci.getDoneAt() != null) {
+                    LocalDate doneDate = ci.getDoneAt().toLocalDate();
+                    if (doneDate.equals(logDate)) doneItemsOnDate++;
+                } else {
+                    // fallback: no timestamp, count as done
+                    doneItemsOnDate++;
+                }
+            }
+        }
+
+        // If no reportData (or no nutrition keys) but there are checked items for the date,
+        // treat the day as achieved (useful when users mark a checkbox to indicate completion).
+        boolean reportHasNutrition = reportData != null && (
+                reportData.containsKey("totalProtein") || reportData.containsKey("totalCalories") || reportData.containsKey("totalCarb") || reportData.containsKey("totalFat")
+        );
+
+        if (!reportHasNutrition && doneItemsOnDate > 0) {
+            actualValue = doneItemsOnDate + "/" + totalItems + " 완료 (체크박스)";
+            isAchieved = totalItems > 0 && doneItemsOnDate == totalItems;
+            achievementRate = totalItems > 0
+                    ? BigDecimal.valueOf((doneItemsOnDate * 100.0) / totalItems).setScale(2, RoundingMode.HALF_UP)
+                    : BigDecimal.ONE.setScale(2, RoundingMode.HALF_UP);
+        } else
         // 수동 체크 타입 (EXERCISE, HABIT)
         if (isManualCheckType(challenge.getGoalType())) {
-            // 체크리스트 항목 완료 여부로 판단
-            List<ChallengeItem> items = challengeMapper.selectItemsByChallengeId(challengeId);
-            int totalItems = items.size();
             int doneItems = (int) items.stream().filter(ChallengeItem::getDone).count();
 
             actualValue = doneItems + "/" + totalItems + " 완료";
-            isAchieved = totalItems > 0 && doneItems == totalItems; // 모두 체크해야 달성
+            isAchieved = totalItems > 0 && doneItems == totalItems;
             achievementRate = totalItems > 0
                     ? BigDecimal.valueOf((doneItems * 100.0) / totalItems).setScale(2, RoundingMode.HALF_UP)
                     : BigDecimal.ZERO;
         }
-        // 자동 추적 타입 (PROTEIN, CALORIE, CARBS, FAT)
+        // 복합 목표 타입 (COMBINED)
+        else if ("COMBINED".equals(challenge.getGoalType())) {
+            CombinedResult combined = evaluateCombinedGoals(goalDetails, reportData);
+            actualValue = combined.actualValue;
+            isAchieved = combined.isAchieved;
+            achievementRate = combined.achievementRate;
+        }
+        // 단일 목표 타입 (PROTEIN, CALORIE, CARBS, FAT)
         else {
             actualValue = extractActualValue(challenge.getGoalType(), reportData);
             isAchieved = checkAchievement(challenge.getGoalType(), goalDetails, reportData);
             achievementRate = calculateAchievementRate(challenge.getGoalType(), goalDetails, reportData);
         }
+
+        log.info("[ChallengeService] Challenge {} - goalType={}, actual={}, achieved={}, rate={}%", 
+                challengeId, challenge.getGoalType(), actualValue, isAchieved, achievementRate);
 
         // 기존 로그 확인
         ChallengeDailyLog existingLog = challengeMapper.selectDailyLog(challengeId, logDate);
@@ -297,28 +385,89 @@ public class ChallengeServiceImpl implements ChallengeService {
         }
 
         if (existingLog == null) {
-            // 신규 로그 생성
             ChallengeDailyLog newLog = ChallengeDailyLog.builder()
                     .challengeId(challengeId)
                     .logDate(logDate)
-                    .targetValue(targetValue)
+                    .targetValue(extractTargetValue(challenge.getGoalType(), goalDetails))
                     .actualValue(actualValue)
                     .isAchieved(isAchieved)
                     .achievementRate(achievementRate)
                     .reportData(reportDataJson)
                     .build();
             challengeMapper.insertDailyLog(newLog);
+            log.info("[ChallengeService] Created new daily log for challenge {}", challengeId);
         } else {
-            // 기존 로그 업데이트
             existingLog.setActualValue(actualValue);
             existingLog.setIsAchieved(isAchieved);
             existingLog.setAchievementRate(achievementRate);
             existingLog.setReportData(reportDataJson);
             challengeMapper.updateDailyLog(existingLog);
+            log.info("[ChallengeService] Updated daily log for challenge {}", challengeId);
         }
 
         // 챌린지 진척도 업데이트
         updateChallengeProgress(challengeId);
+    }
+
+    // COMBINED 결과를 담을 내부 클래스
+private static class CombinedResult {
+    String actualValue;
+    boolean isAchieved;
+    BigDecimal achievementRate;
+
+    CombinedResult(String actualValue, boolean isAchieved, BigDecimal achievementRate) {
+        this.actualValue = actualValue;
+        this.isAchieved = isAchieved;
+        this.achievementRate = achievementRate;
+    }
+}
+
+    // COMBINED 목표 평가
+    private CombinedResult evaluateCombinedGoals(Map<String, Object> goalDetails, Map<String, Object> reportData) {
+        List<String> actualValues = new ArrayList<>();
+        List<Boolean> achievements = new ArrayList<>();
+        List<Double> rates = new ArrayList<>();
+
+        // 각 목표별로 평가
+        for (String key : goalDetails.keySet()) {
+            if ("frequency".equals(key)) continue; // frequency는 스킵
+
+            String goalType = mapKeyToGoalType(key);
+            if (goalType == null) continue;
+
+            // 개별 평가
+            String actual = extractActualValue(goalType, reportData);
+            boolean achieved = checkAchievement(goalType, goalDetails, reportData);
+            BigDecimal rate = calculateAchievementRate(goalType, goalDetails, reportData);
+
+            actualValues.add(key + " " + actual);
+            achievements.add(achieved);
+            rates.add(rate.doubleValue());
+        }
+
+        // 결과 조합
+        String combinedActual = String.join(", ", actualValues);
+        boolean combinedAchieved = achievements.stream().allMatch(b -> b); // 모두 달성해야 true
+        double avgRate = rates.isEmpty() ? 0 : rates.stream().mapToDouble(d -> d).average().orElse(0);
+        BigDecimal combinedRate = BigDecimal.valueOf(avgRate).setScale(2, RoundingMode.HALF_UP);
+
+        log.debug("[ChallengeService] COMBINED evaluation: actual={}, achieved={}, rate={}%", 
+                combinedActual, combinedAchieved, combinedRate);
+
+        return new CombinedResult(combinedActual, combinedAchieved, combinedRate);
+    }
+
+    // goalDetails 키를 goalType으로 매핑
+    private String mapKeyToGoalType(String key) {
+        switch (key.toLowerCase()) {
+            case "protein": return "PROTEIN";
+            case "calories": return "CALORIE";
+            case "carbs": return "CARBS";
+            case "fat": return "FAT";
+            case "weight": return "WEIGHT";
+            case "water": return "WATER";
+            default: return null;
+        }
     }
 
     private boolean isManualCheckType(String goalType) {
@@ -348,7 +497,7 @@ public class ChallengeServiceImpl implements ChallengeService {
                 .filter(ChallengeDailyLog::getIsAchieved)
                 .count();
 
-        // 🔥 개선: 2가지 지표 계산
+        //   개선: 2가지 지표 계산
         
         // 1. 달성률 (Achievement Rate): 작성한 리포트 중 성공 비율
         double achievementRate = 0.0;
@@ -381,7 +530,7 @@ public class ChallengeServiceImpl implements ChallengeService {
                 challengeId, totalReports, totalSuccessDays, achievementRate,
                 progressRate, currentStreak, maxStreak);
 
-        // 🔥 수정: progressRate 파라미터 추가
+        //   수정: progressRate 파라미터 추가
         challengeMapper.updateChallengeProgress(
                 challengeId,
                 currentStreak,
@@ -453,73 +602,120 @@ public class ChallengeServiceImpl implements ChallengeService {
     }
 
     private String extractTargetValue(String goalType, Map<String, Object> goalDetails) {
-        switch (goalType) {
-            case "PROTEIN":
-                return goalDetails.getOrDefault("protein", "0g").toString();
-            case "CALORIE":
-                return goalDetails.getOrDefault("calories", "0kcal").toString();
-            case "WEIGHT":
-                return goalDetails.getOrDefault("weight", "0kg").toString();
-            case "WATER":
-                return goalDetails.getOrDefault("water", "0L").toString();
-            default:
-                return goalDetails.toString();
-        }
+    switch (goalType) {
+        case "PROTEIN":
+            return goalDetails.getOrDefault("protein", "0g").toString();
+        case "CALORIE":
+            return goalDetails.getOrDefault("calories", "0kcal").toString();
+        case "CARBS":
+            return goalDetails.getOrDefault("carbs", "0g").toString();
+        case "FAT":
+            return goalDetails.getOrDefault("fat", "0g").toString();
+        case "WEIGHT":
+            return goalDetails.getOrDefault("weight", "0kg").toString();
+        case "COMBINED":
+            // COMBINED는 모든 목표를 문자열로 조합
+            List<String> targets = new ArrayList<>();
+            for (String key : goalDetails.keySet()) {
+                if (!"frequency".equals(key)) {
+                    targets.add(key + " " + goalDetails.get(key));
+                }
+            }
+            return String.join(", ", targets);
+        default:
+            return goalDetails.toString();
     }
+}
 
     private String extractActualValue(String goalType, Map<String, Object> reportData) {
         switch (goalType) {
             case "PROTEIN":
-                return reportData.getOrDefault("totalProtein", 0) + "g";
+                Object protein = reportData.getOrDefault("totalProtein", 0);
+                return protein + "g";
             case "CALORIE":
-                return reportData.getOrDefault("totalCalories", 0) + "kcal";
+                Object calories = reportData.getOrDefault("totalCalories", 0);
+                return calories + "kcal";
+            case "CARBS":
+                Object carbs = reportData.getOrDefault("totalCarb", 0);
+                return carbs + "g";
+            case "FAT":
+                Object fat = reportData.getOrDefault("totalFat", 0);
+                return fat + "g";
             case "WATER":
-                return reportData.getOrDefault("waterIntake", 0) + "L";
+                Object water = reportData.getOrDefault("waterIntake", 0);
+                return water + "L";
             default:
                 return "N/A";
         }
     }
 
     private boolean checkAchievement(String goalType, Map<String, Object> goalDetails, Map<String, Object> reportData) {
-        switch (goalType) {
-            case "PROTEIN":
-                int targetProtein = parseNumber(goalDetails.getOrDefault("protein", "0g").toString());
-                int actualProtein = (int) reportData.getOrDefault("totalProtein", 0);
-                return actualProtein >= targetProtein;
+    switch (goalType) {
+        case "PROTEIN":
+            int targetProtein = parseNumber(goalDetails.getOrDefault("protein", "0g").toString());
+            int actualProtein = getIntValue(reportData.get("totalProtein"));
+            return actualProtein >= targetProtein * 0.9; // 90% 이상
 
-            case "CALORIE":
-                int targetCalories = parseNumber(goalDetails.getOrDefault("calories", "0kcal").toString());
-                int actualCalories = (int) reportData.getOrDefault("totalCalories", 0);
-                return Math.abs(actualCalories - targetCalories) <= (targetCalories * 0.1); // ±10%
+        case "CALORIE":
+            int targetCalories = parseNumber(goalDetails.getOrDefault("calories", "0kcal").toString());
+            int actualCalories = getIntValue(reportData.get("totalCalories"));
+            double calDiff = Math.abs(actualCalories - targetCalories) * 100.0 / targetCalories;
+            return calDiff <= 10; // ±10%
 
-            case "WATER":
-                double targetWater = parseDouble(goalDetails.getOrDefault("water", "0L").toString());
-                double actualWater = (double) reportData.getOrDefault("waterIntake", 0.0);
-                return actualWater >= targetWater;
+        case "CARBS":
+            int targetCarbs = parseNumber(goalDetails.getOrDefault("carbs", "0g").toString());
+            int actualCarbs = getIntValue(reportData.get("totalCarb"));
+            double carbDiff = Math.abs(actualCarbs - targetCarbs) * 100.0 / targetCarbs;
+            return carbDiff <= 10; // ±10%
 
-            default:
-                return false;
-        }
+        case "FAT":
+            int targetFat = parseNumber(goalDetails.getOrDefault("fat", "0g").toString());
+            int actualFat = getIntValue(reportData.get("totalFat"));
+            double fatDiff = Math.abs(actualFat - targetFat) * 100.0 / targetFat;
+            return fatDiff <= 10; // ±10%
+
+        default:
+            return false;
     }
+}
 
-    private BigDecimal calculateAchievementRate(String goalType, Map<String, Object> goalDetails, Map<String, Object> reportData) {
-        switch (goalType) {
-            case "PROTEIN":
-                int targetProtein = parseNumber(goalDetails.getOrDefault("protein", "0g").toString());
-                int actualProtein = (int) reportData.getOrDefault("totalProtein", 0);
-                if (targetProtein == 0) return BigDecimal.ZERO;
-                return BigDecimal.valueOf((actualProtein * 100.0) / targetProtein).setScale(2, RoundingMode.HALF_UP);
+private BigDecimal calculateAchievementRate(String goalType, Map<String, Object> goalDetails, Map<String, Object> reportData) {
+    switch (goalType) {
+        case "PROTEIN":
+            int targetProtein = parseNumber(goalDetails.getOrDefault("protein", "0g").toString());
+            int actualProtein = getIntValue(reportData.get("totalProtein"));
+            if (targetProtein == 0) return BigDecimal.ZERO;
+            double proteinRate = Math.min(150.0, (actualProtein * 100.0) / targetProtein);
+            return BigDecimal.valueOf(proteinRate).setScale(2, RoundingMode.HALF_UP);
 
-            case "CALORIE":
-                int targetCalories = parseNumber(goalDetails.getOrDefault("calories", "0kcal").toString());
-                int actualCalories = (int) reportData.getOrDefault("totalCalories", 0);
-                if (targetCalories == 0) return BigDecimal.ZERO;
-                return BigDecimal.valueOf((actualCalories * 100.0) / targetCalories).setScale(2, RoundingMode.HALF_UP);
+        case "CALORIE":
+            int targetCalories = parseNumber(goalDetails.getOrDefault("calories", "0kcal").toString());
+            int actualCalories = getIntValue(reportData.get("totalCalories"));
+            if (targetCalories == 0) return BigDecimal.ZERO;
+            double calDiff = Math.abs(actualCalories - targetCalories) * 100.0 / targetCalories;
+            double calorieRate = Math.max(0, 100 - calDiff);
+            return BigDecimal.valueOf(calorieRate).setScale(2, RoundingMode.HALF_UP);
 
-            default:
-                return BigDecimal.ZERO;
-        }
+        case "CARBS":
+            int targetCarbs = parseNumber(goalDetails.getOrDefault("carbs", "0g").toString());
+            int actualCarbs = getIntValue(reportData.get("totalCarb"));
+            if (targetCarbs == 0) return BigDecimal.ZERO;
+            double carbDiff = Math.abs(actualCarbs - targetCarbs) * 100.0 / targetCarbs;
+            double carbRate = Math.max(0, 100 - carbDiff);
+            return BigDecimal.valueOf(carbRate).setScale(2, RoundingMode.HALF_UP);
+
+        case "FAT":
+            int targetFat = parseNumber(goalDetails.getOrDefault("fat", "0g").toString());
+            int actualFat = getIntValue(reportData.get("totalFat"));
+            if (targetFat == 0) return BigDecimal.ZERO;
+            double fatDiff = Math.abs(actualFat - targetFat) * 100.0 / targetFat;
+            double fatRate = Math.max(0, 100 - fatDiff);
+            return BigDecimal.valueOf(fatRate).setScale(2, RoundingMode.HALF_UP);
+
+        default:
+            return BigDecimal.ZERO;
     }
+}
 
     private int parseNumber(String value) {
         return Integer.parseInt(value.replaceAll("[^0-9]", ""));
@@ -559,5 +755,17 @@ public class ChallengeServiceImpl implements ChallengeService {
             }
         }
         return maxStreak;
+    }
+
+    private int getIntValue(Object value) {
+        if (value == null) return 0;
+        if (value instanceof Integer) return (Integer) value;
+        if (value instanceof Long) return ((Long) value).intValue();
+        if (value instanceof Double) return ((Double) value).intValue();
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }

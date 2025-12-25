@@ -76,6 +76,7 @@
     <CreateReportModal :open="openCreateModal" :mode="mode" :date="selectedDate" :weekStart="selectedWeekStart"
       :selectionState="selectionState" @close="handleModalClose" @created="handleModalCreated"
       @error="handleModalError" />
+    <ChallengeCreateModal :show="showChallengeModal" :initialData="{ items: challengeInitialItems, goalDetails: challengeInitialGoalDetails }" @close="showChallengeModal = false" @create="handleCreateChallenge" />
     <ToastContainer />
   </AppShell>
 </template>
@@ -241,7 +242,12 @@ async function centerSelected()
   if (!strip) return
   const active = strip.querySelector('.stripItem.active')
   if (!active) return
-  active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  try {
+    active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  } catch (err) {
+    // element may have been detached concurrently; ignore to avoid uncaught errors
+    console.warn('[ReportPage] centerSelected scrollIntoView failed', err)
+  }
 }
 
 // watch selection to auto-center
@@ -364,31 +370,45 @@ const openPaywall = ref(false)
 const openCreateModal = ref(false)
 const showChallengeModal = ref(false)
 const challengeInitialItems = ref([])
+const challengeInitialGoalDetails = ref(null)
 const devResult = ref(null)
 const devError = ref(null)
 const devLoading = ref(false)
 const analyzeLoading = ref(false)
 const analyzeResult = ref(null)
 
+// 🔥 수정: handleCreateChallenge
 async function handleCreateChallenge(payload)
 {
   try {
-    console.debug('[ReportPage] handleCreateChallenge payload', payload)
+    console.debug('[ReportPage] handleCreateChallenge payload:', payload)
+    
+    // 🔥 goalDetails를 JSON 문자열로 변환
     const body = {
       title: payload.title,
-      startDate: isoDate(new Date()),
-      durationDays: 30,
-      items: payload.items.map((it, idx) => ({ order: idx + 1, text: it.text }))
+      description: payload.description,
+      goalType: payload.goalType,
+      goalDetails: payload.goalDetails,
+      startDate: payload.startDate,
+      durationDays: payload.durationDays,
+      items: payload.items,
+      source: payload.source,
+      sourceId: payload.sourceId
     }
-    // API 호출 (api 인스턴스의 baseURL이 이미 '/api'일 수 있음)
-    const res = await api.post('/challenges', body)
-    const data = res.data
+    
+    console.debug('[ReportPage] Sending to backend:', body)
+    
+    const res = await api.post('/challenges', payload)
+    
     showToast('챌린지가 생성되었습니다.')
-    // optionally navigate to challenge page if exists
-    // router.push(`/challenges/${data.userChallengeId}`)
+    showChallengeModal.value = false
+    
+    // 선택적: 챌린지 페이지로 이동
+    // router.push(`/challenges/${res.data.challengeId}`)
   } catch (e) {
-    console.error(e)
-    showToast('챌린지 생성에 실패했습니다.')
+    console.error('[ReportPage] Failed to create challenge:', e)
+    const errorMsg = e?.response?.data?.error || e?.message || '챌린지 생성에 실패했습니다.'
+    showToast(errorMsg, 'error')
   }
 }
 
@@ -548,9 +568,115 @@ function onSavePlan()
 function onRegisterAsChallenge() {
   const txt = displayNextAction.value || ''
   const items = parseNumberedList(txt)
+  const goalDetails = parseItemsToGoalDetails(items)
+  console.debug('[ReportPage] Registering as challenge:', {
+    items,
+    goalDetails
+  })
   challengeInitialItems.value = items
+  // Attempt to extract explicit goal numbers from the parsed items
+  challengeInitialGoalDetails.value = parseItemsToGoalDetails(items)
   showChallengeModal.value = true
 }
+
+// parse items like "탄수화물 244g 더 섭취" -> { carbs: '244g' }
+function parseItemsToGoalDetails(items) {
+  if (!items || !items.length) return null
+  const details = {}
+
+  // keywords and regexes
+  const kw = '(칼로리|열량|kcal|calories?|단백질|탄수화물|지방|체중)'
+  const reBefore = new RegExp(kw + "\\s*[:\\-]?\\s*(\\d+(?:\\.\\d+)?)(?:\\s*(g|kg|kcal))?", 'i')
+  const reAfter = new RegExp("(\\d+(?:\\.\\d+)?)(?:\\s*(g|kg|kcal))?\\s*" + kw, 'i')
+  const reOnlyKcal = /(\d+(?:\.\d+)?)\s*(kcal)/i
+
+  // collect calorie candidates with simple priority scoring
+  const calorieCandidates = []
+
+  for (const it of items) {
+    const text = (it.text || it).toString()
+    let m = text.match(reBefore)
+    let key, val, unit
+    if (m) {
+      key = m[1]
+      val = m[2]
+      unit = (m[3] || '').toLowerCase()
+    } else {
+      m = text.match(reAfter)
+      if (m) {
+        val = m[1]
+        unit = (m[2] || '').toLowerCase()
+        key = m[3]
+      } else {
+        const mm = text.match(reOnlyKcal)
+        if (mm) {
+          val = mm[1]
+          unit = (mm[2] || '').toLowerCase()
+          key = 'kcal'
+        }
+      }
+    }
+
+    if (!val) {
+      // attempt to extract other nutrient values (protein/carbs/fat/weight) only when keywords exist
+      const textLower = text.toLowerCase()
+      const numMatch = text.match(/(\d+(?:\.\d+)?)(?:\s*(g|kg|kcal))?/)
+      if (textLower.includes('단백질') && numMatch) {
+        details.protein = `${numMatch[1]}${(numMatch[2]||'g')}`
+      }
+      if (textLower.includes('탄수') && numMatch) {
+        details.carbs = `${numMatch[1]}${(numMatch[2]||'g')}`
+      }
+      if (textLower.includes('지방') && numMatch) {
+        details.fat = `${numMatch[1]}${(numMatch[2]||'g')}`
+      }
+      if ((textLower.includes('체중') || (numMatch && /kg/i.test(numMatch[2]||''))) && numMatch) {
+        details.weight = `${numMatch[1]}${(numMatch[2]||'kg')}`
+      }
+      continue
+    }
+
+    const textLower = text.toLowerCase()
+    const numeric = Number(val)
+
+    // compute priority: higher -> more likely overall goal
+    let priority = 0
+    // explicit goal wording
+    if (/(목표|목표에|목표로|목표에 맞추|목표로 맞추|목표치|목표값)/.test(textLower)) priority += 100
+    if (/(총|전체|전체적으로|전체 섭취)/.test(textLower)) priority += 50
+    // negative weight for distribution/per-meal hints
+    if (/(끼|분배|재분배|각|당|끼당|회당|나누)/.test(textLower)) priority -= 40
+    if (/(재분배|분배)/.test(textLower)) priority -= 30
+    // shorter contextual hints that imply per-meal
+    if (/(3끼|3끼를|세끼|세 끼|끼당|한끼|한 끼)/.test(textLower)) priority -= 30
+
+    // record candidate if it's calorie-like
+    const k = (key || '').toString().toLowerCase()
+    if (k.includes('칼로리') || k === 'kcal' || /calorie/.test(k)) {
+      calorieCandidates.push({ value: numeric, unit: unit || 'kcal', text, priority })
+      continue
+    }
+
+    // fallback: if keyword indicates other nutrient
+    if (k.includes('단백질')) details.protein = `${val}${unit || 'g'}`
+    else if (k.includes('탄수')) details.carbs = `${val}${unit || 'g'}`
+    else if (k.includes('지방')) details.fat = `${val}${unit || 'g'}`
+    else if (k.includes('체중') || unit === 'kg') details.weight = `${val}${unit || 'kg'}`
+  }
+
+  // choose best calorie candidate
+  if (calorieCandidates.length) {
+    calorieCandidates.sort((a, b) => {
+      if (b.priority !== a.priority) return b.priority - a.priority
+      return b.value - a.value
+    })
+    const best = calorieCandidates[0]
+    details.calories = `${best.value}${best.unit || 'kcal'}`
+  }
+
+  return Object.keys(details).length ? details : null
+}
+
 
 // 중복된 onUpgrade 함수를 하나로 통합
 function onUpgrade(payload) {

@@ -99,7 +99,10 @@ import BaseCard from '@/components/base/BaseCard.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 
 const props = defineProps({ 
-    challenges: Array,
+    challenges: { 
+        type: Array, 
+        default: () => []
+    },
     readonly: { type: Boolean, default: false }
 })
 const emit = defineEmits(['create', 'update', 'complete', 'delete'])
@@ -115,23 +118,43 @@ function statusText(status) {
 }
 
 function formatGoal(type, details) {
+    // 🔥 안전한 체크 추가
     if (!details) return '-'
     
-    const parsed = typeof details === 'string' ? JSON.parse(details) : details
+    let parsed
+    try {
+        parsed = typeof details === 'string' ? JSON.parse(details) : details
+    } catch (e) {
+        console.error('Failed to parse goalDetails:', details, e)
+        return '-'
+    }
+    
+    // 🔥 parsed가 여전히 null/undefined이면 리턴
+    if (!parsed || typeof parsed !== 'object') {
+        return '-'
+    }
     
     const formats = {
-        'PROTEIN': () => `단백질 ${parsed.protein} 매일 섭취`,
-        'CALORIE': () => `칼로리 ${parsed.calories} 목표`,
-        'WEIGHT': () => `체중 ${parsed.weight} 변화`,
-        'WATER': () => `물 ${parsed.water} 매일 마시기`,
-        'EXERCISE': () => `${parsed.exercise} 매일 실천`,
-        'HABIT': () => `${parsed.habit} 습관 만들기`,
-        'CARBS': () => `탄수화물 ${parsed.carbs} 목표`,
-        'FAT': () => `지방 ${parsed.fat} 목표`,
-        'COMBINED': () => Object.entries(parsed)
-            .filter(([k]) => k !== 'frequency')
-            .map(([k, v]) => `${k}: ${v}`)
-            .join(', ')
+        'PROTEIN': () => parsed.protein ? `단백질 ${parsed.protein} 매일 섭취` : '-',
+        'CALORIE': () => parsed.calories ? `칼로리 ${parsed.calories} 목표` : '-',
+        'WEIGHT': () => parsed.weight ? `체중 ${parsed.weight} 변화` : '-',
+        'WATER': () => parsed.water ? `물 ${parsed.water} 매일 마시기` : '-',
+        'EXERCISE': () => parsed.exercise ? `${parsed.exercise} 매일 실천` : '-',
+        'HABIT': () => parsed.habit ? `${parsed.habit} 습관 만들기` : '-',
+        'CARBS': () => parsed.carbs ? `탄수화물 ${parsed.carbs} 목표` : '-',
+        'FAT': () => parsed.fat ? `지방 ${parsed.fat} 목표` : '-',
+        'COMBINED': () => {
+            // 🔥 안전한 Object.entries 처리
+            try {
+                return Object.entries(parsed)
+                    .filter(([k]) => k !== 'frequency')
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(', ') || '-'
+            } catch (e) {
+                console.error('Failed to format COMBINED goal:', parsed, e)
+                return JSON.stringify(parsed)
+            }
+        }
     }
     
     return formats[type]?.() || JSON.stringify(parsed)

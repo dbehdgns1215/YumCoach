@@ -43,6 +43,9 @@ public interface ChallengeMapper {
 
     void updateChallengeItem(ChallengeItem item);
 
+    // update that sets done_at to DB current timestamp when marking done
+    void updateChallengeItemSetNow(ChallengeItem item);
+
     void deleteChallengeItemsByChallengeId(@Param("challengeId") Long challengeId);
 
     // ===== ChallengeDailyLog =====

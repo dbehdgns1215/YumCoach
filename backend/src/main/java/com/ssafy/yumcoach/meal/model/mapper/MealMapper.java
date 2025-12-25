@@ -56,4 +56,9 @@ public interface MealMapper {
             @Param("userId") long userId
     );
 
+    List<String> selectMealTypesByUserAndDate(
+            @Param("userId") int userId,
+            @Param("date") LocalDate date
+    );
+
 }
