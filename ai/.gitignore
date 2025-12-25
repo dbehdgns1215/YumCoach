@@ -52,10 +52,11 @@ chatbot_env/
 
 # Chroma vector database
 .chroma/
-data/chroma/
-chroma_data/
+# Ignore generic DB artifacts, but keep committed persistent stores
 *.parquet
 *.duckdb
+!data/chroma/**
+!chroma_data/**
 
 # Model weights & large files
 weights/

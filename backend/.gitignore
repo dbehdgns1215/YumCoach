@@ -32,6 +32,27 @@ build/
 ### VS Code ###
 .vscode/
 
+# OS / Editor caches
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+spring.log
+
+# Build outputs (extra)
+out/
+bin/
+*.class
+
+# Cache & temp folders
+.cache/
+tmp/
+temp/
+
 # 환경변수
+.env
+.env.*
 !.env.example
 application.properties
