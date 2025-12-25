@@ -14,8 +14,9 @@
                 </div>
 
                 <div class="chatList">
-                    <button v-for="c in chats" :key="c.id" class="chatItem" :class="{ active: c.id === selectedChatId }"
-                        @click="selectChat(c.id)">
+                    <div v-for="c in chats" :key="c.id" class="chatItem" :class="{ active: c.id === selectedChatId }"
+                        role="button" tabindex="0" @click="selectChat(c.id)" @keydown.enter="selectChat(c.id)">
+
                         <div class="chatItemMain">
                             <div class="chatName">{{ c.title }}</div>
                             <div class="chatMeta">
@@ -25,11 +26,10 @@
                             </div>
                         </div>
 
-                        <!-- hover delete -->
                         <button class="deleteBtn" title="삭제" @click.stop="openDeleteModal(c.id)">
                             ×
                         </button>
-                    </button>
+                    </div>
                 </div>
 
                 <div class="sidebarFooter">
@@ -77,12 +77,15 @@
                         <div v-for="m in selectedChat.messages" :key="m.id" class="msgRow"
                             :class="m.role === 'user' ? 'right' : 'left'">
                             <div class="bubble" :class="m.role">
+                                <div v-if="m.role === 'ai' && m.detected_hashtag" class="hashtagBadge">
+                                    {{ m.detected_hashtag }}
+                                </div>
+
                                 <div class="bubbleText">{{ m.content }}</div>
                                 <div class="bubbleMeta">{{ formatTime(m.createdAt) }}</div>
                             </div>
                         </div>
 
-                        <!-- AI loading -->
                         <div v-if="isLoading" class="loadingWrap">
                             <div class="loadingLabel">AI가 답변을 작성 중이에요…</div>
                             <div class="progress">
@@ -92,7 +95,6 @@
                     </template>
                 </div>
 
-                <!-- Input -->
                 <footer class="composer">
                     <div class="inputWrap">
                         <textarea v-model="draft" class="input" placeholder="메시지를 입력하세요…" rows="1"
@@ -102,6 +104,8 @@
                             보내기
                         </button>
                     </div>
+
+                    <!-- ✅ 기존 안내문 유지 -->
                     <div class="composerHint">Enter로 전송, Shift+Enter로 줄바꿈</div>
                 </footer>
             </section>
@@ -112,7 +116,7 @@
             <div class="modalCard" role="dialog" aria-modal="true">
                 <div class="modalTitle">채팅을 삭제할까요?</div>
                 <div class="modalDesc">
-                    이 채팅의 대화 내용이 모두 삭제돼요. 이 작업은 되돌릴 수 없어요.
+                    <b>{{ deleteTargetTitle }}</b>의 대화 내용이 모두 삭제돼요. 이 작업은 되돌릴 수 없어요.
                 </div>
                 <div class="modalActions">
                     <button class="modalBtn ghost" @click="closeDeleteModal">취소</button>
@@ -130,26 +134,50 @@ import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 
 function noop() { }
 
-const STORAGE_KEY = 'yumcoach_chat_state_v2'
+const STORAGE_KEY = 'yumcoach_chat_state_v4'
 const MAX_CHATS = 10
+
+// ✅ 백엔드 설정
+const API_BASE_URL = 'http://localhost:8282'
+const CHAT_ENDPOINT = '/api/chat'
+
+// ⚠️ 샘플 토큰(필요시 실제 토큰 소스로 교체)
+const AUTH_TOKEN =
+    'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjcsImlhdCI6MTc2NjYzNjAzOSwiZXhwIjoxNzY2NzIyNDM5fQ.-toxK4GlBygqhjBvVCuimoSjrV3y8e7XrtwGcPYVfb8'
+
+// ✅ 요청 payload에 들어갈 사용자 데이터(앱에서 가져오면 여기만 교체)
+const userContext = ref({
+    user_id: '42',
+    user_profile: {
+        height: 175,
+        weight: 70,
+        goal: 'diet',
+    },
+    report_data: {
+        bmi: 22.9,
+        body_fat: 18.3,
+    },
+})
 
 const messagesEl = ref(null)
 const draft = ref('')
 const isLoading = ref(false)
 
-// ✅ IME(한글 등) 조합 중인지 추적 (버그 해결 핵심)
+// ✅ IME 조합 버그 방지
 const isComposing = ref(false)
 
-const chats = ref([]) // [{id,title,updatedAt,messages:[{id,role,content,createdAt}]}]
+const chats = ref([])
 const selectedChatId = ref('')
 
-// ✅ 삭제 확인 모달 상태
-const deleteModal = ref({
-    open: false,
-    chatId: null,
-})
+// ✅ 삭제 확인 모달
+const deleteModal = ref({ open: false, chatId: null })
 
 const selectedChat = computed(() => chats.value.find(c => c.id === selectedChatId.value) || null)
+const deleteTargetTitle = computed(() =>
+{
+    const c = chats.value.find(x => x.id === deleteModal.value.chatId)
+    return c?.title ?? '이 채팅'
+})
 
 const canSend = computed(() =>
 {
@@ -158,16 +186,26 @@ const canSend = computed(() =>
     return draft.value.trim().length > 0
 })
 
+function cleanForChat(text)
+{
+    if (typeof text !== 'string') return ''
+    // JSON처럼 보이지 않게 순수 본문만 다듬기
+    return text
+        .replace(/\r\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')      // 과한 줄바꿈 정리
+        .replace(/^\s+|\s+$/g, '')       // 양끝 공백 제거
+}
+
+
 function uid(prefix = 'id')
 {
     return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
 }
-
 function nowISO()
 {
     return new Date().toISOString()
 }
-
 function formatTime(iso)
 {
     try {
@@ -182,13 +220,14 @@ function formatTime(iso)
 
 function persist()
 {
-    const payload = {
-        chats: chats.value,
-        selectedChatId: selectedChatId.value,
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+            chats: chats.value,
+            selectedChatId: selectedChatId.value,
+        })
+    )
 }
-
 function restore()
 {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -213,20 +252,12 @@ function selectChat(id)
 function createNewChat()
 {
     if (chats.value.length >= MAX_CHATS) return
-
     const n = chats.value.length + 1
-    const chat = {
-        id: uid('chat'),
-        title: `코치 채팅 ${n}`,
-        updatedAt: nowISO(),
-        messages: [],
-    }
-
+    const chat = { id: uid('chat'), title: `코치 채팅 ${n}`, updatedAt: nowISO(), messages: [] }
     chats.value.unshift(chat)
     selectedChatId.value = chat.id
     draft.value = ''
     isLoading.value = false
-
     nextTick(scrollToBottom)
     persist()
 }
@@ -261,21 +292,97 @@ function confirmDelete()
     closeDeleteModal()
     deleteChat(id)
 }
-
 function deleteChat(id)
 {
     const idx = chats.value.findIndex(c => c.id === id)
     if (idx < 0) return
-
     const wasSelected = selectedChatId.value === id
     chats.value.splice(idx, 1)
-
-    if (wasSelected) {
-        selectedChatId.value = chats.value[0]?.id ?? ''
-    }
-
+    if (wasSelected) selectedChatId.value = chats.value[0]?.id ?? ''
     persist()
     nextTick(scrollToBottom)
+}
+
+/* ---------------------------
+   Backend call + robust parsing
+--------------------------- */
+function normalizeChatResponse(data)
+{
+    // 문자열이면 그대로
+    if (typeof data === 'string') {
+        return { text: cleanForChat(data), hashtag: '' }
+    }
+
+    // 1차로 후보 텍스트 확보
+    let rawText =
+        (typeof data?.response === 'string' && data.response) ||
+        (typeof data?.reply === 'string' && data.reply) ||
+        (typeof data?.message === 'string' && data.message) ||
+        ''
+
+    const hashtag =
+        (typeof data?.detected_hashtag === 'string' && data.detected_hashtag) ||
+        (typeof data?.hashtag === 'string' && data.hashtag) ||
+        ''
+
+    // ✅ [추가] rawText 자체가 "JSON 문자열"이면 한 번 더 파싱
+    rawText = (rawText ?? '').trim()
+    if (rawText.startsWith('{') && rawText.endsWith('}')) {
+        try {
+            const inner = JSON.parse(rawText)
+            // inner = { response: "..." } 형태면 그걸 본문으로 사용
+            if (typeof inner?.response === 'string') rawText = inner.response
+            else if (typeof inner?.reply === 'string') rawText = inner.reply
+        } catch {
+            // 파싱 실패하면 그냥 원문 출력(디버깅용)
+        }
+    }
+
+    return {
+        text: cleanForChat(rawText || '응답 형식이 올바르지 않아요.'),
+        hashtag,
+    }
+}
+
+
+
+async function callChatAPI(messageText)
+{
+    const url = `${API_BASE_URL}${CHAT_ENDPOINT}`
+    const payload = {
+        message: messageText,
+        user_id: userContext.value.user_id,
+        user_profile: userContext.value.user_profile,
+        report_data: userContext.value.report_data,
+    }
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            accept: '*/*',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${AUTH_TOKEN}`,
+        },
+        body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+        const txt = await res.text().catch(() => '')
+        throw new Error(`API 요청 실패 (${res.status}) ${txt}`)
+    }
+
+    // ✅ 서버가 JSON이지만 content-type이 애매한 경우 대비
+    const ct = res.headers.get('content-type') || ''
+    if (ct.includes('application/json')) {
+        return await res.json()
+    } else {
+        const text = await res.text()
+        try {
+            return JSON.parse(text)
+        } catch {
+            return text
+        }
+    }
 }
 
 /* ---------------------------
@@ -284,59 +391,67 @@ function deleteChat(id)
 async function send()
 {
     if (!canSend.value) return
-
     const chat = selectedChat.value
     const text = draft.value.trim()
     draft.value = ''
 
-    chat.messages.push({
-        id: uid('m'),
-        role: 'user',
-        content: text,
-        createdAt: nowISO(),
-    })
+    // user message
+    chat.messages.push({ id: uid('m'), role: 'user', content: text, createdAt: nowISO() })
     bumpChat(chat.id)
     persist()
-
     await nextTick()
     scrollToBottom()
 
     isLoading.value = true
     persist()
 
-    const answer = await fakeAIResponse(text)
+    try {
+        const raw = await callChatAPI(text)
+        const { text: replyText, hashtag } = normalizeChatResponse(raw)
 
-    isLoading.value = false
-    chat.messages.push({
-        id: uid('m'),
-        role: 'ai',
-        content: answer,
-        createdAt: nowISO(),
-    })
-    bumpChat(chat.id)
-    persist()
-
-    await nextTick()
-    scrollToBottom()
+        isLoading.value = false
+        chat.messages.push({
+            id: uid('m'),
+            role: 'ai',
+            content: replyText,
+            detected_hashtag: hashtag,
+            createdAt: nowISO(),
+        })
+        bumpChat(chat.id)
+        persist()
+        await nextTick()
+        scrollToBottom()
+    } catch (err) {
+        isLoading.value = false
+        chat.messages.push({
+            id: uid('m'),
+            role: 'ai',
+            content:
+                `요청 중 문제가 발생했어요.\n` +
+                `- 원인: ${err?.message ?? '알 수 없음'}\n\n` +
+                `백엔드 서버/토큰/주소를 확인해주세요.`,
+            detected_hashtag: '',
+            createdAt: nowISO(),
+        })
+        bumpChat(chat.id)
+        persist()
+        await nextTick()
+        scrollToBottom()
+    }
 }
 
 function onCompositionStart()
 {
     isComposing.value = true
 }
-
 function onCompositionEnd()
 {
     isComposing.value = false
 }
-
-// ✅ Enter 전송: IME 조합 중이면 전송 금지 (한글 '안녕' -> '안'만 보내지는 버그 방지)
 function onKeyDown(e)
 {
     if (e.key === 'Enter' && !e.shiftKey) {
-        // IME 조합 중이면 엔터 전송 방지
         if (e.isComposing || isComposing.value) return
-
         e.preventDefault()
         send()
     }
@@ -347,20 +462,6 @@ function scrollToBottom()
     const el = messagesEl.value
     if (!el) return
     el.scrollTop = el.scrollHeight
-}
-
-function fakeAIResponse(userText)
-{
-    return new Promise((resolve) =>
-    {
-        const delay = 900 + Math.floor(Math.random() * 700)
-        setTimeout(() =>
-        {
-            resolve(
-                `요약해볼게요.\n\n- 핵심 질문: ${userText}\n- 제안: 질문을 더 구체화하면(목표/기간/제약) 더 정확한 답을 줄 수 있어요.\n\n원하시면 “목표/현재 상황/가능 시간”을 같이 알려주세요 🙂`
-            )
-        }, delay)
-    })
 }
 
 onMounted(() =>
@@ -376,7 +477,8 @@ watch(selectedChatId, () => nextTick(scrollToBottom))
 </script>
 
 <style scoped>
-/* Page layout */
+/* (스타일은 이전과 동일) */
+
 .coachChatPage {
     display: grid;
     grid-template-columns: 320px 1fr;
@@ -574,12 +676,12 @@ watch(selectedChatId, () => nextTick(scrollToBottom))
     flex: 1;
     overflow: auto;
     padding: 16px;
-    background: radial-gradient(1200px 400px at 20% -10%, rgba(37, 99, 235, 0.08), transparent 55%),
+    background:
+        radial-gradient(1200px 400px at 20% -10%, rgba(37, 99, 235, 0.08), transparent 55%),
         radial-gradient(900px 500px at 90% 10%, rgba(99, 102, 241, 0.08), transparent 60%),
         #ffffff;
 }
 
-/* Empty states */
 .emptyState {
     height: 100%;
     display: grid;
@@ -639,7 +741,6 @@ watch(selectedChatId, () => nextTick(scrollToBottom))
     font-weight: 700;
 }
 
-/* Messages */
 .msgRow {
     display: flex;
     margin-bottom: 10px;
@@ -663,6 +764,7 @@ watch(selectedChatId, () => nextTick(scrollToBottom))
     box-shadow: 0 6px 18px rgba(20, 40, 80, 0.06);
     white-space: pre-wrap;
     word-break: break-word;
+    position: relative;
 }
 
 .bubble.user {
@@ -684,7 +786,19 @@ watch(selectedChatId, () => nextTick(scrollToBottom))
     opacity: 0.75;
 }
 
-/* Loading */
+.hashtagBadge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 800;
+    color: #2563eb;
+    background: #eef5ff;
+    border: 1px solid #dbe7ff;
+    border-radius: 999px;
+    padding: 4px 8px;
+    margin-bottom: 8px;
+}
+
 .loadingWrap {
     margin-top: 12px;
     padding: 12px;
@@ -729,7 +843,6 @@ watch(selectedChatId, () => nextTick(scrollToBottom))
     }
 }
 
-/* Composer */
 .composer {
     border-top: 1px solid #eef1f6;
     padding: 12px;
@@ -852,7 +965,6 @@ watch(selectedChatId, () => nextTick(scrollToBottom))
     transform: translateY(1px);
 }
 
-/* Responsive */
 @media (max-width: 980px) {
     .coachChatPage {
         grid-template-columns: 1fr;
