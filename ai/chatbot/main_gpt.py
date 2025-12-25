@@ -27,6 +27,7 @@ HASHTAG_TO_FILE = {
     "#상담": "counsel.txt"
 }
 
+
 def load_prompt(filename: str) -> str:
     """프롬프트 파일 로드"""
     prompt_path = Path(__file__).parent / "prompts" / filename
@@ -37,22 +38,24 @@ def load_prompt(filename: str) -> str:
         print(f"Warning: {filename} not found, using default")
         return load_prompt("default.txt")
 
+
 def extract_hashtag(message: str) -> tuple[Optional[str], str]:
     """메시지에서 해시태그 추출 (위치 무관)"""
     pattern = r'#(주간리포트|일일리포트|식단|상담)'
     match = re.search(pattern, message)
-    
+
     if match:
         hashtag = match.group(0)
         clean_message = re.sub(pattern, '', message).strip()
         return hashtag, clean_message
-    
+
     return None, message
+
 
 def format_health_status(user_profile: dict) -> str:
     """건강 상태를 텍스트로 변환"""
     conditions = []
-    
+
     # 0=없음, 1=있음
     if user_profile.get('diabetes') == 1:
         conditions.append('당뇨')
@@ -62,14 +65,15 @@ def format_health_status(user_profile: dict) -> str:
         conditions.append('고지혈증')
     if user_profile.get('kidney_disease') == 1:
         conditions.append('신장질환')
-    
+
     if not conditions:
         return '특별한 질환 없음'
-    
+
     return ', '.join(conditions) + ' 보유'
 
+
 def build_system_prompt(
-    hashtag: Optional[str], 
+    hashtag: Optional[str],
     user_profile: Optional[dict] = None,
     report_data: Optional[dict] = None
 ) -> str:
@@ -79,14 +83,14 @@ def build_system_prompt(
         base_prompt = load_prompt(HASHTAG_TO_FILE[hashtag])
     else:
         base_prompt = load_prompt("default.txt")
-    
+
     # 사용자 프로필 정보 주입
     if user_profile:
         name = user_profile.get('name', '사용자')
         height = user_profile.get('height', '알 수 없음')
         weight = user_profile.get('weight', '알 수 없음')
         health_status = format_health_status(user_profile)
-        
+
         # 템플릿 치환
         try:
             base_prompt = base_prompt.format(
@@ -98,10 +102,11 @@ def build_system_prompt(
         except KeyError:
             # 템플릿 변수가 없는 경우 (기본 프롬프트)
             pass
-    
+
     # TODO: 리포트 데이터 주입
-    
+
     return base_prompt
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -109,21 +114,23 @@ class ChatRequest(BaseModel):
     user_profile: dict = None
     report_data: dict = None
 
+
 class ChatResponse(BaseModel):
     reply: str
-    detected_hashtag: str = None
+    detected_hashtag: Optional[str] = None
+
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
     # 식단 코칭 챗봇 API
-    
+
     ## 현재 지원 기능:
     - #식단: 일반 식단 상담 (리포트 불필요)
     - #상담: 식단 관련 고민 상담 (리포트 불필요)
     - #일일리포트: 일일 식단 분석 (리포트 필요, 현재 미구현)
     - #주간리포트: 주간 식단 분석 (리포트 필요, 현재 미구현)
-    
+
     ## user_profile 예시:
     ```json
     {
@@ -136,7 +143,7 @@ async def chat(request: ChatRequest):
         "kidney_disease": 0
     }
     ```
-    
+
     ## 사용 예시 1: 식단 상담
     ```json
     {
@@ -153,7 +160,7 @@ async def chat(request: ChatRequest):
         }
     }
     ```
-    
+
     ## 사용 예시 2: 상담
     ```json
     {
@@ -174,32 +181,32 @@ async def chat(request: ChatRequest):
     try:
         # 해시태그 추출
         hashtag, clean_message = extract_hashtag(request.message)
-        
+
         # 시스템 프롬프트 생성
         system_prompt = build_system_prompt(
-            hashtag, 
+            hashtag,
             request.user_profile,
             request.report_data
         )
-        
+
         # 메시지 구성
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": clean_message}
         ]
-        
+
         # API 호출
         stream = await client.chat.completions.create(
             model='gpt-5-nano',
             messages=messages,
             stream=False,
         )
-        
+
         return ChatResponse(
             reply=stream.choices[0].message.content,
             detected_hashtag=hashtag
         )
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
