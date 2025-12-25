@@ -1,13 +1,871 @@
 <template>
     <TopBarNavigation />
     <AppShell title="코치" subtitle="질문하면 바로 요약해줘요" footerTheme="brand" @primary="noop">
-        <StubPlaceholder text="Coach (stub)" />
+        <div class="coachChatPage">
+            <!-- Left: chat list -->
+            <aside class="sidebar">
+                <div class="sidebarHeader">
+                    <div class="sidebarTitle">채팅 목록</div>
+
+                    <button class="newChatBtn" :disabled="chats.length >= MAX_CHATS" @click="createNewChat"
+                        title="새 채팅">
+                        + 새 채팅
+                    </button>
+                </div>
+
+                <div class="chatList">
+                    <button v-for="c in chats" :key="c.id" class="chatItem" :class="{ active: c.id === selectedChatId }"
+                        @click="selectChat(c.id)">
+                        <div class="chatItemMain">
+                            <div class="chatName">{{ c.title }}</div>
+                            <div class="chatMeta">
+                                <span class="chatCount">{{ c.messages.length }}개</span>
+                                <span class="dot">•</span>
+                                <span class="chatTime">{{ formatTime(c.updatedAt) }}</span>
+                            </div>
+                        </div>
+
+                        <!-- hover delete -->
+                        <button class="deleteBtn" title="삭제" @click.stop="openDeleteModal(c.id)">
+                            ×
+                        </button>
+                    </button>
+                </div>
+
+                <div class="sidebarFooter">
+                    <div class="hint">
+                        최대 <b>{{ MAX_CHATS }}</b>개까지 만들 수 있어요.
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Right: chat room -->
+            <section class="chatRoom">
+                <header class="roomHeader">
+                    <div class="roomTitle">
+                        {{ selectedChat?.title ?? "채팅을 선택하세요" }}
+                    </div>
+                    <div class="roomSubtitle">
+                        {{
+                            selectedChat
+                                ? "유저 메시지는 오른쪽, AI 응답은 왼쪽에 표시돼요."
+                                : "왼쪽에서 채팅을 선택하거나 새 채팅을 만들어주세요."
+                        }}
+                    </div>
+                </header>
+
+                <div ref="messagesEl" class="messages">
+                    <template v-if="!selectedChat">
+                        <div class="emptyState">
+                            <div class="emptyCard">
+                                <div class="emptyTitle">챗봇을 시작해볼까요?</div>
+                                <div class="emptyDesc">
+                                    왼쪽에서 <b>새 채팅</b>을 만들거나 기존 채팅을 선택하면 이곳에 대화가 표시돼요.
+                                </div>
+                                <button class="primaryCta" @click="createNewChat" :disabled="chats.length >= MAX_CHATS">
+                                    + 새 채팅 만들기
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template v-else>
+                        <div v-if="selectedChat.messages.length === 0" class="emptyInChat">
+                            <div class="pill">첫 질문을 입력해보세요 🙂</div>
+                        </div>
+
+                        <div v-for="m in selectedChat.messages" :key="m.id" class="msgRow"
+                            :class="m.role === 'user' ? 'right' : 'left'">
+                            <div class="bubble" :class="m.role">
+                                <div class="bubbleText">{{ m.content }}</div>
+                                <div class="bubbleMeta">{{ formatTime(m.createdAt) }}</div>
+                            </div>
+                        </div>
+
+                        <!-- AI loading -->
+                        <div v-if="isLoading" class="loadingWrap">
+                            <div class="loadingLabel">AI가 답변을 작성 중이에요…</div>
+                            <div class="progress">
+                                <div class="bar" />
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Input -->
+                <footer class="composer">
+                    <div class="inputWrap">
+                        <textarea v-model="draft" class="input" placeholder="메시지를 입력하세요…" rows="1"
+                            :disabled="!selectedChat || isLoading" @compositionstart="onCompositionStart"
+                            @compositionend="onCompositionEnd" @keydown="onKeyDown" />
+                        <button class="sendBtn" :disabled="!canSend" @click="send">
+                            보내기
+                        </button>
+                    </div>
+                    <div class="composerHint">Enter로 전송, Shift+Enter로 줄바꿈</div>
+                </footer>
+            </section>
+        </div>
+
+        <!-- Delete Confirm Modal -->
+        <div v-if="deleteModal.open" class="modalOverlay" @click.self="closeDeleteModal">
+            <div class="modalCard" role="dialog" aria-modal="true">
+                <div class="modalTitle">채팅을 삭제할까요?</div>
+                <div class="modalDesc">
+                    이 채팅의 대화 내용이 모두 삭제돼요. 이 작업은 되돌릴 수 없어요.
+                </div>
+                <div class="modalActions">
+                    <button class="modalBtn ghost" @click="closeDeleteModal">취소</button>
+                    <button class="modalBtn danger" @click="confirmDelete">삭제</button>
+                </div>
+            </div>
+        </div>
     </AppShell>
 </template>
 
 <script setup>
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppShell from '@/layout/AppShell.vue'
-import StubPlaceholder from '@/components/base/StubPlaceholder.vue'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
+
 function noop() { }
+
+const STORAGE_KEY = 'yumcoach_chat_state_v2'
+const MAX_CHATS = 10
+
+const messagesEl = ref(null)
+const draft = ref('')
+const isLoading = ref(false)
+
+// ✅ IME(한글 등) 조합 중인지 추적 (버그 해결 핵심)
+const isComposing = ref(false)
+
+const chats = ref([]) // [{id,title,updatedAt,messages:[{id,role,content,createdAt}]}]
+const selectedChatId = ref('')
+
+// ✅ 삭제 확인 모달 상태
+const deleteModal = ref({
+    open: false,
+    chatId: null,
+})
+
+const selectedChat = computed(() => chats.value.find(c => c.id === selectedChatId.value) || null)
+
+const canSend = computed(() =>
+{
+    if (!selectedChat.value) return false
+    if (isLoading.value) return false
+    return draft.value.trim().length > 0
+})
+
+function uid(prefix = 'id')
+{
+    return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
+}
+
+function nowISO()
+{
+    return new Date().toISOString()
+}
+
+function formatTime(iso)
+{
+    try {
+        const d = new Date(iso)
+        const hh = String(d.getHours()).padStart(2, '0')
+        const mm = String(d.getMinutes()).padStart(2, '0')
+        return `${hh}:${mm}`
+    } catch {
+        return ''
+    }
+}
+
+function persist()
+{
+    const payload = {
+        chats: chats.value,
+        selectedChatId: selectedChatId.value,
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+}
+
+function restore()
+{
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return false
+    try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed.chats)) chats.value = parsed.chats
+        if (typeof parsed.selectedChatId === 'string') selectedChatId.value = parsed.selectedChatId
+        return true
+    } catch {
+        return false
+    }
+}
+
+function selectChat(id)
+{
+    selectedChatId.value = id
+    nextTick(scrollToBottom)
+    persist()
+}
+
+function createNewChat()
+{
+    if (chats.value.length >= MAX_CHATS) return
+
+    const n = chats.value.length + 1
+    const chat = {
+        id: uid('chat'),
+        title: `코치 채팅 ${n}`,
+        updatedAt: nowISO(),
+        messages: [],
+    }
+
+    chats.value.unshift(chat)
+    selectedChatId.value = chat.id
+    draft.value = ''
+    isLoading.value = false
+
+    nextTick(scrollToBottom)
+    persist()
+}
+
+function bumpChat(chatId)
+{
+    const idx = chats.value.findIndex(c => c.id === chatId)
+    if (idx < 0) return
+    const chat = chats.value[idx]
+    chat.updatedAt = nowISO()
+    chats.value.splice(idx, 1)
+    chats.value.unshift(chat)
+}
+
+/* ---------------------------
+   Delete confirm modal
+--------------------------- */
+function openDeleteModal(chatId)
+{
+    deleteModal.value.open = true
+    deleteModal.value.chatId = chatId
+}
+function closeDeleteModal()
+{
+    deleteModal.value.open = false
+    deleteModal.value.chatId = null
+}
+function confirmDelete()
+{
+    const id = deleteModal.value.chatId
+    if (!id) return
+    closeDeleteModal()
+    deleteChat(id)
+}
+
+function deleteChat(id)
+{
+    const idx = chats.value.findIndex(c => c.id === id)
+    if (idx < 0) return
+
+    const wasSelected = selectedChatId.value === id
+    chats.value.splice(idx, 1)
+
+    if (wasSelected) {
+        selectedChatId.value = chats.value[0]?.id ?? ''
+    }
+
+    persist()
+    nextTick(scrollToBottom)
+}
+
+/* ---------------------------
+   Sending
+--------------------------- */
+async function send()
+{
+    if (!canSend.value) return
+
+    const chat = selectedChat.value
+    const text = draft.value.trim()
+    draft.value = ''
+
+    chat.messages.push({
+        id: uid('m'),
+        role: 'user',
+        content: text,
+        createdAt: nowISO(),
+    })
+    bumpChat(chat.id)
+    persist()
+
+    await nextTick()
+    scrollToBottom()
+
+    isLoading.value = true
+    persist()
+
+    const answer = await fakeAIResponse(text)
+
+    isLoading.value = false
+    chat.messages.push({
+        id: uid('m'),
+        role: 'ai',
+        content: answer,
+        createdAt: nowISO(),
+    })
+    bumpChat(chat.id)
+    persist()
+
+    await nextTick()
+    scrollToBottom()
+}
+
+function onCompositionStart()
+{
+    isComposing.value = true
+}
+
+function onCompositionEnd()
+{
+    isComposing.value = false
+}
+
+// ✅ Enter 전송: IME 조합 중이면 전송 금지 (한글 '안녕' -> '안'만 보내지는 버그 방지)
+function onKeyDown(e)
+{
+    if (e.key === 'Enter' && !e.shiftKey) {
+        // IME 조합 중이면 엔터 전송 방지
+        if (e.isComposing || isComposing.value) return
+
+        e.preventDefault()
+        send()
+    }
+}
+
+function scrollToBottom()
+{
+    const el = messagesEl.value
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+}
+
+function fakeAIResponse(userText)
+{
+    return new Promise((resolve) =>
+    {
+        const delay = 900 + Math.floor(Math.random() * 700)
+        setTimeout(() =>
+        {
+            resolve(
+                `요약해볼게요.\n\n- 핵심 질문: ${userText}\n- 제안: 질문을 더 구체화하면(목표/기간/제약) 더 정확한 답을 줄 수 있어요.\n\n원하시면 “목표/현재 상황/가능 시간”을 같이 알려주세요 🙂`
+            )
+        }, delay)
+    })
+}
+
+onMounted(() =>
+{
+    const ok = restore()
+    if (!ok || chats.value.length === 0) createNewChat()
+    if (!selectedChatId.value && chats.value[0]) selectedChatId.value = chats.value[0].id
+    nextTick(scrollToBottom)
+})
+
+watch(chats, persist, { deep: true })
+watch(selectedChatId, () => nextTick(scrollToBottom))
 </script>
+
+<style scoped>
+/* Page layout */
+.coachChatPage {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 16px;
+    height: calc(100vh - 180px);
+    min-height: 560px;
+}
+
+/* Sidebar */
+.sidebar {
+    background: #ffffff;
+    border: 1px solid #eef1f6;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 6px 24px rgba(20, 40, 80, 0.06);
+}
+
+.sidebarHeader {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid #eef1f6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.sidebarTitle {
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    color: #1f2a44;
+}
+
+.newChatBtn {
+    border: 1px solid #dbe7ff;
+    background: #f2f7ff;
+    color: #2563eb;
+    font-weight: 700;
+    padding: 8px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.06s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.newChatBtn:hover:not(:disabled) {
+    background: #e8f1ff;
+    border-color: #cfe0ff;
+}
+
+.newChatBtn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.newChatBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.chatList {
+    padding: 10px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.chatItem {
+    width: 100%;
+    border: 1px solid #eef1f6;
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 12px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    position: relative;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.06s ease;
+}
+
+.chatItem:hover {
+    background: #f7fbff;
+    border-color: #dbe7ff;
+}
+
+.chatItem:active {
+    transform: translateY(1px);
+}
+
+.chatItem.active {
+    background: #eef5ff;
+    border-color: #cfe0ff;
+}
+
+.chatItemMain {
+    text-align: left;
+    min-width: 0;
+}
+
+.chatName {
+    font-weight: 800;
+    color: #1f2a44;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatMeta {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.dot {
+    opacity: 0.6;
+}
+
+.chatCount {
+    font-weight: 600;
+}
+
+.deleteBtn {
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #6b7280;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.chatItem:hover .deleteBtn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.deleteBtn:hover {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #e11d48;
+}
+
+.sidebarFooter {
+    padding: 12px 14px;
+    border-top: 1px solid #eef1f6;
+    background: #fbfdff;
+}
+
+.hint {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* Chat room */
+.chatRoom {
+    background: #ffffff;
+    border: 1px solid #eef1f6;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 6px 24px rgba(20, 40, 80, 0.06);
+}
+
+.roomHeader {
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid #eef1f6;
+    background: linear-gradient(180deg, #f5f9ff, #ffffff);
+}
+
+.roomTitle {
+    font-weight: 900;
+    letter-spacing: -0.3px;
+    color: #1f2a44;
+}
+
+.roomSubtitle {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.messages {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    background: radial-gradient(1200px 400px at 20% -10%, rgba(37, 99, 235, 0.08), transparent 55%),
+        radial-gradient(900px 500px at 90% 10%, rgba(99, 102, 241, 0.08), transparent 60%),
+        #ffffff;
+}
+
+/* Empty states */
+.emptyState {
+    height: 100%;
+    display: grid;
+    place-items: center;
+}
+
+.emptyCard {
+    width: min(520px, 100%);
+    border: 1px solid #e7efff;
+    background: #f7fbff;
+    border-radius: 18px;
+    padding: 18px;
+}
+
+.emptyTitle {
+    font-weight: 900;
+    color: #1f2a44;
+    font-size: 18px;
+}
+
+.emptyDesc {
+    margin-top: 8px;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.primaryCta {
+    margin-top: 14px;
+    border: 1px solid #cfe0ff;
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 800;
+    padding: 10px 12px;
+    border-radius: 14px;
+    cursor: pointer;
+}
+
+.primaryCta:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.emptyInChat {
+    display: flex;
+    justify-content: center;
+    margin-top: 18px;
+}
+
+.pill {
+    display: inline-flex;
+    padding: 10px 12px;
+    border-radius: 999px;
+    border: 1px solid #e7efff;
+    background: #f7fbff;
+    color: #334155;
+    font-weight: 700;
+}
+
+/* Messages */
+.msgRow {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.msgRow.left {
+    justify-content: flex-start;
+}
+
+.msgRow.right {
+    justify-content: flex-end;
+}
+
+.bubble {
+    max-width: min(680px, 84%);
+    border-radius: 16px;
+    padding: 10px 12px;
+    border: 1px solid #eef1f6;
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 6px 18px rgba(20, 40, 80, 0.06);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.bubble.user {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    border-top-right-radius: 8px;
+}
+
+.bubble.ai {
+    background: #ffffff;
+    border-color: #dbe7ff;
+    border-top-left-radius: 8px;
+}
+
+.bubbleMeta {
+    margin-top: 6px;
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+/* Loading */
+.loadingWrap {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid #e7efff;
+    background: #f7fbff;
+}
+
+.loadingLabel {
+    font-size: 13px;
+    color: #334155;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.progress {
+    height: 10px;
+    background: #e7efff;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.bar {
+    height: 100%;
+    width: 40%;
+    background: #2563eb;
+    border-radius: 999px;
+    animation: indeterminate 1.1s infinite ease-in-out;
+}
+
+@keyframes indeterminate {
+    0% {
+        transform: translateX(-90%);
+    }
+
+    50% {
+        transform: translateX(90%);
+    }
+
+    100% {
+        transform: translateX(-90%);
+    }
+}
+
+/* Composer */
+.composer {
+    border-top: 1px solid #eef1f6;
+    padding: 12px;
+    background: #ffffff;
+}
+
+.inputWrap {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.input {
+    width: 100%;
+    resize: none;
+    border: 1px solid #dbe7ff;
+    background: #fbfdff;
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.35;
+    outline: none;
+    min-height: 44px;
+    max-height: 140px;
+}
+
+.input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.sendBtn {
+    border: 1px solid #cfe0ff;
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 900;
+    padding: 10px 14px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.06s ease, opacity 0.15s ease;
+}
+
+.sendBtn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.sendBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.composerHint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* Modal */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    display: grid;
+    place-items: center;
+    z-index: 9999;
+    padding: 16px;
+}
+
+.modalCard {
+    width: min(420px, 100%);
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid #eef1f6;
+    box-shadow: 0 18px 60px rgba(15, 23, 42, 0.25);
+    padding: 16px;
+}
+
+.modalTitle {
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: -0.2px;
+}
+
+.modalDesc {
+    margin-top: 8px;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.modalActions {
+    margin-top: 14px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modalBtn {
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-weight: 900;
+    cursor: pointer;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+}
+
+.modalBtn.ghost {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    color: #0f172a;
+}
+
+.modalBtn.danger {
+    background: #e11d48;
+    border-color: #e11d48;
+    color: #ffffff;
+}
+
+.modalBtn:active {
+    transform: translateY(1px);
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+    .coachChatPage {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: auto;
+    }
+
+    .sidebar {
+        max-height: 320px;
+    }
+
+    .chatRoom {
+        min-height: 560px;
+    }
+}
+</style>
