@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 @RestController
@@ -18,7 +19,7 @@ public class ChatController {
     /**
      * Python FastAPI 챗봇 서버의 엔드포인트 URL
      */
-    private static final String PYTHON_API_URL = "http://localhost:8001/chat";
+    private static final String PYTHON_API_URL = "http://localhost:8077/chat";
     
     /**
      * 챗봇 메시지 전송 및 응답 수신
@@ -45,23 +46,31 @@ public class ChatController {
      * }
      */
     @PostMapping
-    public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest req) {
+    public ResponseEntity<?> chat(@RequestBody ChatRequest req) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<ChatRequest> entity = new HttpEntity<>(req, headers);
+
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            
-            // Python FastAPI로 요청 전달
-            HttpEntity<ChatRequest> entity = new HttpEntity<>(req, headers);
-            ResponseEntity<ChatResponse> response = restTemplate.postForEntity(
-                PYTHON_API_URL,
-                entity,
-                ChatResponse.class
-            );
-            
+            ResponseEntity<ChatResponse> response =
+                    restTemplate.postForEntity(PYTHON_API_URL, entity, ChatResponse.class);
+
             return ResponseEntity.ok(response.getBody());
+
+        } catch (HttpStatusCodeException ex) {
+            // FastAPI가 내려준 에러 JSON을 그대로 전달
+            String body = ex.getResponseBodyAsString();
+            return ResponseEntity.status(ex.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body);
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ChatResponse("챗봇 서비스 오류: " + e.getMessage()));
+                    .body(new ChatResponse(
+                            "챗봇 서비스 오류: " + e.getMessage(),
+                            null
+                    ));
         }
     }
 }

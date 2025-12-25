@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 /**
  * 챗봇 요청 DTO
  * 
@@ -16,4 +18,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ChatRequest {
     private String message;
+    private String user_id;
+
+    private Map<String, Object> user_profile;
+    private Map<String, Object> report_data;
 }
