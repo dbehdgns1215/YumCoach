@@ -24,7 +24,8 @@ const navItems = [
 const routes = [
   // Landing is standalone (no AppShell nav)
   { path: "/landing", component: LandingPage },
-  { path: "/", redirect: "/landing" },
+  // After login, land on log page by default
+  { path: "/", redirect: "/log" },
   { path: "/login", component: LoginPage },
   { path: "/signup", component: SignupPage },
   {

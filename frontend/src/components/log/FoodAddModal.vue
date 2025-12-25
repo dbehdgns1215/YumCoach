@@ -26,7 +26,9 @@
                 <div class="results">
                     <!-- 분석 모드 -->
                     <div v-if="imageAnalysis.showAnalyzedList.value">
-                        <div v-if="imageAnalysis.analyzingImage.value" class="loading">분석 중...</div>
+                        <div v-if="imageAnalysis.analyzingImage.value" class="loading">
+                            <img :src="loadingGif" alt="분석 중" class="loadingGif" />
+                        </div>
                         <div v-else class="analyzedContainer">
                             <div class="sectionTitle">인식된 음식</div>
                             <button v-for="food in imageAnalysis.analyzedFoods.value" :key="food.name"
@@ -53,7 +55,7 @@
                     </div>
 
                     <!-- 검색 모드 -->
-                    <div v-else>
+                    <div v-else class="searchList">
                         <div v-if="search.loading.value" class="loading">검색 중...</div>
                         <div v-else-if="search.displayedFoods.value.length === 0" class="noResults">
                             음식을 검색해주세요.
@@ -84,15 +86,12 @@
                     <div class="unit">g</div>
                 </div>
 
-                <div v-if="imageAnalysis.analyzingImage.value" class="analyzing">
-                    분석 중... 🤔
-                </div>
-
-                <div class="preview" v-else-if="!imageAnalysis.showAnalyzedList.value && search.selected.value">
+                <div class="preview"
+                    v-if="!imageAnalysis.showAnalyzedList.value && search.selected.value && !imageAnalysis.analyzingImage.value">
                     <div class="pTitle">예상 영양 ({{ singleAdd.grams.value }}g)</div>
                     <div class="pLine">
-                        {{ singleAdd.calc.value.kcal }}kcal · P {{ singleAdd.calc.value.protein }}g · C {{
-                            singleAdd.calc.value.carbs }}g · F {{ singleAdd.calc.value.fat }}g
+                        {{ singleAdd.calc.value.kcal }}kcal · 단백질 {{ singleAdd.calc.value.protein }}g · 탄수화물 {{
+                            singleAdd.calc.value.carbs }}g · 지방 {{ singleAdd.calc.value.fat }}g
                     </div>
                 </div>
 
@@ -152,6 +151,7 @@ import { useImageAnalysis } from '../../composables/useImageAnalysis.js'
 import { useFoodSelection } from '../../composables/useFoodSelection.js'
 import { useSingleFoodAdd } from '../../composables/useSingleFoodAdd.js'
 import { DEFAULT_GRAMS, DECIMAL_PLACES } from '../../constants/nutrition.js'
+import loadingGif from '@/assets/로딩2.gif'
 
 const props = defineProps({
     open: { type: Boolean, default: false },
