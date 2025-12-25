@@ -11,6 +11,7 @@ import com.ssafy.yumcoach.user.model.service.UserService;
 import com.ssafy.yumcoach.auth.model.RefreshTokenDto;
 import com.ssafy.yumcoach.auth.service.refresh.RefreshTokenService;
 import com.ssafy.yumcoach.auth.util.JwtUtil;
+import com.ssafy.yumcoach.auth.service.email.EmailAuthService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,6 +35,7 @@ public class UserController {
     private final UserService userService;
     private final RefreshTokenService refreshTokenService;
     private final JwtUtil jwtUtil;
+    private final EmailAuthService emailAuthService;
 
     /**
      * 회원가입
@@ -46,6 +48,13 @@ public class UserController {
     public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
         System.out.println("Signup request: " + request);
         try {
+            boolean verified = emailAuthService.isVerified(request.getEmail());
+            if (!verified) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "이메일 인증이 완료되지 않았습니다. 인증번호를 확인해주세요.");
+                return ResponseEntity.badRequest().body(error);
+            }
+
             User user = User.builder()
                     .email(request.getEmail())
                     .password(request.getPassword())

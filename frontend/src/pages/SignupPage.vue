@@ -9,9 +9,22 @@
                     <div v-if="serverError" class="error-message" style="text-align:center">{{ serverError }}</div>
                     <div class="form-group">
                         <label for="email" class="label">이메일 주소</label>
-                        <input id="email" v-model="email" type="email" class="input" :class="{ error: emailError }"
-                            @input="emailError = ''" />
+                        <div class="input-action">
+                            <input id="email" v-model="email" type="email" class="input" :class="{ error: emailError }"
+                                @input="emailError = ''" @keyup.enter.prevent="sendEmailCode" />
+                            <button type="button" class="btn small" :disabled="sendLoading || !email"
+                                @click="sendEmailCode">{{ sendLoading ? '전송 중…' : '이메일 인증하기' }}</button>
+                        </div>
                         <span v-if="emailError" class="error-message">{{ emailError }}</span>
+
+                        <div class="input-action">
+                            <input v-model="emailCode" type="text" class="input small" placeholder="인증번호 6자리"
+                                @keyup.enter.prevent="verifyEmailCode" />
+                            <button type="button" class="btn small" :disabled="verifyLoading || !emailCode || !email"
+                                @click="verifyEmailCode">{{ verifyLoading ? '확인 중…' : '확인' }}</button>
+                        </div>
+                        <div v-if="verifyMessage" class="verify-message"
+                            :class="{ success: emailVerified, error: !emailVerified }">{{ verifyMessage }}</div>
                     </div>
 
                     <div class="form-group">
@@ -54,7 +67,8 @@
                         <router-link to="/login" class="link">로그인</router-link>
                     </div>
 
-                    <button type="submit" class="signup-button" :disabled="isSubmitting">{{ isSubmitting ? '가입 중...' :
+                    <button type="submit" class="signup-button" :disabled="isSubmitting || !emailVerified">{{
+                        isSubmitting ? '가입 중...' :
                         '계정 만들기' }}</button>
                 </form>
             </div>
@@ -63,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 import api from '@/lib/api.js'
@@ -85,6 +99,55 @@ const passwordConfirmError = ref('')
 const phoneError = ref('')
 const serverError = ref('')
 const isSubmitting = ref(false)
+const sendLoading = ref(false)
+const verifyLoading = ref(false)
+const emailCode = ref('')
+const emailVerified = ref(false)
+const verifyMessage = ref('')
+
+// 이메일 변경 시 인증 상태 초기화
+watch(email, () =>
+{
+    emailVerified.value = false
+    verifyMessage.value = ''
+})
+
+async function sendEmailCode()
+{
+    serverError.value = ''
+    verifyMessage.value = ''
+    if (!email.value) {
+        emailError.value = '이메일을 입력해주세요.'
+        return
+    }
+    sendLoading.value = true
+    try {
+        await api.post('/auth/email/send', { email: email.value })
+        verifyMessage.value = '인증번호를 전송했습니다. 메일을 확인해주세요.'
+    } catch (err) {
+        const msg = err?.response?.data?.message || err?.message
+        verifyMessage.value = msg || '인증번호 전송 실패'
+    } finally {
+        sendLoading.value = false
+    }
+}
+
+async function verifyEmailCode()
+{
+    serverError.value = ''
+    emailVerified.value = false
+    verifyLoading.value = true
+    try {
+        const res = await api.post('/auth/email/verify', { email: email.value, code: emailCode.value })
+        emailVerified.value = true
+        verifyMessage.value = res?.data?.message || '인증 성공'
+    } catch (err) {
+        const msg = err?.response?.data?.message || err?.message
+        verifyMessage.value = msg || '인증 실패: 인증번호를 확인해주세요.'
+    } finally {
+        verifyLoading.value = false
+    }
+}
 
 async function handleSignup()
 {
@@ -126,6 +189,12 @@ async function handleSignup()
         hasError = true
     }
 
+    // 이메일 인증 여부 확인
+    if (!emailVerified.value) {
+        serverError.value = '이메일 인증을 완료해주세요.'
+        hasError = true
+    }
+
     if (hasError) {
         return
     }
@@ -135,7 +204,8 @@ async function handleSignup()
         password: password.value,
         name: name.value,
         phone: phone.value,
-        referralCode: referralCode.value
+        referralCode: referralCode.value,
+        code: emailCode.value
     }
 
     isSubmitting.value = true
@@ -225,6 +295,49 @@ async function handleSignup()
     font-size: 13px;
     color: #ef4444;
     margin-top: -4px;
+}
+
+.verify-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px
+}
+
+.input-action {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.input-action .input {
+    flex: 1;
+}
+
+.btn.small {
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    font-weight: 700;
+    cursor: pointer
+}
+
+.input.small {
+    height: 36px
+}
+
+.verify-message {
+    font-size: 12px
+}
+
+.verify-message.success {
+    color: #16a34a
+}
+
+.verify-message.error {
+    color: #ef4444
 }
 
 .checkbox-group {

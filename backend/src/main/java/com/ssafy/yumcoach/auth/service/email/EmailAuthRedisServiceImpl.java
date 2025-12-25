@@ -17,7 +17,11 @@ public class EmailAuthRedisServiceImpl implements EmailAuthRedisService {
     @Value("${app.auth.email.ttl-seconds:180}")
     private long ttlSeconds;
 
+    @Value("${app.auth.email.verified-ttl-seconds:600}")
+    private long verifiedTtlSeconds;
+
     private static final String KEY_PREFIX = "email:verify:";
+    private static final String VERIFIED_PREFIX = "email:verified:";
 
     @Override
     public void saveCode(String email, String code) {
@@ -34,5 +38,16 @@ public class EmailAuthRedisServiceImpl implements EmailAuthRedisService {
     @Override
     public void deleteCode(String email) {
         redisTemplate.delete(KEY_PREFIX + email);
+    }
+
+    @Override
+    public void saveVerified(String email) {
+        redisTemplate.opsForValue().set(VERIFIED_PREFIX + email, "1", verifiedTtlSeconds, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public boolean isVerified(String email) {
+        String v = redisTemplate.opsForValue().get(VERIFIED_PREFIX + email);
+        return v != null;
     }
 }

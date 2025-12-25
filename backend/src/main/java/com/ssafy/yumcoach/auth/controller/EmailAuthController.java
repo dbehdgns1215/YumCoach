@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/auth/email")
+@RequestMapping("/api/auth/email")
 public class EmailAuthController {
 
     private final EmailAuthService emailAuthService;

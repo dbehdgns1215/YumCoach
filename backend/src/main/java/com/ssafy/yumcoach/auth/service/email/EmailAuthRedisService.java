@@ -16,4 +16,14 @@ public interface EmailAuthRedisService {
      * 이메일 인증 코드 삭제
      */
     void deleteCode(String email);
+
+    /**
+     * 이메일 인증 성공 플래그 저장 (일정 TTL)
+     */
+    void saveVerified(String email);
+
+    /**
+     * 이메일이 인증되었는지 여부 확인
+     */
+    boolean isVerified(String email);
 }

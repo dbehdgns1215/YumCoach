@@ -12,4 +12,5 @@ public class SignupRequest {
     private String password;
     private String name;
     private String phone;
+    private String code; // 이메일 인증 코드
 }

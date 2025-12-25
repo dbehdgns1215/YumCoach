@@ -39,11 +39,13 @@ public class SecurityConfig {
                                                 // 공개 엔드포인트
                                                 .requestMatchers("/", "/health", "/error").permitAll()
                                                 .requestMatchers("/auth/**").permitAll()
-                                                .requestMatchers("/api/user/signin", "/api/user/signup", "/api/user/refresh").permitAll()
+                                                .requestMatchers("/api/auth/**").permitAll()
+                                                .requestMatchers("/api/user/signin", "/api/user/signup",
+                                                                "/api/user/refresh")
+                                                .permitAll()
                                                 .requestMatchers("/api/community").permitAll()
                                                 // 결제 승인 콜백/연동은 인증 없이 접근 가능해야 함
                                                 .requestMatchers("/api/payments/**").permitAll()
-
 
                                                 // Swagger/Springdoc
                                                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()

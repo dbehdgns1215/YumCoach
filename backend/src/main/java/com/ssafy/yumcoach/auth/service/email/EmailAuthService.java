@@ -17,10 +17,19 @@ public class EmailAuthService {
 
     public boolean verifyCode(String email, String inputCode) {
         String saved = redisService.getCode(email);
-        if (saved == null) return false;
+        if (saved == null)
+            return false;
 
         boolean ok = saved.equals(inputCode);
-        if (ok) redisService.deleteCode(email);
+        if (ok) {
+            // 인증 성공 시 verified 플래그 저장 후 코드 제거
+            redisService.saveVerified(email);
+            redisService.deleteCode(email);
+        }
         return ok;
+    }
+
+    public boolean isVerified(String email) {
+        return redisService.isVerified(email);
     }
 }
