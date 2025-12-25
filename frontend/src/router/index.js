@@ -85,6 +85,10 @@ const routes = [
     name: "PaymentFail",
     component: PaymentFailPage,
   },
+  {
+    path: "/auth/kakao/callback",
+    component: () => import("@/pages/KakaoCallbackPage.vue"),
+  },
 ];
 
 export default createRouter({
