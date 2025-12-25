@@ -161,6 +161,16 @@
         WHERE id = #{id}
     </update>
 
+    <!-- Set done and use DB NOW() for done_at to avoid timezone/mapping issues -->
+    <update id="updateChallengeItemSetNow">
+        UPDATE challenge_items
+        SET
+            done = #{done},
+            done_at = CASE WHEN #{done} = TRUE THEN NOW() ELSE NULL END,
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
     <delete id="deleteChallengeItemsByChallengeId">
         DELETE FROM challenge_items WHERE challenge_id = #{challengeId}
     </delete>

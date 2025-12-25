@@ -198,7 +198,13 @@
           AND user_id = #{userId}
     </delete>
 
-
+    <select id="selectMealTypesByUserAndDate" resultType="string">
+        SELECT type
+        FROM meal_history
+        WHERE user_id = #{userId}
+          AND DATE(date) = #{date}
+        ORDER BY id
+    </select>
 
 
 </mapper>
