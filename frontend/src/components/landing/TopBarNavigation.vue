@@ -1,7 +1,7 @@
 <template>
     <header class="topbar" data-name="Header">
         <div class="left">
-            <router-link to="/landing">
+            <router-link :to="logoTo" @click="onLogoClick">
                 <img class="logo" :src="logoSrc" alt="YumCoach" />
             </router-link>
         </div>
@@ -14,7 +14,6 @@
 
         <!-- After Login - Desktop -->
         <nav class="nav-menu" v-if="loggedIn && isDesktop">
-            <router-link to="/home" class="nav-item">홈</router-link>
             <router-link to="/log" class="nav-item">식단 등록</router-link>
             <router-link to="/report" class="nav-item">리포트</router-link>
             <router-link to="/community" class="nav-item">커뮤니티</router-link>
@@ -37,14 +36,13 @@
 
         <!-- Mobile Menu Drawer -->
         <nav v-if="loggedIn && !isDesktop && menuOpen" class="mobile-menu">
-            <router-link to="/home" class="mobile-nav-item" @click="menuOpen = false">홈</router-link>
             <router-link to="/log" class="mobile-nav-item" @click="menuOpen = false">식단 등록</router-link>
             <router-link to="/report" class="mobile-nav-item" @click="menuOpen = false">리포트</router-link>
             <router-link to="/community" class="mobile-nav-item" @click="menuOpen = false">커뮤니티</router-link>
             <router-link to="/challenge" class="mobile-nav-item" @click="menuOpen = false">챌린지</router-link>
             <router-link to="/coach" class="mobile-nav-item" @click="menuOpen = false">챗봇</router-link>
             <router-link to="/mypage" class="mobile-nav-item" @click="menuOpen = false">마이페이지</router-link>
-            <button class="mobile-nav-item" @click="(menuOpen=false, handleLogout())">로그아웃</button>
+            <button class="mobile-nav-item" @click="(menuOpen = false, handleLogout())">로그아웃</button>
         </nav>
     </header>
 </template>
@@ -59,6 +57,14 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import logoSrc from '@/assets/logo.png'
 
+const logoTo = computed(() => (loggedIn.value ? "/log" : "/landing"));
+
+const clickCount = ref(0);
+let clickTimer = null;
+
+// “빠르게”의 기준(원하는 대로 조절)
+const TRIPLE_WINDOW_MS = 500;
+
 const props = defineProps({
     hideActions: { type: Boolean, default: false }
 })
@@ -69,28 +75,65 @@ const router = useRouter()
 const menuOpen = ref(false)
 const isDesktop = ref(true)
 
-const checkIsDesktop = () => {
+const checkIsDesktop = () =>
+{
     isDesktop.value = window.innerWidth >= 960
 }
 
-onMounted(() => {
+onMounted(() =>
+{
     checkIsDesktop()
     window.addEventListener('resize', checkIsDesktop)
 })
 
-onUnmounted(() => {
+onUnmounted(() =>
+{
     window.removeEventListener('resize', checkIsDesktop)
+
+    if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+    }
 })
 
 // 로그인 여부는 항상 Pinia `auth` 스토어를 기준으로 결정합니다
 const loggedIn = computed(() => auth.isAuthenticated)
 
-async function handleLogout() {
+async function handleLogout()
+{
     try {
         await auth.logout()
     } finally {
         // 로그아웃 후 랜딩 페이지로 이동
-        router.push('/landing').catch(() => {})
+        router.push('/landing').catch(() => { })
+    }
+}
+
+function onLogoClick(e)
+{
+    // 로그인 전에는 그냥 정상 이동
+    if (!loggedIn.value) return;
+
+    clickCount.value += 1;
+
+    // 첫 클릭이면 타이머 시작
+    if (!clickTimer) {
+        clickTimer = setTimeout(() =>
+        {
+            // 시간 내 3번 못 채우면 리셋 (기본 이동은 router-link가 이미 처리)
+            clickCount.value = 0;
+            clickTimer = null;
+        }, TRIPLE_WINDOW_MS);
+    }
+
+    // 3번 성공: 기본 이동 막고 /mini로
+    if (clickCount.value >= 3) {
+        e.preventDefault(); // router-link 기본 이동 막기
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        clickCount.value = 0;
+
+        router.push("/mini").catch(() => { });
     }
 }
 </script>

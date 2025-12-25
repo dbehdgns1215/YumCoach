@@ -26,7 +26,8 @@
                         <a href="/reset-password" class="link">비밀번호 찾기</a>
                     </div>
 
-                    <button type="submit" class="login-button" :disabled="isSubmitting">{{ isSubmitting ? '로그인 중...' : '로그인' }}</button>
+                    <button type="submit" class="login-button" :disabled="isSubmitting">{{ isSubmitting ? '로그인 중...' :
+                        '로그인' }}</button>
                 </form>
 
                 <div class="divider-line">
@@ -59,7 +60,8 @@ const emailError = ref('')
 const passwordError = ref('')
 const isSubmitting = ref(false)
 
-async function handleLogin() {
+async function handleLogin()
+{
     // 폼 에러 초기화
     emailError.value = ''
     passwordError.value = ''
@@ -80,7 +82,7 @@ async function handleLogin() {
         // Pinia auth.login() 호출 (스토어에서 axios로 signin, withCredentials: true)
         const data = await auth.login({ email: email.value, password: password.value })
         // 로그인 성공 시 홈으로 이동
-        router.push('/home')
+        router.push('/log')
     } catch (err) {
         // axios 오류 응답에서 field/message 추출하여 폼 에러로 매핑
         const resp = err?.response
