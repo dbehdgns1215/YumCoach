@@ -1,15 +1,10 @@
 <template>
     <TopBarNavigation />
-    <AppShell title="챌린지" subtitle="도전해요!" footerTheme="brand" @primary="noop">
+    <AppShell footerTheme="brand" @primary="noop">
         <div style="padding:5px">
             <!-- 활성 챌린지 -->
-            <ChallengeList 
-                :challenges="activeChallenges" 
-                @create="openCreate" 
-                @update="onUpdate"
-                @complete="completeChallenge"
-                @delete="deleteChallenge"
-            />
+            <ChallengeList :challenges="activeChallenges" @create="openCreate" @update="onUpdate"
+                @complete="completeChallenge" @delete="deleteChallenge" />
 
             <!-- 완료된 챌린지 (접기/펼치기) -->
             <div v-if="completedChallenges.length > 0" class="completed-section">
@@ -17,20 +12,12 @@
                     <h3>완료된 챌린지 ({{ completedChallenges.length }})</h3>
                     <span>{{ showCompleted ? '▼' : '▶' }}</span>
                 </div>
-                <ChallengeList 
-                    v-if="showCompleted"
-                    :challenges="completedChallenges" 
-                    :readonly="true"
-                />
+                <ChallengeList v-if="showCompleted" :challenges="completedChallenges" :readonly="true" />
             </div>
 
             <!-- 생성 모달 -->
-            <ChallengeCreateModal 
-                :show="showCreate" 
-                :initialData="initialData"
-                @close="closeCreate" 
-                @create="createFromModal" 
-            />
+            <ChallengeCreateModal :show="showCreate" :initialData="initialData" @close="closeCreate"
+                @create="createFromModal" />
         </div>
     </AppShell>
 </template>
@@ -52,19 +39,21 @@ const showCompleted = ref(false)
 const initialData = ref(null)
 
 // 활성 vs 완료 챌린지 분리
-const activeChallenges = computed(() => 
+const activeChallenges = computed(() =>
     challenges.value.filter(c => c.status === 'ACTIVE')
 )
-const completedChallenges = computed(() => 
+const completedChallenges = computed(() =>
     challenges.value.filter(c => ['COMPLETED', 'FAILED', 'ABANDONED'].includes(c.status))
 )
 
 // 챌린지 목록 로드
-onMounted(async () => {
+onMounted(async () =>
+{
     await loadChallenges()
 })
 
-async function loadChallenges() {
+async function loadChallenges()
+{
     try {
         const res = await api.get('/challenges')
         challenges.value = res.data.data || []
@@ -73,24 +62,28 @@ async function loadChallenges() {
     }
 }
 
-function openCreate(data = null) { 
+function openCreate(data = null)
+{
     initialData.value = data
-    showCreate.value = true 
+    showCreate.value = true
 }
 
-function closeCreate() {
+function closeCreate()
+{
     showCreate.value = false
     initialData.value = null
 }
 
-async function onUpdate(updated) {
+async function onUpdate(updated)
+{
     const idx = challenges.value.findIndex(c => c.id === updated.id)
     if (idx < 0) return
 
     const original = JSON.parse(JSON.stringify(challenges.value[idx]))
 
     // 변경된 아이템 탐지
-    const changedItem = updated.items.find(it => {
+    const changedItem = updated.items.find(it =>
+    {
         const orig = original.items.find(o => o.id === it.id)
         return orig && orig.done !== it.done
     })
@@ -119,9 +112,10 @@ async function onUpdate(updated) {
     }
 }
 
-async function createFromModal(payload) {
+async function createFromModal(payload)
+{
     console.debug('[ChallengePage] createFromModal', payload)
-    
+
     try {
         const body = {
             title: payload.title,
@@ -132,9 +126,9 @@ async function createFromModal(payload) {
             durationDays: payload.durationDays || 30,
             source: payload.source || 'MANUAL',
             sourceId: payload.sourceId,
-            items: payload.items?.map((it, idx) => ({ 
-                order: idx + 1, 
-                text: it.text || it 
+            items: payload.items?.map((it, idx) => ({
+                order: idx + 1,
+                text: it.text || it
             })) || []
         }
 
@@ -143,7 +137,7 @@ async function createFromModal(payload) {
         await loadChallenges()
         showToast('챌린지 생성 완료! 🎉', 'success', 3000)
         closeCreate()
-        
+
     } catch (e) {
         console.error('[ChallengePage] create failed', e)
         if (e?.response?.status === 401) {
@@ -154,16 +148,17 @@ async function createFromModal(payload) {
     }
 }
 
-async function completeChallenge(challengeId) {
+async function completeChallenge(challengeId)
+{
     try {
         await api.patch(`/challenges/${challengeId}/complete`)
-        
+
         const idx = challenges.value.findIndex(c => c.id === challengeId)
         if (idx >= 0) {
             challenges.value[idx].status = 'COMPLETED'
             challenges.value[idx].completedAt = new Date().toISOString()
         }
-        
+
         showToast('챌린지 완료! 축하합니다! 🎊', 'success', 3000)
     } catch (e) {
         console.error('[ChallengePage] complete failed', e)
@@ -171,12 +166,13 @@ async function completeChallenge(challengeId) {
     }
 }
 
-async function deleteChallenge(challengeId) {
+async function deleteChallenge(challengeId)
+{
     if (!confirm('정말 삭제하시겠습니까?')) return
-    
+
     try {
         await api.delete(`/challenges/${challengeId}`)
-        
+
         challenges.value = challenges.value.filter(c => c.id !== challengeId)
         showToast('챌린지 삭제 완료', 'success', 2000)
     } catch (e) {
@@ -192,6 +188,7 @@ async function deleteChallenge(challengeId) {
     padding-top: 20px;
     border-top: 1px solid var(--border);
 }
+
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -199,6 +196,7 @@ async function deleteChallenge(challengeId) {
     cursor: pointer;
     padding: 12px 0;
 }
+
 .section-header h3 {
     margin: 0;
     font-size: 16px;
