@@ -15,5 +15,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatResponse {
-    private String reply;
+    private String response;
+    private String detected_hashtag;
 }

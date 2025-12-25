@@ -92,6 +92,7 @@ def format_health_status(user_profile: dict) -> str:
 
 def build_system_prompt(
     hashtag: Optional[str],
+    hashtag: Optional[str],
     user_profile: Optional[dict] = None,
     report_data: Optional[dict] = None
 ) -> str:
@@ -148,11 +149,13 @@ async def chat(request: ChatRequest):
     """
     # 식단 코칭 챗봇 API
 
+
     ## 현재 지원 기능:
     - #식단: 식단 추천 (리포트 기반, ADVANCED 유저만 사용 가능)
     - #상담: 식단 관련 고민 상담 (리포트 불필요)
     - #일일리포트: 일일 식단 분석 (리포트 필요, 현재 미구현)
     - #주간리포트: 주간 식단 분석 (리포트 필요, 현재 미구현)
+
 
     ## user_profile 예시:
     ```json
