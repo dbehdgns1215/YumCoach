@@ -36,7 +36,17 @@ public class JwtUtil {
      *         주의: HttpOnly Cookie로 저장하여 XSS 공격 방지
      */
     public String createAccessToken(Integer userId) {
-        return createToken(userId, accessTokenValidity);
+        return createToken(userId, null, accessTokenValidity);
+    }
+
+    /**
+     * Access Token 생성 (주제(subject) 포함)
+     * 
+     * @param userId  사용자 ID (숫자, Kakao 등 외부 계정은 0 등 예약 값 가능)
+     * @param subject 이메일 등 주제
+     */
+    public String createAccessToken(Integer userId, String subject) {
+        return createToken(userId, subject, accessTokenValidity);
     }
 
     /**
@@ -47,17 +57,18 @@ public class JwtUtil {
      *         주의: DB에 저장 필수, Access Token 갱신용
      */
     public String createRefreshToken(Integer userId) {
-        return createToken(userId, refreshTokenValidity);
+        return createToken(userId, null, refreshTokenValidity);
     }
 
     /**
      * 토큰 생성 (밀리초 단위)
      */
-    private String createToken(Integer userId, long ttlMillis) {
+    private String createToken(Integer userId, String subject, long ttlMillis) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .setHeaderParam("typ", "JWT")
                 .claim("userId", userId)
+                .setSubject(subject)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusMillis(ttlMillis)))
                 .signWith(key, SignatureAlgorithm.HS256)

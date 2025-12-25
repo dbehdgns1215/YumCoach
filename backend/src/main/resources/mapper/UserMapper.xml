@@ -6,8 +6,8 @@
 
     <!-- 회원가입 -->
     <insert id="insertUser" parameterType="User" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO user (email, password, name, phone)
-        VALUES (#{email}, #{password}, #{name}, #{phone})
+        INSERT INTO user (kakao_id, email, password, name, phone, nickname)
+        VALUES (#{kakaoId}, #{email}, #{password}, #{name}, #{phone}, #{nickname})
     </insert>
     
     <!-- 유저 건강정보 초기화 -->
@@ -32,9 +32,16 @@
     
     <!-- ID로 유저 조회 -->
     <select id="findById" resultType="User">
-        SELECT id, email, password, name, phone, nickname, gender, age, role
+        SELECT id, kakao_id, email, password, name, phone, nickname, gender, age, role
         FROM user
         WHERE id = #{id}
+    </select>
+
+    <!-- 카카오 ID로 유저 조회 -->
+    <select id="findByKakaoId" resultType="User">
+        SELECT id, kakao_id, email, password, name, phone, nickname, gender, age, role
+        FROM user
+        WHERE kakao_id = #{kakaoId}
     </select>
 
     <!-- 모든 유저 ID 조회 (배치/관리용) -->

@@ -24,6 +24,9 @@ public interface UserMapper {
     // ID로 유저 조회
     User findById(@Param("id") Integer id);
 
+    // 카카오 ID로 유저 조회
+    User findByKakaoId(@Param("kakaoId") Long kakaoId);
+
     /** 모든 사용자 ID를 반환합니다. 배치/관리 API에서 사용됩니다. */
     java.util.List<Integer> findAllUserIds();
 

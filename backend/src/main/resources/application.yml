@@ -23,7 +23,6 @@ spring:
           ssl:
             trust: smtp.naver.com
             protocols: TLSv1.2
-
 app:
   mail:
     from: ${EMAIL_FROM:${spring.mail.username}}

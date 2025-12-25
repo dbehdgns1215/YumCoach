@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class User {
     private Integer id;
+    private Long kakaoId;
     private String email;
     private String password;
     private String name;

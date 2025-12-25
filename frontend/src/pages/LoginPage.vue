@@ -26,7 +26,8 @@
                         <a href="/reset-password" class="link">비밀번호 찾기</a>
                     </div>
 
-                    <button type="submit" class="login-button" :disabled="isSubmitting">{{ isSubmitting ? '로그인 중...' : '로그인' }}</button>
+                    <button type="submit" class="login-button" :disabled="isSubmitting">{{ isSubmitting ? '로그인 중...' :
+                        '로그인' }}</button>
                 </form>
 
                 <div class="divider-line">
@@ -46,7 +47,7 @@
 // 로그인 페이지: 인증은 Pinia `auth` 스토어에 위임합니다.
 // - 로그인 요청은 `auth.login()`을 호출하고, 성공 시 리다이렉트합니다.
 // - 서버 에러 메시지(field/message)는 응답을 검사하여 폼 에러로 매핑합니다.
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import TopBarNavigation from '@/components/landing/TopBarNavigation.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -59,7 +60,8 @@ const emailError = ref('')
 const passwordError = ref('')
 const isSubmitting = ref(false)
 
-async function handleLogin() {
+async function handleLogin()
+{
     // 폼 에러 초기화
     emailError.value = ''
     passwordError.value = ''
@@ -80,7 +82,7 @@ async function handleLogin() {
         // Pinia auth.login() 호출 (스토어에서 axios로 signin, withCredentials: true)
         const data = await auth.login({ email: email.value, password: password.value })
         // 로그인 성공 시 홈으로 이동
-        router.push('/home')
+        router.push('/log')
     } catch (err) {
         // axios 오류 응답에서 field/message 추출하여 폼 에러로 매핑
         const resp = err?.response
@@ -100,10 +102,38 @@ async function handleLogin() {
 
 function handleKakaoLogin()
 {
-    // 카카오 로그인 로직 구현
-    console.log('카카오 로그인')
-    // TODO: 카카오 SDK 연동
+    try {
+        const kakao = ensureKakaoReady()
+
+        // 카카오 문서 권장: authorize로 인가코드 발급(redirect)
+        // ⚠️ 주의: 개발 단계에서 이메일 권한이 없을 수 있으므로 요청만 함
+        kakao.Auth.authorize({
+            redirectUri: KAKAO_REDIRECT_URI,
+            scope: 'profile_nickname account_email', // 요청하지만 권한이 없으면 무시됨
+        })
+    } catch (e) {
+        alert(e?.message || '카카오 로그인 초기화 오류')
+    }
 }
+
+
+const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY
+const KAKAO_REDIRECT_URI = import.meta.env.VITE_KAKAO_REDIRECT_URI
+
+function ensureKakaoReady()
+{
+    const kakao = window.Kakao
+    if (!kakao) throw new Error('Kakao SDK가 로드되지 않았어요. index.html에 스크립트를 추가했는지 확인해주세요.')
+    if (!kakao.isInitialized()) kakao.init(KAKAO_JS_KEY)
+    return kakao
+}
+
+onMounted(() =>
+{
+    // 페이지 들어올 때 미리 init (선택)
+    try { ensureKakaoReady() } catch { /* 무시: 버튼 누를 때 다시 체크 */ }
+})
+
 </script>
 
 <style scoped>
