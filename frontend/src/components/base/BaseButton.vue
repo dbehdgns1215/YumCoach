@@ -20,7 +20,7 @@ defineEmits(['click'])
   border-radius: var(--r-btn);
   padding: 14px 16px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 .primary{ background: var(--primary); color: #fff; }

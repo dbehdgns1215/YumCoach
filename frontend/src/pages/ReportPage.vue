@@ -45,13 +45,19 @@
 
         <div style="margin-top:12px;">
           <div v-if="devResult && displayInsights.length > 0" class="insights">
-            <InsightCard v-for="(ins, idx) in displayInsights" :key="idx" :kind="ins.kind" :title="ins.title"
-              :body="ins.body" />
+            <!-- Render in explicit order: good, warn on first row; keep + paywall on second row -->
+            <InsightCard v-if="orderedInsights[0]" :kind="orderedInsights[0].kind" :title="orderedInsights[0].title" :body="orderedInsights[0].body" />
+            <InsightCard v-if="orderedInsights[1]" :kind="orderedInsights[1].kind" :title="orderedInsights[1].title" :body="orderedInsights[1].body" />
+
+            <InsightCard v-if="orderedInsights[2]" :kind="orderedInsights[2].kind" :title="orderedInsights[2].title" :body="orderedInsights[2].body" />
+
+            <!-- Use existing AdvancedPreview (더 자세한 분석 보기) next to `keep` -->
+            <AdvancedPreview @open="openPaywall = true" />
           </div>
           <!-- When there's no devResult, hero displays the empty-state (title/score) so no extra placeholder here -->
         </div>
 
-        <AdvancedPreview @open="openPaywall = true" />
+        <!-- AdvancedPreview moved into insights area next to 'keep' -->
       </div>
 
       <div class="colRail">
@@ -468,6 +474,19 @@ const displayInsights = computed(() =>
   )
 })
 
+// orderedInsights: prefer ordering good, warn, keep (take first of each group)
+const orderedInsights = computed(() => {
+  if (!devResult.value?.insights) return []
+  const goods = devResult.value.insights.filter(i => i.kind === 'good')
+  const warns = devResult.value.insights.filter(i => i.kind === 'warn')
+  const keeps = devResult.value.insights.filter(i => i.kind === 'keep')
+  const out = []
+  if (goods.length) out.push(goods[0])
+  if (warns.length) out.push(warns[0])
+  if (keeps.length) out.push(keeps[0])
+  return out
+})
+
 async function createAndAnalyze()
 {
   devError.value = null
@@ -748,6 +767,17 @@ function handleModalError(msg)
   .insights {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+.paywallCard {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 @media (max-width: 767px) {
