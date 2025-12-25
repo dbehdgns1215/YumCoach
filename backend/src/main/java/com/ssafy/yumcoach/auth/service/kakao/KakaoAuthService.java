@@ -5,6 +5,8 @@ import com.ssafy.yumcoach.auth.model.AuthResponse;
 import com.ssafy.yumcoach.auth.model.KakaoTokenResponse;
 import com.ssafy.yumcoach.auth.model.UserDto;
 import com.ssafy.yumcoach.auth.util.JwtUtil;
+import com.ssafy.yumcoach.user.model.User;
+import com.ssafy.yumcoach.user.model.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +35,7 @@ public class KakaoAuthService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final JwtUtil jwtUtil;
+    private final UserService userService;
 
     public AuthResponse login(String code, String redirectUri) {
 
@@ -68,17 +71,54 @@ public class KakaoAuthService {
             log.warn("[카카오 로그인] 사용자 이메일 없음, 임시 이메일로 대체: {}", email);
         }
 
-        // 4️⃣ JWT 발급 (임시: 내부 userId를 확보하지 못하므로 0 사용, subject에 이메일)
-        // 추후 카카오 계정을 로컬 유저와 매핑하면 실제 userId로 교체
-        String jwt = jwtUtil.createAccessToken(0, email);
+        // 4️⃣ 로컬 DB에서 카카오 계정 조회 또는 생성
+        User user = userService.findByKakaoId(kakaoUser.getId());
 
-        UserDto user = new UserDto(
+        if (user == null) {
+            // 신규 사용자 생성
+            user = User.builder()
+                    .kakaoId(kakaoUser.getId())
+                    .email(email)
+                    .name(kakaoAccount.getProfile().getNickname())
+                    .nickname(kakaoAccount.getProfile().getNickname())
+                    .password(null) // 소셜 로그인은 비밀번호 불필요
+                    .role("USER")
+                    .build();
+
+            try {
+                userService.signupSocial(user);
+                log.info("[카카오 로그인] 신규 사용자 생성: kakaoId={}, email={}", kakaoUser.getId(), email);
+            } catch (IllegalArgumentException e) {
+                // 이메일 중복 등의 문제 발생 시
+                log.warn("[카카오 로그인] 사용자 생성 실패: {}", e.getMessage());
+
+                // 이메일로 기존 사용자 찾기 (카카오 계정 연결 시도)
+                User existingUser = userService.findByEmail(email);
+                if (existingUser != null && existingUser.getKakaoId() == null) {
+                    // 기존 사용자에 카카오 ID 연결
+                    existingUser.setKakaoId(kakaoUser.getId());
+                    userService.updateUser(existingUser);
+                    user = existingUser;
+                    log.info("[카카오 로그인] 기존 사용자에 카카오 계정 연결: userId={}, kakaoId={}", user.getId(), kakaoUser.getId());
+                } else {
+                    throw new IllegalArgumentException("카카오 로그인 처리 중 오류가 발생했습니다: " + e.getMessage());
+                }
+            }
+        } else {
+            log.info("[카카오 로그인] 기존 사용자 로그인: userId={}, kakaoId={}", user.getId(), kakaoUser.getId());
+        }
+
+        // 5️⃣ 실제 userId로 JWT 발급
+        String jwt = jwtUtil.createAccessToken(user.getId(), user.getEmail());
+
+        UserDto userDto = new UserDto(
                 kakaoUser.getId(),
-                email,
-                kakaoAccount.getProfile().getNickname());
+                user.getEmail(),
+                user.getNickname() != null ? user.getNickname() : user.getName());
 
-        log.info("[카카오 로그인 성공] kakaoId={}, nickname={}", kakaoUser.getId(), kakaoAccount.getProfile().getNickname());
-        return new AuthResponse(jwt, user);
+        log.info("[카카오 로그인 성공] userId={}, kakaoId={}, nickname={}",
+                user.getId(), kakaoUser.getId(), userDto.getNickname());
+        return new AuthResponse(jwt, userDto);
     }
 
     private KakaoTokenResponse requestToken(String code, String redirectUri) {

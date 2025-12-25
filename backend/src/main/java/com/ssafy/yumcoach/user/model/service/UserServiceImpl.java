@@ -58,6 +58,39 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User findByKakaoId(Long kakaoId) {
+        return userMapper.findByKakaoId(kakaoId);
+    }
+
+    @Override
+    @Transactional
+    public void signupSocial(User user) {
+        // 카카오 ID 중복 체크
+        if (user.getKakaoId() != null) {
+            User existingByKakao = userMapper.findByKakaoId(user.getKakaoId());
+            if (existingByKakao != null) {
+                throw new IllegalArgumentException("이미 등록된 카카오 계정입니다.");
+            }
+        }
+
+        // 이메일 중복 체크 (선택)
+        if (user.getEmail() != null) {
+            User existingByEmail = userMapper.findByEmail(user.getEmail());
+            if (existingByEmail != null) {
+                throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
+            }
+        }
+
+        // 회원 등록 (password는 null 가능)
+        userMapper.insertUser(user);
+
+        // 건강정보 초기화
+        userMapper.insertUserHealth(user.getId());
+
+        log.info("Social user registered: kakaoId={}, email={}", user.getKakaoId(), user.getEmail());
+    }
+
+    @Override
     @Transactional
     public void updateUser(User user) {
         userMapper.updateUser(user);
