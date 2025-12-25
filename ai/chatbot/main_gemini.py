@@ -23,7 +23,8 @@ HASHTAG_TO_FILE = {
     "#주간리포트": "weekly_report.txt",
     "#일일리포트": "daily_report.txt",
     "#식단": "diet.txt",
-    "#상담": "counsel.txt"
+    "#상담": "counsel.txt",
+    "#기본": "default.txt"
 }
 
 
@@ -52,7 +53,7 @@ def extract_hashtag(message: str) -> tuple[Optional[str], str]:
         clean_message = re.sub(pattern, "", message).strip()
         return hashtag, clean_message
 
-    return None, message
+    return "#기본", message
 
 
 def format_health_status(user_profile: Dict[str, Any]) -> str:
@@ -141,7 +142,20 @@ def parse_gemini_text(resp_json: Dict[str, Any]) -> str:
         if isinstance(t, str):
             texts.append(t)
 
-    return "\n".join(texts).strip()
+    raw = "\n".join(texts).strip()
+
+    # 코드 펜스(````, ```json)로 감싸진 경우 제거
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        # 첫 줄의 ``` 혹은 ```json 제거
+        if lines:
+            lines = lines[1:]
+        # 마지막 줄이 ```이면 제거
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        raw = "\n".join(lines).strip()
+
+    return raw
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -161,14 +175,13 @@ async def chat(request: ChatRequest):
             request.report_data
         )
 
-        # ✅ Gemini REST payload (curl과 동일한 구조)
+        # ✅ Gemini REST payload (roles 명시 + systemInstruction 사용)
         payload = {
+            "systemInstruction": {"parts": [{"text": system_prompt}]},
             "contents": [
-                {"parts": [{"text": system_prompt}]},
-                {"parts": [{"text": clean_message}]}
-            ]
+                {"role": "user", "parts": [{"text": clean_message}]}
+            ],
         }
-
         url = (
             f"https://gms.ssafy.io/gmsapi/generativelanguage.googleapis.com/v1beta/"
             f"models/{GEMINI_MODEL}:generateContent?key={GMS_KEY}"
@@ -199,6 +212,7 @@ async def chat(request: ChatRequest):
     except HTTPException:
         raise
     except Exception as e:
+        s
         raise HTTPException(status_code=500, detail=str(e))
 
 
