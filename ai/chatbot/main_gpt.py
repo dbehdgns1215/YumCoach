@@ -4,7 +4,8 @@ from openai import AsyncOpenAI
 import os
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -75,7 +76,7 @@ def format_health_status(user_profile: dict) -> str:
 def build_system_prompt(
     hashtag: Optional[str],
     user_profile: Optional[dict] = None,
-    report_data: Optional[dict] = None
+    report_data: Optional[Any] = None
 ) -> str:
     """시스템 프롬프트 생성"""
     # 해시태그에 맞는 프롬프트 파일 로드
@@ -103,7 +104,25 @@ def build_system_prompt(
             # 템플릿 변수가 없는 경우 (기본 프롬프트)
             pass
 
-    # TODO: 리포트 데이터 주입
+    # report_data 주입
+    if report_data is not None:
+        try:
+            if isinstance(report_data, str):
+                parsed = json.loads(report_data)
+                report_json = json.dumps(parsed, ensure_ascii=False, indent=2)
+            else:
+                report_json = json.dumps(report_data, ensure_ascii=False, indent=2)
+        except Exception:
+            report_json = str(report_data)
+
+        injection = (
+            "\n\n[REPORT_DATA_BEGIN]\n"
+            "아래는 백엔드에서 전달된 `report_data`입니다. 모델은 이 데이터를 참고하여 응답을 생성하십시오.\n"
+            + report_json
+            + "\n[REPORT_DATA_END]\n"
+        )
+
+        base_prompt = base_prompt + injection
 
     return base_prompt
 
@@ -112,7 +131,7 @@ class ChatRequest(BaseModel):
     message: str
     user_id: str = None
     user_profile: dict = None
-    report_data: dict = None
+    report_data: Any = None
 
 
 class ChatResponse(BaseModel):

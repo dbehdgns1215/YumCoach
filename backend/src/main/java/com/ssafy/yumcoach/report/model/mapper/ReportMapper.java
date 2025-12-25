@@ -71,6 +71,9 @@ public interface ReportMapper {
                                  @Param("weeklyFrom") LocalDate weeklyFrom,
                                  @Param("weeklyUsed") Integer weeklyUsed);
 
+    /** 조회: user_generation_count 레코드 조회 (user_id 기준, 최신 하나) */
+    Map<String, Object> selectUserGenerationCount(@Param("userId") Integer userId);
+
     /**
      * report.ai_response 컬럼에 AI 원문(JSON)을 저장합니다.
      */

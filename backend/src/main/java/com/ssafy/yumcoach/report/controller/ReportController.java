@@ -81,14 +81,14 @@ public class ReportController {
             LocalDateTime weekStartDt = weekStart.atStartOfDay();
             LocalDateTime weekEndDt = weekEnd.plusDays(1).atStartOfDay();
 
+            // Reset all users' generation counts to zero (admin-triggered)
             for (Integer uid : userIds) {
                 try {
-                    int dailyUsed = reportMapper.countGenerationLogsInPeriod(uid, "DAILY", dayStart, dayEnd, "USER");
-                    int weeklyUsed = reportMapper.countGenerationLogsInPeriod(uid, "WEEKLY", weekStartDt, weekEndDt, "USER");
-                    reportMapper.upsertUserGenerationCount(uid, today, dailyUsed, weekStart, weeklyUsed);
+                    // Set daily and weekly used counts to 0
+                    reportMapper.upsertUserGenerationCount(uid, today, 0, weekStart, 0);
                     updated++;
                 } catch (Exception ex) {
-                    log.warn("sync failed for user {}: {}", uid, ex.getMessage());
+                    log.warn("reset failed for user {}: {}", uid, ex.getMessage());
                     errors++;
                 }
             }
@@ -327,10 +327,36 @@ public class ReportController {
                 endDate = target;
             }
 
-            LocalDateTime start = startDate.atStartOfDay();
-            LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+            // user_generation_count에서 조회
+            int used = 0;
+            try {
+                Map<String, Object> ugc = reportMapper.selectUserGenerationCount(userId);
+                if (ugc != null && !ugc.isEmpty()) {
+                    if ("WEEKLY".equalsIgnoreCase(type)) {
+                        Object weeklyFromObj = ugc.get("weeklyFrom");
+                        Object weeklyUsedObj = ugc.get("weeklyUsed");
 
-            int used = reportMapper.countGenerationLogsInPeriod(userId, type.toUpperCase(), start, end, "USER");
+                        // 🔥 정확한 일치가 아니라, 같은 주인지 체크
+                        if (weeklyFromObj instanceof LocalDate) {
+                            LocalDate dbWeekStart = (LocalDate) weeklyFromObj;
+                            // startDate가 dbWeekStart 주간에 포함되는지 확인
+                            if (!startDate.isBefore(dbWeekStart) && !startDate.isAfter(dbWeekStart.plusDays(6))) {
+                                used = weeklyUsedObj instanceof Integer ? (Integer) weeklyUsedObj : 0;
+                            }
+                        }
+                    } else {
+                        Object dailyDateObj = ugc.get("dailyDate");
+                        Object dailyUsedObj = ugc.get("dailyUsed");
+
+                        // 🔥 일간은 정확한 날짜 일치
+                        if (dailyDateObj instanceof LocalDate && ((LocalDate) dailyDateObj).equals(startDate)) {
+                            used = dailyUsedObj instanceof Integer ? (Integer) dailyUsedObj : 0;
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("getQuota: failed to read user_generation_count, defaulting used=0", ex);
+            }
 
             // 사용자 role에 따른 limit 결정
             int limit = 0;
@@ -346,7 +372,6 @@ public class ReportController {
                     limit = "DAILY".equalsIgnoreCase(type) ? 1 : 5;
                 }
             } catch (Exception ex) {
-                // fallback
                 limit = 1;
             }
 
@@ -387,6 +412,59 @@ public class ReportController {
         } catch (Exception e) {
             log.error("analyzeReport error", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * 관리자용: 특정 유저의 일간/주간 리포트를 강제로 생성합니다.
+     * 요청자는 반드시 ADMIN 권한이어야 합니다.
+     */
+    @PostMapping("/admin/create")
+    public ResponseEntity<?> adminCreateReport(HttpServletRequest request, @RequestBody com.ssafy.yumcoach.report.model.AdminCreateReportRequest body) {
+        Integer adminId = extractUserId(request);
+        if (adminId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "인증이 필요합니다."));
+        }
+
+        User admin = userMapper.findById(adminId);
+        if (admin == null || !"ADMIN".equalsIgnoreCase(admin.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "관리자 권한이 필요합니다."));
+        }
+
+        if (body == null || body.getUserId() == null || body.getType() == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "userId와 type(Daily|Weekly)을 지정하세요."));
+        }
+
+        try {
+            int targetUserId = body.getUserId();
+            String type = body.getType().toUpperCase();
+
+            if ("DAILY".equals(type)) {
+                java.time.ZoneId zone = java.time.ZoneId.of("Asia/Seoul");
+                java.time.LocalDate date = body.getDate() != null ? java.time.LocalDate.parse(body.getDate()) : java.time.LocalDate.now(zone);
+                ReportDto dto = reportService.createDailyReport(targetUserId, date);
+                return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+            } else if ("WEEKLY".equals(type)) {
+                java.time.LocalDate from = body.getFromDate() != null ? java.time.LocalDate.parse(body.getFromDate()) : java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY);
+                java.time.LocalDate to = body.getToDate() != null ? java.time.LocalDate.parse(body.getToDate()) : java.time.LocalDate.now();
+                ReportDto dto = reportService.createWeeklyReport(targetUserId, from, to);
+                return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+            } else {
+                return ResponseEntity.badRequest().body(Map.of("error", "type은 DAILY 또는 WEEKLY만 허용됩니다."));
+            }
+
+        } catch (IllegalStateException e) {
+            String msg = e.getMessage() == null ? "" : e.getMessage();
+            if (msg.contains("LIMIT_EXCEEDED")) {
+                return ResponseEntity.status(429).body(Map.of("error", "생성 한도를 초과했습니다.", "details", msg));
+            }
+            if (msg.contains("NO_MEALS")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "해당 기간에 기록된 식사 데이터가 없습니다.", "details", msg));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "생성 중 오류", "details", msg));
+        } catch (Exception e) {
+            log.error("adminCreateReport error", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "서버 오류"));
         }
     }
 

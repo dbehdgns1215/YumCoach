@@ -49,7 +49,8 @@ public class ReportServiceImpl implements ReportService {
         var start = date.atStartOfDay();
         var end = date.plusDays(1).atStartOfDay();
 
-        if (reportMapper.countGenerationLogsInPeriod(userId, "DAILY", start, end, "USER") >= limit) {
+        int used = getUsedCountForPeriod(userId, "DAILY", date, start, end);
+        if (used >= limit) {
             throw new IllegalStateException("LIMIT_EXCEEDED");
         }
 
@@ -147,7 +148,8 @@ public class ReportServiceImpl implements ReportService {
             var start = date.atStartOfDay();
             var end = date.plusDays(1).atStartOfDay();
 
-            if (reportMapper.countGenerationLogsInPeriod(userId, "DAILY", start, end, "USER") >= limit) {
+            int used = getUsedCountForPeriod(userId, "DAILY", date, start, end);
+            if (used >= limit) {
                 throw new IllegalStateException("LIMIT_EXCEEDED");
             }
         }
@@ -465,6 +467,41 @@ public class ReportServiceImpl implements ReportService {
             if (r.getNextAction() != null && !r.getNextAction().isBlank()) {
                 reportMapper.insertReportInsight(reportId, "action", "권장 행동", r.getNextAction());
             }
+        }
+    }
+
+    /**
+     * 우선적으로 `user_generation_count` 테이블의 값(daily/weekly)을 사용하여
+     * 해당 기간의 사용량을 결정합니다. 레코드가 없거나 날짜가 맞지 않을 경우
+     * 기존의 로그 카운트로 폴백합니다.
+     */
+    private int getUsedCountForPeriod(int userId, String type, LocalDate startDate, java.time.LocalDateTime start, java.time.LocalDateTime end) {
+        try {
+            Map<String, Object> ugc = reportMapper.selectUserGenerationCount(userId);
+            if (ugc != null && !ugc.isEmpty()) {
+                if ("WEEKLY".equalsIgnoreCase(type)) {
+                    Object wf = ugc.get("weeklyFrom");
+                    Object wu = ugc.get("weeklyUsed");
+                    if (wf instanceof java.time.LocalDate && ((java.time.LocalDate) wf).equals(startDate)) {
+                        return wu instanceof Integer ? (Integer) wu : 0;
+                    }
+                } else {
+                    Object dd = ugc.get("dailyDate");
+                    Object du = ugc.get("dailyUsed");
+                    if (dd instanceof java.time.LocalDate && ((java.time.LocalDate) dd).equals(startDate)) {
+                        return du instanceof Integer ? (Integer) du : 0;
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.debug("getUsedCountForPeriod: failed to read user_generation_count, fallback to logs", ex);
+        }
+
+        try {
+            return reportMapper.countGenerationLogsInPeriod(userId, type.toUpperCase(), start, end, "USER");
+        } catch (Exception ex) {
+            log.warn("countGenerationLogsInPeriod failed, returning 0", ex);
+            return 0;
         }
     }
 

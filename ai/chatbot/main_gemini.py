@@ -85,7 +85,7 @@ def format_health_status(user_profile: Dict[str, Any]) -> str:
 def build_system_prompt(
     hashtag: Optional[str],
     user_profile: Optional[Dict[str, Any]] = None,
-    report_data: Optional[Dict[str, Any]] = None
+    report_data: Optional[Any] = None
 ) -> str:
     """시스템 프롬프트 생성"""
     # 해시태그에 맞는 프롬프트 파일 로드
@@ -118,9 +118,14 @@ def build_system_prompt(
     # - 너무 길 경우 모델 비용을 고려해야 함(클라이언트/서버에서 요약 가능)
     if report_data is not None:
         try:
-            report_json = json.dumps(report_data, ensure_ascii=False, indent=2)
+            # 서버가 문자열로 전달했을 수 있으므로 파싱 시도
+            if isinstance(report_data, str):
+                parsed = json.loads(report_data)
+                report_json = json.dumps(parsed, ensure_ascii=False, indent=2)
+            else:
+                report_json = json.dumps(report_data, ensure_ascii=False, indent=2)
         except Exception:
-            # 직렬화에 실패하면 단순 문자열화
+            # 파싱/직렬화 실패 시 단순 문자열화
             report_json = str(report_data)
 
         injection = (
@@ -140,7 +145,7 @@ class ChatRequest(BaseModel):
     message: str
     user_id: Optional[str] = None
     user_profile: Optional[Dict[str, Any]] = None
-    report_data: Optional[Dict[str, Any]] = None
+    report_data: Optional[Any] = None
 
 
 class ChatResponse(BaseModel):
@@ -185,6 +190,28 @@ def parse_gemini_text(resp_json: Dict[str, Any]) -> str:
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
+        # 디버그: 수신된 request의 report_data 존재 여부를 명시적으로 로그
+        try:
+            if request.report_data is None:
+                print("[DEBUG] python incoming report_data: None")
+            else:
+                keys = None
+                try:
+                    if isinstance(request.report_data, dict):
+                        keys = list(request.report_data.keys())
+                    elif isinstance(request.report_data, str):
+                        parsed = json.loads(request.report_data)
+                        if isinstance(parsed, dict):
+                            keys = list(parsed.keys())
+                    else:
+                        # other types
+                        keys = None
+                except Exception:
+                    keys = None
+                print(f"[DEBUG] python incoming report_data keys: {keys}")
+        except Exception:
+            print("[DEBUG] failed to inspect incoming report_data")
+
         if not GMS_KEY:
             raise HTTPException(
                 status_code=500, detail="GMS_KEY (or GOOGLE_API_KEY) is not set")

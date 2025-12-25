@@ -9,13 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PythonChatResponse {
 
-    private Reply reply;
+    private String reply;
     private String detected_hashtag;
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Reply {
-        private String response;
-    }
 }

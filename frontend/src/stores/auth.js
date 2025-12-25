@@ -77,9 +77,10 @@ export const useAuthStore = defineStore('auth', {
         // 로그아웃 시 네트워크 오류는 무시
       } finally {
           this.accessToken = null
-          this.user = null
-          this.isAuthenticated = false
-          // Pinia persisted state는 sessionStorage에 저장되어 있으므로 명시적으로 제거
+          if (data.user) {
+            this.user = data.user
+            try { await this.fetchUserHealth() } catch(e) { console.debug('[auth] fetchUserHealth after login failed') }
+          }
           try {
             if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('auth')
           } catch (e) {}
@@ -111,6 +112,7 @@ export const useAuthStore = defineStore('auth', {
           try {
             const me = await axios.get('/api/user/me', { withCredentials: true })
             this.user = me.data
+              try { await this.fetchUserHealth() } catch(e) { console.debug('[auth] fetchUserHealth after refresh failed') }
             this.isAuthenticated = true
             try { console.debug('[auth] refresh: populated user via /me') } catch(e) {}
             return null
@@ -139,6 +141,7 @@ export const useAuthStore = defineStore('auth', {
           try {
             const res = await axios.get('/api/user/me', { headers: { Authorization: `Bearer ${this.accessToken}` } })
             this.user = res.data
+              try { await this.fetchUserHealth() } catch(e) { console.debug('[auth] fetchUserHealth after checkAuth failed') }
             this.isAuthenticated = true
             try { console.debug('[auth] checkAuth success (with existing token)', this.user) } catch(e) {}
             return true
@@ -149,6 +152,7 @@ export const useAuthStore = defineStore('auth', {
               await this.refresh()
               const res2 = await axios.get('/api/user/me', { headers: { Authorization: `Bearer ${this.accessToken}` } })
               this.user = res2.data
+              try { await this.fetchUserHealth() } catch(e) { console.debug('[auth] fetchUserHealth after checkAuth refresh failed') }
               this.isAuthenticated = true
               try { console.debug('[auth] checkAuth success (after refresh)', this.user) } catch(e) {}
               return true
@@ -166,6 +170,7 @@ export const useAuthStore = defineStore('auth', {
           await this.refresh()
           const res = await axios.get('/api/user/me', { headers: { Authorization: `Bearer ${this.accessToken}` } })
           this.user = res.data
+              try { await this.fetchUserHealth() } catch(e) { console.debug('[auth] fetchUserHealth after refresh succeeded but health fetch failed') }
           this.isAuthenticated = true // 헤더에 자동으로 RT 쿠키가 포함되어 전송됨
           try { console.debug('[auth] refresh succeeded, user:', this.user) } catch(e) {}
           return true
@@ -176,6 +181,31 @@ export const useAuthStore = defineStore('auth', {
         }
       } finally {
         this.loading = false
+      }
+    },
+    
+    // helper to fetch user health and merge into `this.user`
+    async fetchUserHealth() {
+      try {
+        // use Authorization header if accessToken exists, otherwise rely on withCredentials cookie
+        const cfg = this.accessToken ? { headers: { Authorization: `Bearer ${this.accessToken}` } } : { withCredentials: true }
+        const res = await axios.get('/api/user/health', cfg)
+        const health = res.data || {}
+        if (!this.user) this.user = {}
+        // merge common fields used by frontend
+        if (health.height != null) this.user.height = health.height
+        if (health.weight != null) this.user.weight = health.weight
+        // booleans
+        if (health.diabetes != null) this.user.diabetes = health.diabetes
+        if (health.highBloodPressure != null) this.user.highBloodPressure = health.highBloodPressure
+        if (health.hyperlipidemia != null) this.user.hyperlipidemia = health.hyperlipidemia
+        if (health.kidneyDisease != null) this.user.kidneyDisease = health.kidneyDisease
+        if (health.activityLevel != null) this.user.activityLevel = health.activityLevel
+        try { console.debug('[auth] fetchUserHealth merged', this.user) } catch(e) {}
+        return health
+      } catch (e) {
+        try { console.debug('[auth] fetchUserHealth error', e?.response?.status) } catch(e) {}
+        throw e
       }
     },
   },

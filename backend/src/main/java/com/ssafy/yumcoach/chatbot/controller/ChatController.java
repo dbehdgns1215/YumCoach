@@ -3,108 +3,263 @@ package com.ssafy.yumcoach.chatbot.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.yumcoach.chatbot.model.ChatRequest;
 import com.ssafy.yumcoach.chatbot.model.ChatResponse;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.ssafy.yumcoach.chatbot.model.PythonChatResponse;
+import com.ssafy.yumcoach.report.model.ReportDto;
+import com.ssafy.yumcoach.report.service.ReportService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
+import java.util.*;
+
+@Slf4j
 @RestController
 @RequestMapping("/api/chat")
+@RequiredArgsConstructor
 public class ChatController {
 
+    private final ObjectMapper objectMapper;
+    private final ReportService reportService;
     private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /**
-     * Python FastAPI 챗봇 서버의 엔드포인트 URL
-     */
-    private static final String PYTHON_API_URL = "http://localhost:8077/chat";
-    
-    /**
-     * 챗봇 메시지 전송 및 응답 수신
-     * 
-     * 사용자의 메시지를 Python FastAPI 서버로 전달하고,
-     * AI가 생성한 응답을 클라이언트에게 반환합니다.
-     *
-     * @param req 사용자 메시지가 포함된 요청 객체
-     * @return AI 챗봇의 응답을 포함한 ResponseEntity<ChatResponse>
-     * @throws Exception FastAPI 서버 통신 실패 시 500 에러 반환
-     * 
-     * POST /api/chat
-     * Content-Type: application/json
-     * 
-     * Request Body:
-     * {
-     *   "message": "안녕하세요"
-     * }
-     * 
-     * Response:
-     * {
-     *   "reply": "안녕하세요! 무엇을 도와드릴까요?",
-     *   "raw": null
-     * }
-     */
+    private static final String PYTHON_URL = "http://localhost:8077/chat";
+
     @PostMapping
-    public ResponseEntity<?> chat(@RequestBody ChatRequest req) {
+    public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest req) {
+        String rawMessage = req.getMessage();
+        Integer userId = Integer.parseInt(req.getUser_id());
+
+        /* ======================================================
+         * 0️⃣ #일일리포트 + 날짜 없음 → 날짜 선택
+         * ====================================================== */
+        if (rawMessage.contains("#일일리포트")) {
+            String message = rawMessage.replace("#일일리포트", "").trim();
+
+            if (!isDateOnly(message)) {
+                List<String> dates = findAvailableDailyDates(userId, 3);
+
+                try {
+                    String payload = objectMapper.writeValueAsString(
+                            Map.of(
+                                    "type", "date_request",
+                                    "message", "분석할 날짜를 선택하세요.",
+                                    "available_dates", dates
+                            )
+                    );
+
+                    return ResponseEntity.ok(
+                            new ChatResponse(payload, "#일일리포트")
+                    );
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            // 날짜가 있으면 리포트 조회
+            LocalDate date = resolveDate(message);
+            ReportDto report = reportService.getDailyReport(userId, date);
+
+            if (report == null) {
+                return ResponseEntity.ok(
+                        new ChatResponse(
+                                "⚠️ 오류\n해당 날짜의 리포트가 없습니다.",
+                                "#일일리포트"
+                        )
+                );
+            }
+
+            Map<String, Object> reportMap = objectMapper.convertValue(report, Map.class);
+
+            req.setReportType("DAILY");
+            req.setReportDate(date.toString());
+            req.setReport_data(reportMap);
+
+            log.info("[CHAT] daily report loaded userId={}, date={}", userId, date);
+        }
+
+        /* ======================================================
+         * 1️⃣ #주간리포트 + 범위 없음 → 주간 선택
+         * ====================================================== */
+        if (rawMessage.contains("#주간리포트")) {
+            String message = rawMessage.replace("#주간리포트", "").trim();
+
+            if (!isRangeOnly(message)) {
+                List<String> ranges = findAvailableWeeklyRanges(3);
+
+                try {
+                    String payload = objectMapper.writeValueAsString(
+                            Map.of(
+                                    "type", "range_request",
+                                    "message", "분석할 주를 선택하세요.",
+                                    "available_ranges", ranges
+                            )
+                    );
+
+                    return ResponseEntity.ok(
+                            new ChatResponse(payload, "#주간리포트")
+                    );
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            // 범위가 있으면 주간 리포트 조회
+            LocalDate[] range = resolveRange(message);
+            LocalDate fromDate = range[0];
+            LocalDate toDate = range[1];
+
+            ReportDto weeklyReport = reportService.getWeeklyReport(userId, fromDate, toDate);
+
+            if (weeklyReport == null) {
+                return ResponseEntity.ok(
+                        new ChatResponse(
+                                "⚠️ 오류\n해당 기간의 데이터가 부족합니다.",
+                                "#주간리포트"
+                        )
+                );
+            }
+
+            Map<String, Object> reportMap = objectMapper.convertValue(weeklyReport, Map.class);
+
+            req.setReportType("WEEKLY");
+            req.setReportDate(fromDate.toString());
+            req.setReport_data(reportMap);
+
+            log.info("[CHAT] weekly report loaded userId={}, range={} ~ {}", userId, fromDate, toDate);
+        }
+
+        /* ======================================================
+         * 2️⃣ Python AI 호출
+         * ====================================================== */
+        HttpEntity<ChatRequest> entity = new HttpEntity<>(req, jsonHeaders());
+
+        ResponseEntity<PythonChatResponse> pyRes =
+                restTemplate.postForEntity(
+                        PYTHON_URL,
+                        entity,
+                        PythonChatResponse.class
+                );
+
+        PythonChatResponse body = pyRes.getBody();
+
+        if (body == null) {
+            return ResponseEntity.ok(
+                    new ChatResponse(
+                            "⚠️ 오류\nAI 서버 응답이 없습니다.",
+                            null
+                    )
+            );
+        }
+
+        return ResponseEntity.ok(
+                new ChatResponse(
+                        body.getReply(),
+                        body.getDetected_hashtag()
+                )
+        );
+    }
+
+    /* ===============================
+     * 날짜만 들어왔는지 검사 (MM.DD 또는 YYYY-MM-DD)
+     * =============================== */
+    private boolean isDateOnly(String message) {
+        return message != null && (
+                message.matches("\\d{2}\\.\\d{2}") ||
+                        message.matches("\\d{4}-\\d{2}-\\d{2}")
+        );
+    }
+
+    /* ===============================
+     * 범위만 들어왔는지 검사 (MM.DD~MM.DD 또는 YYYY-MM-DD~YYYY-MM-DD)
+     * =============================== */
+    private boolean isRangeOnly(String message) {
+        return message != null && (
+                message.matches("\\d{2}\\.\\d{2}~\\d{2}\\.\\d{2}") ||
+                        message.matches("\\d{4}-\\d{2}-\\d{2}~\\d{4}-\\d{2}-\\d{2}")
+        );
+    }
+
+    /* ===============================
+     * MM.DD / YYYY-MM-DD → LocalDate
+     * =============================== */
+    private LocalDate resolveDate(String message) {
+        if (message.matches("\\d{2}\\.\\d{2}")) {
+            int year = LocalDate.now().getYear();
+            return LocalDate.parse(year + "-" + message.replace(".", "-"));
+        }
+        return LocalDate.parse(message);
+    }
+
+    /* ===============================
+     * MM.DD~MM.DD / YYYY-MM-DD~YYYY-MM-DD → LocalDate[]
+     * =============================== */
+    private LocalDate[] resolveRange(String message) {
+        String[] parts = message.split("~");
+        LocalDate start = resolveDate(parts[0].trim());
+        LocalDate end = resolveDate(parts[1].trim());
+        return new LocalDate[]{start, end};
+    }
+
+    /* ===============================
+     * JSON 헤더
+     * =============================== */
+    private HttpHeaders jsonHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<ChatRequest> entity = new HttpEntity<>(req, headers);
-
-        try {
-            ResponseEntity<String> response =
-                    restTemplate.postForEntity(PYTHON_API_URL, entity, String.class);
-
-            String rawJson = response.getBody();
-            JsonNode root = objectMapper.readTree(rawJson);
-
-            String text = extractText(root);
-            String hashtag = extractHashtag(root);
-
-            return ResponseEntity.ok(new ChatResponse(text, hashtag));
-
-        } catch (HttpStatusCodeException ex) {
-            return ResponseEntity.status(ex.getStatusCode())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(ex.getResponseBodyAsString());
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ChatResponse("챗봇 서비스 오류: " + e.getMessage(), null));
-        }
+        return headers;
     }
 
+    /* ======================================================
+     * 오늘 제외하고 존재하는 일일 리포트 날짜 찾기
+     * ====================================================== */
+    private List<String> findAvailableDailyDates(int userId, int limit) {
+        List<String> result = new ArrayList<>();
 
-    private String extractText(JsonNode root) {
-        // 케이스 1: { "response": "..." }
-        if (root.hasNonNull("response") && root.get("response").isTextual()) {
-            return root.get("response").asText();
-        }
+        LocalDate cursor = LocalDate.now().minusDays(1); // 오늘 제외
 
-        // 케이스 2: { "reply": "..." }
-        if (root.hasNonNull("reply") && root.get("reply").isTextual()) {
-            return root.get("reply").asText();
-        }
-
-        // 케이스 3: { "reply": { "response": "..." } }
-        if (root.hasNonNull("reply") && root.get("reply").isObject()) {
-            JsonNode r = root.get("reply").get("response");
-            if (r != null && r.isTextual()) {
-                return r.asText();
+        while (result.size() < limit) {
+            ReportDto report = reportService.getDailyReport(userId, cursor);
+            if (report != null) {
+                result.add(cursor.format(DateTimeFormatter.ofPattern("MM.dd")));
             }
+            cursor = cursor.minusDays(1);
         }
 
-        return "응답 형식이 올바르지 않아요.";
+        return result;
     }
 
-    private String extractHashtag(JsonNode root) {
-        if (root.hasNonNull("detected_hashtag") && root.get("detected_hashtag").isTextual()) {
-            return root.get("detected_hashtag").asText();
+    /* ======================================================
+     * 이번 주 제외하고 주간 범위 찾기 (지난 3주)
+     * ====================================================== */
+    private List<String> findAvailableWeeklyRanges(int limit) {
+        List<String> result = new ArrayList<>();
+
+        // 이번 주 월요일
+        LocalDate thisMonday = LocalDate.now()
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+
+        // 지난 주 월요일부터 시작
+        LocalDate cursor = thisMonday.minusWeeks(1);
+
+        for (int i = 0; i < limit; i++) {
+            LocalDate start = cursor;
+            LocalDate end = cursor.plusDays(6); // 일요일
+
+            String range = String.format("%s~%s",
+                    start.format(DateTimeFormatter.ofPattern("MM.dd")),
+                    end.format(DateTimeFormatter.ofPattern("MM.dd"))
+            );
+
+            result.add(range);
+            cursor = cursor.minusWeeks(1); // 그 전주로
         }
-        return null;
-    }
 
+        return result;
+    }
 }
