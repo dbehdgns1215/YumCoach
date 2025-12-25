@@ -1,0 +1,19 @@
+# FastAPI & ASGI
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# OpenAI (supports max_completion_tokens)
+openai==1.37.1
+
+# Vector DB (호환성 안정화)
+chromadb==0.3.21
+
+# Database
+mysql-connector-python==8.2.0
+
+# Utilities
+python-dotenv==1.0.0
+pydantic==1.10.13  # v1 지정 (chromadb 0.3.21과 호환)
+
+# Logging
+python-json-logger==2.0.7
