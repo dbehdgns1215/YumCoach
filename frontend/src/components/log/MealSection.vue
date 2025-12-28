@@ -33,7 +33,8 @@
             <div class="sum">
                 <div class="sumTitle">합계</div>
                 <div class="sumVal">
-                    {{ summary.kcal }}kcal | P {{ summary.protein }}g | C {{ summary.carbs }}g | F {{ summary.fat }}g
+                    {{ summary.kcal }}kcal | 단백질 {{ summary.protein }}g | 탄수화물 {{ summary.carbs }}g | 지방 {{ summary.fat
+                    }}g
                 </div>
             </div>
         </div>
