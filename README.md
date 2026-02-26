@@ -3,7 +3,7 @@
 
 ---
 
-![메인 데모](docs/main_gif_compressed.gif)
+https://github.com/user-attachments/assets/7ad33fb0-2bea-4f7e-9e42-a288856e306f
 
 ![프로젝트 소개](docs/Pasted%20image%2020260226004327.png)
 
@@ -196,11 +196,11 @@ YumCoach/
 
 #### 식단 메뉴 추가 - OCR
 
-![식단 OCR](docs/식단OCR_compressed.gif)
+https://github.com/user-attachments/assets/1c3031ac-4271-4516-ad72-8e3514e26586
 
 #### 메뉴 검색
 
-![메뉴 검색](docs/식단검색_compressed.gif)
+https://github.com/user-attachments/assets/47d96a6b-89fa-49b6-9b10-2beb2d1b0142
 
 ---
 #### 식단 내역
@@ -214,7 +214,7 @@ YumCoach/
 
 ##### 일일 리포트 생성
 
-![일일 리포트 생성](docs/일일리포트생성_compressed.gif)
+https://github.com/user-attachments/assets/f5f89026-02fa-4c89-b6e1-b896bfa99526
 - 일일 리포트
 	- 일반 유저: 1회
 	- 어드밴스드 유저: 2회
@@ -248,7 +248,7 @@ YumCoach/
 ---
 ### 어드밴스드 유저 - 간편 결제
 
-![어드밴스드 결제](docs/어드밴스드결제_compressed.gif)
+https://github.com/user-attachments/assets/f2930685-c59b-4b99-a0bf-baadd0692c48
 
 #### 어드밴스드 유저 - 리포트 메일 발송 (스케줄러)
 
