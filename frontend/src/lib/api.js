@@ -2,13 +2,21 @@
 // - 모든 요청에는 Pinia에 저장된 AccessToken(AT)을 Authorization 헤더로 붙입니다.
 // - 기본적으로 쿠키(withCredentials)는 보내지 않습니다. (RT는 자동 전송하지 않음)
 // - 응답에서 401이 오면 한 번만 refresh()를 호출해 AT를 갱신한 뒤 원래 요청을 재시도합니다.
+//   단, 인증 관련 엔드포인트(signup, signin, refresh, signout)에서는 refresh를 시도하지 않습니다.
 
 import axios from "axios";
 import { useAuthStore } from "../stores/auth";
 
 // 중앙에서 baseUrl을 관리합니다.
-// .env의 VITE_API_BASE_URL을 우선 사용하고, 없으면 '/api'로 대체합니다.
-export const baseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
+export const baseUrl = "/api";
+
+// 인증 관련 엔드포인트 — 이 경로들에서 401이 나면 refresh 시도 안 함
+const AUTH_ENDPOINTS = ["/user/signin", "/user/signup", "/user/refresh", "/user/signout"];
+
+function isAuthEndpoint(url) {
+  if (!url) return false;
+  return AUTH_ENDPOINTS.some((ep) => url.includes(ep));
+}
 
 // axios 인스턴스 생성: 기본적으로 withCredentials를 false로 둡니다.
 const api = axios.create({
@@ -34,6 +42,7 @@ api.interceptors.request.use(
 );
 
 // 응답 인터셉터: 401 -> refresh() -> 원래 요청 재시도
+// 인증 관련 엔드포인트에서는 refresh 시도 안 함
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -41,7 +50,13 @@ api.interceptors.response.use(
     const status = error?.response?.status;
 
     // 401이면서 아직 재시도하지 않은 요청이면 refresh 시도
-    if (status === 401 && originalRequest && !originalRequest._retry) {
+    // 단, 인증 관련 엔드포인트에서는 바로 에러 반환
+    if (
+      status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isAuthEndpoint(originalRequest.url)
+    ) {
       originalRequest._retry = true;
       try {
         const auth = useAuthStore();
@@ -61,7 +76,7 @@ api.interceptors.response.use(
         try {
           const auth = useAuthStore();
           await auth.logout();
-        } catch (e) {}
+        } catch (e) { }
         return Promise.reject(refreshErr);
       }
     }

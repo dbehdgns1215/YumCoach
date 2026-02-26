@@ -160,7 +160,7 @@ const MAX_CHATS = 10
 const analysisDate = ref(dayjs().format('YYYY-MM-DD'))
 
 // ✅ 백엔드 설정
-const API_BASE_URL = 'http://localhost:8282'
+const API_BASE_URL = ''
 const CHAT_ENDPOINT = '/api/chat'
 
 // 인증 스토어 (Pinia)에서 accessToken 사용

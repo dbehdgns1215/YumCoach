@@ -1,23 +1,13 @@
 package com.ssafy.yumcoach.config;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * WebMvcConfigurer 구현체
+ * CORS 설정은 CorsConfig + SecurityConfig에서 처리하므로 여기서는 제거.
+ */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-
-    @Value("${cors.allowed.origins}")
-    private String allowedOrigins;
-
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {    
-        registry.addMapping("/**")
-                .allowedOrigins(allowedOrigins.split(","))
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true)
-                .maxAge(3600);
-    }
+    // CORS 설정은 CorsConfig.java에서 통합 관리
 }

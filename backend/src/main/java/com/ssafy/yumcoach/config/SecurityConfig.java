@@ -5,6 +5,7 @@ import com.ssafy.yumcoach.auth.util.JwtUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -17,6 +18,9 @@ public class SecurityConfig {
         public SecurityFilterChain filterChain(HttpSecurity http, JwtUtil jwtUtil) throws Exception {
 
                 http
+                                // CORS 활성화 (CorsConfig 빈 사용)
+                                .cors(Customizer.withDefaults())
+
                                 // REST + JWT면 보통 CSRF 끔
                                 .csrf(csrf -> csrf.disable())
 
@@ -39,12 +43,14 @@ public class SecurityConfig {
                                                 // 공개 엔드포인트
                                                 .requestMatchers("/", "/health", "/error").permitAll()
                                                 .requestMatchers("/auth/**").permitAll()
-                                                .requestMatchers("/api/user/signin", "/api/user/signup", "/api/user/refresh").permitAll()
+                                                .requestMatchers("/api/user/signin", "/api/user/signup",
+                                                                "/api/user/refresh", "/api/user/signout").permitAll()
                                                 .requestMatchers("/api/community").permitAll()
                                                 // 결제 승인 콜백/연동은 인증 없이 접근 가능해야 함
                                                 .requestMatchers("/api/payments/**").permitAll()
                                                 .requestMatchers("/api/auth/kakao").permitAll()
-
+                                                // 챗봇 (AI 서비스)
+                                                .requestMatchers("/api/chat/**").permitAll()
 
                                                 // Swagger/Springdoc
                                                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()

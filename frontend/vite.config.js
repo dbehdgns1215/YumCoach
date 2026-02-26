@@ -12,11 +12,13 @@ export default defineConfig({
     },
   },
   server: {
-  proxy: {
-    '/api': {
-      target: 'http://localhost:8282',
-      changeOrigin: true
+    host: '0.0.0.0',
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://spring-backend:8282',
+        changeOrigin: true
+      }
     }
   }
-}
 });
