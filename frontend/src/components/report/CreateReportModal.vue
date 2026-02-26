@@ -24,7 +24,7 @@
 
         <div v-if="quotaLimit !== null" class="row">
           <div class="label">잔여 횟수</div>
-          <div class="value">{{ quotaRemaining }} / {{ quotaLimit }}</div>
+          <div class="value">{{ quotaRemaining }}</div>
         </div>
 
         <div v-if="note" class="note">{{ note }}</div>

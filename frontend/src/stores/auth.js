@@ -277,6 +277,31 @@ export const useAuthStore = defineStore("auth", {
         this.loading = false;
       }
     },
+
+    // helper to fetch user health and merge into `this.user`
+    async fetchUserHealth() {
+      try {
+        // use Authorization header if accessToken exists, otherwise rely on withCredentials cookie
+        const cfg = this.accessToken ? { headers: { Authorization: `Bearer ${this.accessToken}` } } : { withCredentials: true }
+        const res = await axios.get('/api/user/health', cfg)
+        const health = res.data || {}
+        if (!this.user) this.user = {}
+        // merge common fields used by frontend
+        if (health.height != null) this.user.height = health.height
+        if (health.weight != null) this.user.weight = health.weight
+        // booleans
+        if (health.diabetes != null) this.user.diabetes = health.diabetes
+        if (health.highBloodPressure != null) this.user.highBloodPressure = health.highBloodPressure
+        if (health.hyperlipidemia != null) this.user.hyperlipidemia = health.hyperlipidemia
+        if (health.kidneyDisease != null) this.user.kidneyDisease = health.kidneyDisease
+        if (health.activityLevel != null) this.user.activityLevel = health.activityLevel
+        try { console.debug('[auth] fetchUserHealth merged', this.user) } catch(e) {}
+        return health
+      } catch (e) {
+        try { console.debug('[auth] fetchUserHealth error', e?.response?.status) } catch(e) {}
+        throw e
+      }
+    },
   },
   // Pinia persistedstate 플러그인 설정: accessToken과 user를 세션스토리지에 저장
   persist: {

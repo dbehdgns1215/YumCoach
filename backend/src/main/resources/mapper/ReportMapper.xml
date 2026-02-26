@@ -82,6 +82,14 @@
       updated_at = CURRENT_TIMESTAMP
   </insert>
 
+  <select id="selectUserGenerationCount" resultType="map" parameterType="int">
+    SELECT user_id as userId, daily_date as dailyDate, daily_used as dailyUsed, weekly_from as weeklyFrom, weekly_used as weeklyUsed, updated_at as updatedAt
+    FROM user_generation_count
+    WHERE user_id = #{userId}
+    ORDER BY updated_at DESC
+    LIMIT 1
+  </select>
+
   <update id="updateReportAiResponse" parameterType="map">
     UPDATE report SET ai_response = #{aiResponse} WHERE id = #{reportId}
   </update>

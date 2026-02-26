@@ -1,0 +1,301 @@
+{
+  "main": {
+    "id": "7c15927e6fae7077",
+    "type": "split",
+    "children": [
+      {
+        "id": "421d4c97b20fa7d1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "412a6161bcf3d0f4",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "README.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "README"
+            }
+          },
+          {
+            "id": "1ee118456484d50d",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "docs/식단검색.gif"
+              },
+              "icon": "lucide-image",
+              "title": "식단검색"
+            }
+          },
+          {
+            "id": "44417596097e8908",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "docs/식단OCR.gif"
+              },
+              "icon": "lucide-image",
+              "title": "식단OCR"
+            }
+          },
+          {
+            "id": "386e8e45c9913584",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "docs/어드밴스드결제.gif"
+              },
+              "icon": "lucide-image",
+              "title": "어드밴스드결제"
+            }
+          },
+          {
+            "id": "81f994a07c1513b9",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "docs/일일리포트생성.gif"
+              },
+              "icon": "lucide-image",
+              "title": "일일리포트생성"
+            }
+          },
+          {
+            "id": "e701d376cac759f8",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "docs/식단검색.gif"
+              },
+              "icon": "lucide-image",
+              "title": "식단검색"
+            }
+          },
+          {
+            "id": "b36bb2e22d762535",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "README.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "README"
+            }
+          },
+          {
+            "id": "d94c5fd2b23c87da",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "docs/Pasted image 20260226124153.png"
+              },
+              "icon": "lucide-image",
+              "title": "Pasted image 20260226124153"
+            }
+          }
+        ],
+        "currentTab": 6
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "b92a35630aa64a5f",
+    "type": "split",
+    "children": [
+      {
+        "id": "9418113f50dfc690",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "00900d31e10f1a6f",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "408780d084fb1d98",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "15d30c53ca4e6b53",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "608d427bff2a7cf8",
+    "type": "split",
+    "children": [
+      {
+        "id": "3309ffbaf556b8af",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "6e89e8fff85e8dff",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "README.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for README"
+            }
+          },
+          {
+            "id": "33ccab759e91a5d1",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "README.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from README"
+            }
+          },
+          {
+            "id": "97af71b9774612a4",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "104da2330685aad8",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "b28875a46d9cc65c",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "README.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of README"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "b36bb2e22d762535",
+  "lastOpenFiles": [
+    "docs/일일리포트생성.gif",
+    "docs/식단검색.gif",
+    "docs/어드밴스드결제.gif",
+    "docs/식단OCR.gif",
+    "README.md",
+    "docs/Pasted image 20260226143435.png",
+    "docs/Pasted image 20260226123428.png",
+    "docs/Pasted image 20260226123508.png",
+    "docs/Pasted image 20260226123545.png",
+    "docs/Pasted image 20260226124153.png",
+    "docs/Pasted image 20260226124945.png",
+    "docs/Pasted image 20260226125555.png",
+    "backend/src/main/resources/application-local.yml",
+    "docs/README.md",
+    "frontend_v1/README.md",
+    "frontend/README.md",
+    "frontend/node_modules",
+    "frontend/Dockerfile",
+    "ai/chatbot/main_gpt.py",
+    "ai/chatbot/main_gemini.py",
+    "backend/target/classes/com/ssafy/yumcoach/user/model/service/UserServiceImpl.class",
+    "backend/target/classes/com/ssafy/yumcoach/user/model/mapper/UserDietRestrictionMapper.class",
+    "backend/target/classes/com/ssafy/yumcoach/user/model/UpdateHealthRequest.class",
+    "backend/target/classes/com/ssafy/yumcoach/user/model/UpdateMyPageRequest.class",
+    "backend/target/classes/com/ssafy/yumcoach/user/model/UpdateMyPageRequest$UpdateMyPageRequestBuilder.class"
+  ]
+}

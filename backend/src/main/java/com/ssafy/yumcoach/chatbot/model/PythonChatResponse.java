@@ -7,11 +7,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatResponse {
+public class PythonChatResponse {
 
-    // AI가 준 response 그대로
-    private String response;
-
-    // 서버에서 판단한 해시태그 (#일간리포트, #주간리포트)
+    private String reply;
     private String detected_hashtag;
 }

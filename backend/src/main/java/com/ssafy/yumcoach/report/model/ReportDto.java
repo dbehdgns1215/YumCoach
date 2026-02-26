@@ -1,5 +1,6 @@
 package com.ssafy.yumcoach.report.model;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,6 +9,8 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+
 import com.ssafy.yumcoach.challenge.model.ChallengeDto;
 import com.ssafy.yumcoach.report.model.ReportInsightDto;
 
@@ -48,6 +51,6 @@ public class ReportDto {
     private List<ReportInsightDto> insights;
     private String coachMessage;
     private String nextAction;
-    // 활성 챌린지 목록 (AI 분석 시 컨텍스트로 포함)
     private List<ChallengeDto> activeChallenges;
 }
+
