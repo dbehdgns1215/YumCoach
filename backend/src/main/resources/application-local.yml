@@ -1,0 +1,57 @@
+# Local 프로필 설정
+spring:
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:yumcoach_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${MYSQL_USER:yumcoach_user}
+    password: ${MYSQL_PASSWORD:yumcoach_pass123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+
+  # 메일 (로컬 개발용 더미)
+  mail:
+    host: smtp.naver.com
+    port: 465
+    username: ${EMAIL_USERNAME:dummy@naver.com}
+    password: ${EMAIL_PASSWORD:dummy}
+
+# MyBatis 설정
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.ssafy.yumcoach
+  configuration:
+    map-underscore-to-camel-case: true
+
+# 서버 포트
+server:
+  port: ${BACKEND_PORT:8282}
+
+# JWT 설정
+jwt:
+  secret-base64: ${JWT_SECRET_BASE64:eW91ci1iYXNlNjQtc2VjcmV0LWtleS1jaGFuZ2UtdGhpcy1pbi1wcm9kdWN0aW9u}
+  access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600000}
+  refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:604800000}
+
+# 카카오 OAuth 설정
+kakao:
+  client-id: ${KAKAO_CLIENT_ID:not-configured}
+  client-secret: ${KAKAO_CLIENT_SECRET:not-configured}
+  token-uri: https://kauth.kakao.com/oauth/token
+  user-info-uri: https://kapi.kakao.com/v2/user/me
+
+# CORS 설정
+cors:
+  allowed:
+    origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+# Toss 결제
+toss:
+  secret-key: ${TOSS_SECRET_KEY:test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6}
+
+# 메일 발신자
+app:
+  mail:
+    from: ${EMAIL_FROM:dummy@naver.com}

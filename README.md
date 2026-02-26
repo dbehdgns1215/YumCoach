@@ -1,11 +1,19 @@
 # 🍽️ YumCoach
+> 얌코치 — AI 기반 식단 관리 & 건강 코칭 서비스
 
-> 얌코치
+---
+
+![[docs/main_gif.gif]]
+![[docs/]]
+![[docs/Pasted image 20260226004327.png]]
 
 ## 📋 목차
 - [빠른 시작](#-빠른-시작)
+- [아키텍처](#-아키텍처)
 - [기술 스택](#-기술-스택)
 - [프로젝트 구조](#-프로젝트-구조)
+- [주요 기능](#-주요-기능)
+- [환경변수](#-환경변수)
 - [주요 명령어](#-주요-명령어)
 - [트러블슈팅](#-트러블슈팅)
 
@@ -20,41 +28,67 @@
 cp .env.example .env
 ```
 
-`.env` 파일 내용 확인/수정:
+`.env` 파일 주요 항목:
 ```dotenv
-# MySQL 설정
-MYSQL_ROOT_PASSWORD=루트 계정 비밀번호
-MYSQL_DATABASE=DB 이름
-MYSQL_USER=유저 계정(당장 필요하진 않음)
-MYSQL_PASSWORD=유저 비밀번호
+# MySQL
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DATABASE=yumcoach_db
+MYSQL_USER=yumcoach_user
+MYSQL_PASSWORD=yumcoach_pass123
+MYSQL_ROOT_PASSWORD=root1234
 
-# 포트 설정
-MYSQL_PORT_LOCAL=3307
-BACKEND_PORT=8080
+# 서버
+BACKEND_PORT=8282
 FRONTEND_PORT=3000
+
+# JWT
+JWT_SECRET_BASE64=<base64 시크릿>
+JWT_ACCESS_TOKEN_VALIDITY=3600000
+JWT_REFRESH_TOKEN_VALIDITY=604800000
+
+# 프로파일
+SPRING_PROFILES_ACTIVE=local
 ```
 
 ### 2. Docker Compose 실행
 
 ```bash
-# 전체 서비스 시작 (최초 1회 및 도커파일 수정시) 
-docker-compose build --no-cache
-docker-compose up -d
-
-# 전체 서비스 시작
-docker-compose up -d
-
-# 볼륨 삭제
-docker-compose down -v
+# 전체 서비스 빌드 & 시작
+docker compose up -d --build
 
 # 로그 확인
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### 3. 접속
 
-- **프론트엔드**: http://localhost:3000
-- **백엔드 API**: http://localhost:8080
+| 서비스 | URL |
+|--------|-----|
+| 프론트엔드 | http://localhost:3000 |
+| 백엔드 API | http://localhost:8282 |
+| Swagger UI | http://localhost:8282/swagger-ui/index.html |
+
+---
+
+![[Pasted image 20260225095219.png]]
+
+## 🏗️ 아키텍처
+
+
+![[Pasted image 20260225001753.png]]
+
+
+### Docker 서비스 구성
+
+| 서비스 | 컨테이너 | 포트 | 설명 |
+|--------|----------|------|------|
+| `redis` | yumcoach-redis | 6379 | 세션/인증코드 캐시 |
+| `mysql` | mysql-db | 3306 | 메인 데이터베이스 |
+| `backend` | spring-backend | 8282 | Spring Boot API 서버 |
+| `frontend` | vue-frontend | 3000 | Vue.js 개발 서버 |
+
+> **프론트엔드 → 백엔드 통신**: Vite 프록시를 통해 `/api/*` 요청이 `spring-backend:8282`로 전달됩니다. 프론트엔드에서 백엔드를 직접 호출하지 않습니다.
 
 ---
 
@@ -62,14 +96,20 @@ docker-compose logs -f
 
 | 구분 | 기술 | 버전 |
 |------|------|------|
-| **Backend** | Spring Boot | |
-| | MyBatis | |
-| | Java | |
-| | MySQL | |
-| **Frontend** | Vue.js | |
-| | Vite | |
-| **Infra** | Docker | - |
-| | Docker Compose | |
+| **Backend** | Spring Boot | 4.0.0 |
+| | MyBatis | 4.0.0 |
+| | Java | 17 |
+| | Spring Security | - |
+| | JWT (jjwt) | 0.11.5 |
+| **Database** | MySQL | 8.0+ |
+| | Redis | 7.0+ |
+| **Frontend** | Vue.js | 3.x |
+| | Vite | 7.x |
+| | Pinia | - |
+| | Axios | - |
+| | Vue Router | - |
+| **AI** | FastAPI (Python) | - |
+| **Infra** | Docker + Compose | - |
 
 ---
 
@@ -77,208 +117,269 @@ docker-compose logs -f
 
 ```
 YumCoach/
-├── compose.yaml              # Docker Compose 설정
-├── .env                      # 환경변수 (생성 필요)
-├── .env.example              # 환경변수 템플릿
+├── compose.yaml                # Docker Compose 설정
+├── .env                        # 환경변수 (생성 필요)
+├── .env.example                # 환경변수 템플릿
 │
-├── yumcoach/                 # Spring Boot 백엔드 (로컬 개발용)
-│   ├── pom.xml               # Maven 설정
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/com/ssafy/yumcoach/
-│   │   │   └── resources/
-│   │   │       └── application.properties
-│   │   └── test/
-│   └── mvnw                  # Maven Wrapper
-│
-├── backend/                  # Docker 배포용 백엔드
+├── backend/                    # Spring Boot 백엔드
 │   ├── Dockerfile
 │   ├── pom.xml
-│   └── src/
+│   └── src/main/
+│       ├── java/com/ssafy/yumcoach/
+│       │   ├── auth/           # 인증 (JWT, 카카오 OAuth, 이메일)
+│       │   ├── user/           # 회원 관리
+│       │   ├── meal/           # 식단 기록
+│       │   ├── food/           # 음식 데이터
+│       │   ├── report/         # 일간/주간 리포트
+│       │   ├── challenge/      # 챌린지
+│       │   ├── community/      # 커뮤니티
+│       │   ├── chatbot/        # AI 챗봇
+│       │   ├── payments/       # Toss 결제
+│       │   └── config/         # Security, CORS, Redis 등
+│       └── resources/
+│           ├── application.yml           # 공통 설정 (메일, Redis)
+│           ├── application-local.yml     # 로컬 프로필 (DB, JWT, CORS 등)
+│           └── mapper/                   # MyBatis XML 매퍼
 │
-├── frontend_v1/              # Vue.js 프론트엔드
+├── frontend/                   # Vue.js 프론트엔드 (현재 사용)
 │   ├── Dockerfile
 │   ├── package.json
-│   ├── vite.config.js
+│   ├── vite.config.js          # 프록시 설정 포함
+│   ├── .env                    # Vite 환경변수
 │   └── src/
 │       ├── main.js
 │       ├── App.vue
-│       ├── components/
-│       ├── pages/
-│       └── router/
+│       ├── lib/api.js          # Axios 인스턴스 (baseURL: /api)
+│       ├── stores/auth.js      # Pinia 인증 스토어
+│       ├── pages/              # 페이지 컴포넌트
+│       ├── components/         # 재사용 컴포넌트
+│       ├── api/                # API 호출 모듈
+│       ├── composables/        # Vue Composables
+│       └── router/             # 라우팅 설정
 │
-└── docs/                     # 문서
+├── ai/                         # AI 서비스 (FastAPI)
+├── init-db/                    # DB 초기화 스크립트
+├── frontend_v1/                # 초기 프로토타입 (사용 안 함)
+├── yumcoach_legacy/            # 레거시 코드 (사용 안 함)
+└── docs/                       # 문서 및 이미지
 ```
+
+---
+
+## ✨ 주요 기능
+
+| 기능            | 설명                                               |
+| ------------- | ------------------------------------------------ |
+| **회원가입/로그인**  | 이메일 + 카카오 OAuth                                  |
+| **JWT 인증**    | AccessToken(메모리) + RefreshToken(HttpOnly Cookie) |
+| **식단 기록**     | 음식 검색, 식사 로그, AI 식단 이미지 분석                       |
+| **식단 분석 리포트** | AI 기반 일일 리포트 및 주간 리포트 생성                         |
+| **챌린지**       | 식단 목표 트래킹                                        |
+| **AI 코치 챗봇**  | 식단 상담, 리포트 기반 코칭                                 |
+| **마이페이지**     | 건강 정보 관리, 식이 제한 설정                               |
+| **커뮤니티**      | 게시글/댓글 CRUD                                      |
+| **결제**        | Toss Payments 연동                                 |
+
+--- 
+### OAuth
+
+![[Pasted image 20260226123508.png]]
+
+---
+### 식단 기록
+
+![[Pasted image 20260226123545.png]]
+
+#### 식단 메뉴 추가 - 검색
+
+![[Pasted image 20260226124945.png]]
+
+#### 식단 메뉴 추가 - OCR
+
+![[식단OCR.gif]]
+
+#### 메뉴 검색
+
+![[식단검색.gif]]
+
+---
+#### 식단 내역
+
+![[Pasted image 20260226125555.png]]
+
+
+### 식단 분석 & 분석 리포트
+
+![[Pasted image 20260226124153.png]]
+
+##### 일일 리포트 생성
+
+![[일일리포트생성.gif]]
+- 일일 리포트
+	- 일반 유저: 1회
+	- 어드밴스드 유저: 2회
+- 주간 리포트
+	- 일반 유저: 5회
+	- 어드밴스드 유저: 10회
+
+##### 분석 리포트 - AI 한마디
+
+![[Pasted image 20260226131759.png]]
+
+##### 분석 리포트 - 목표 추천
+
+![[Pasted image 20260226131809.png]]
+
+##### 분석 리포트 - 식단 총평
+
+![[Pasted image 20260226131859.png]]
+
+---
+### 챌린지
+
+#### 챌린지 생성
+
+![[Pasted image 20260226143435.png]]
+
+#### 챌린지 조회
+
+![[Pasted image 20260226143358.png]]
+
+---
+### 어드밴스드 유저 - 간편 결제
+
+![[어드밴스드결제.gif]]
+
+#### 어드밴스드 유저 - 리포트 메일 발송 (스케줄러)
+
+![[Pasted image 20260226133540.png]]
+- 카카오톡 채널톡(카카오톡 비즈) 발송 기능은 사업자 관련 이슈로 도입하지 못했고 SMTP를 이용해 메일 발송 기능으로 구현
+	- `매일 새벽 1시` 전날 기록한 식단을 바탕으로 일일 리포트를 생성해서 메일로 전송
+	- `매주 월요일 새벽 1시` 지난주에 기록한 식단들을 바탕으로 주간 리포트를 생성해서 메일로 전송
+- 현재 `새벽 1시`부터 스케줄링 작업 진행시 `새벽 6시`까지 최대 150명의 사용자 수용 가능 (주간 리포트를 생성하는 월요일은 최대 100명)
+	- 해당 근거는 하나의 리포트가 생성되는 시간을 바탕으로 추정
+		- ${스케줄링에 할당된 시간: 300분} / {일일 리포트 생성 시간: 2분} = 150명$
+		- ${스케줄링에 할당된 시간: 300분} / {주간 리포트 생성 시간: 3분} = 100명$
+- 사용자 증가시 배치 작업 도입 고려
+
+---
+### AI 코치 챗봇
+
+![[Pasted image 20260226142529.png]]
+
+#### 해시태그 기반 질문
+
+![[Pasted image 20260226142630.png]]
+- `#식단`: 식사에 관한 조언
+- `#상담`: 식단과 생활 패턴 전반에 관한 이야기
+- `#일일리포트`: 만들어진 일일 리포트를 기반으로 대화 (24시간)
+- `#주간리포트`: 만들어진 주간 리포트를 기반으로 대화 (최근 7일, 168시간)
+
+---
+### 커뮤니티
+
+![[Pasted image 20260226123428.png]]
+
+---
+## 🔧 환경변수
+
+### 루트 `.env` (Docker Compose용)
+
+```dotenv
+# MySQL
+MYSQL_HOST=localhost          # Docker 내에서는 compose가 'mysql'로 오버라이드
+MYSQL_PORT=3306
+MYSQL_DATABASE=yumcoach_db
+MYSQL_USER=yumcoach_user
+MYSQL_PASSWORD=yumcoach_pass123
+MYSQL_ROOT_PASSWORD=root1234
+
+# 서버 포트
+BACKEND_PORT=8282
+FRONTEND_PORT=3000
+
+# JWT
+JWT_SECRET_BASE64=<base64 인코딩된 시크릿>
+JWT_ACCESS_TOKEN_VALIDITY=3600000       # 1시간
+JWT_REFRESH_TOKEN_VALIDITY=604800000    # 7일
+
+# Spring 프로파일
+SPRING_PROFILES_ACTIVE=local
+
+# Toss 결제
+TOSS_SECRET_KEY=test_gsk_docs_...
+
+# 프론트엔드 (Vite proxy 사용)
+VITE_API_BASE_URL=/api
+API_BASE_URL_DOCKER=http://spring-backend:8282
+```
+
+### 백엔드 `application-local.yml`
+
+로컬/Docker 개발 환경에서 사용되는 프로필별 설정 파일입니다.
+- DataSource (MySQL 연결)
+- MyBatis 매퍼 경로
+- JWT, 카카오 OAuth, CORS
+- 메일 (SMTP)
+- Toss 결제 키
+
+---
 
 ## 📝 주요 명령어
 
 ### Docker Compose
 
 ```bash
-# 시작
-docker-compose up -d
+# 전체 빌드 & 시작
+docker compose up -d --build
 
-# 리빌드
-docker-compose build --no-cache
-docker-compose up -d
+# 백엔드만 재빌드
+docker compose up -d --build backend
+
+# 프론트엔드만 재빌드
+docker compose up -d --build frontend
 
 # 중지
-docker-compose down
+docker compose down
 
-# 볼륨 포함 삭제
-docker-compose down -v
+# 볼륨 포함 삭제 (DB 초기화)
+docker compose down -v
 
 # 로그 확인
-docker-compose logs -f
-docker-compose logs -f backend   # Backend만
-docker-compose logs -f frontend  # Frontend만
+docker compose logs -f backend
+docker compose logs -f frontend
 
 # 상태 확인
-docker-compose ps
-
-# 재시작
-docker-compose restart
-
-# 특정 서비스 재빌드
-docker-compose build --no-cache backend
+docker compose ps
 ```
 
-### Backend (Maven)
+### 로컬 개발 (Docker 없이)
 
 ```bash
-cd yumcoach
+# Backend
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 
-# 실행
-./mvnw spring-boot:run
-
-# 빌드
-./mvnw clean package
-
-# 테스트
-./mvnw test
-
-# 테스트 제외 빌드
-./mvnw clean package -DskipTests
-```
-
-### Frontend (npm)
-
-```bash
-cd frontend_v1
-
-# 의존성 설치
+# Frontend
+cd frontend
 npm install
-
-# 개발 서버
 npm run dev
-
-# 프로덕션 빌드
-npm run build
-
-# 빌드 미리보기
-npm run preview
 ```
 
 ---
 
 ## 🐛 트러블슈팅
 
-
 ### Maven 빌드 캐시 문제
 
-**해결**
 ```bash
-# Maven 캐시 볼륨 삭제
-docker-compose down
+docker compose down
 docker volume rm yumcoach_maven-cache
-docker-compose up -d --build backend
+docker compose up -d --build backend
 ```
 
-### Frontend 빌드 오류
+### CORS 에러
 
-**해결**
-```bash
-cd frontend_v1
-
-# node_modules 재설치
-rm -rf node_modules package-lock.json
-npm install
-
-# Docker 재빌드
-docker-compose build --no-cache frontend
-docker-compose up -d frontend
-```
-
----
-
-## 🔧 환경변수 설명
-
-### 루트 `.env` (Docker Compose용)
-
-```dotenv
-# MySQL 설정
-MYSQL_ROOT_PASSWORD=yumcoach_root    # MySQL root 비밀번호
-MYSQL_DATABASE=yumcoach_db           # 데이터베이스 이름
-MYSQL_USER=yumcoach                  # 애플리케이션 사용자
-MYSQL_PASSWORD=yumcoach              # 사용자 비밀번호
-
-# 포트 설정
-MYSQL_PORT_LOCAL=3306                # MySQL 포트
-BACKEND_PORT=8080                    # Spring Boot 포트
-FRONTEND_PORT=3000                   # Vue 포트
-
-# API URL
-VITE_API_BASE_URL=http://localhost:8080  # Frontend → Backend
-
-# Spring 프로파일
-SPRING_PROFILES_ACTIVE=docker        # docker | local
-```
-
----
-
-## 🤝 기여하기
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'feat: Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-<br/>
-
-**커밋 메시지 규칙**
-- `feat`: 새 기능
-- `fix`: 버그 수정
-- `docs`: 문서 수정
-- `style`: 코드 포맷팅
-- `refactor`: 리팩토링
-- `test`: 테스트 추가
-- `chore`: 빌드 설정 등
-
-<br/>
-
-**커밋 메시지 양식**
-```scss
-<타입>: <제목>
-<본문>
-
-<변경 사항 목록>
-```
-
-<br/>
-
-**커밋 메시지 예시**
-```scss
-feat: 로그인 기능 구현
-로그인 시 JWT 토큰을 반환하고, 이를 로컬 스토리지에 저장하여 인증을 처리합니다.
-
-- 로그인 화면 추가
-- 이메일과 비밀번호 필드 추가
-- 서버 API와 연결하여 로그인 처리
-```
-
----
-
-## 📞 문의
-
-프로젝트 링크: [https://github.com/dbehdgns1215/YumCoach](https://github.com/dbehdgns1215/YumCoach)
+프론트엔드에서 백엔드를 직접 호출(`http://localhost:8282/...`)하면 CORS 에러가 발생합니다.
+- 반드시 **Vite 프록시**(`/api/...`)를 통해 호출해야 합니다
+- `frontend/src/lib/api.js`의 `baseUrl`이 `/api`인지 확인하세요
